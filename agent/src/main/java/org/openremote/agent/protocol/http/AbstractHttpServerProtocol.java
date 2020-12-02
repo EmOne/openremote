@@ -69,7 +69,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * that this protocol creates and therefore only users of that realm will be able to make calls to the deployment when
  * {@link AbstractHttpServerAgent#ROLE_BASED_SECURITY} is true.
  */
-public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerProtocol<T, U, V>, U extends AbstractHttpServerAgent<U, T, V>, V extends AgentLink> extends AbstractProtocol<U, V> {
+public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerProtocol<T, U, V>, U extends AbstractHttpServerAgent<U, T, V>, V extends AgentLink<?>> extends AbstractProtocol<U, V> {
 
     public static class DeploymentInstance {
         protected DeploymentInfo deploymentInfo;

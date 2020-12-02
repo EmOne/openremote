@@ -31,7 +31,7 @@ import java.util.Optional;
 
 public class TimerAgent extends Agent<TimerAgent, TimerProtocol, TimerAgent.TimerAgentLink> {
 
-    public static class TimerAgentLink extends AgentLink {
+    public static class TimerAgentLink extends AgentLink<TimerAgentLink> {
 
         protected TimerValue timerValue;
 

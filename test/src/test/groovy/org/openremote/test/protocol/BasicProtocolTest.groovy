@@ -20,27 +20,23 @@
 package org.openremote.test.protocol
 
 
-import org.openremote.agent.protocol.AbstractProtocol
-import org.openremote.model.asset.agent.Protocol
-import org.openremote.container.util.Util
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-import org.openremote.model.asset.Asset
 import org.openremote.model.asset.agent.ConnectionStatus
-import org.openremote.model.asset.agent.ProtocolConfiguration
+import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.*
 import org.openremote.model.value.RegexValueFilter
 import org.openremote.model.value.SubStringValueFilter
-import org.openremote.model.value.Value
+import org.openremote.model.value.ValueFilter
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
-import java.util.concurrent.TimeUnit
-
 import static org.openremote.model.Constants.MASTER_REALM
+import static org.openremote.model.value.ValueType.*
+import static org.openremote.model.value.MetaItemType.*
 
 /**
  * This tests the basic protocol interface and abstract protocol implementation.
@@ -53,330 +49,200 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         def conditions = new PollingConditions(timeout: 10, delay: 0.2)
 
         and: "a mock protocol"
-        def mockProtocolName = "urn:myCustom:mockProtocol"
+        def mockProtocolName = "Mock Protocol"
         Map<String, Integer> protocolExpectedLinkedAttributeCount = [:]
-        protocolExpectedLinkedAttributeCount['mockConfig1'] = 5
-        protocolExpectedLinkedAttributeCount['mockConfig2'] = 2
-        protocolExpectedLinkedAttributeCount['mockConfig3'] = 2
+        protocolExpectedLinkedAttributeCount["mockAgent1"] = 5
+        protocolExpectedLinkedAttributeCount["mockAgent2"] = 2
+        protocolExpectedLinkedAttributeCount["mockAgent3"] = 2
         protocolExpectedLinkedAttributeCount['mockConfig4'] = 2
-        List<Attribute> protocolLinkedConfigurations = []
-        Map<String, List<Attribute>> protocolLinkedAttributes = [:]
-        protocolLinkedAttributes['mockConfig1'] = []
-        protocolLinkedAttributes['mockConfig2'] = []
-        protocolLinkedAttributes['mockConfig3'] = []
-        protocolLinkedAttributes['mockConfig4'] = []
-        List<AttributeEvent> protocolWriteAttributeEvents = []
-        List<String> protocolMethodCalls = []
-        def mockProtocol = new AbstractProtocol() {
-            protected void updateReceived(AttributeState state) {
-                // Assume we've pushed the update to the actual device and it responded with OK
-                // so now we want to cause a sensor update that will go through the processing
-                // chain.
-                advancePseudoClock(1, TimeUnit.SECONDS, container)
-                updateLinkedAttribute(state)
-            }
 
-            protected void updateAttribute(AttributeState state) {
-                advancePseudoClock(1, TimeUnit.SECONDS, container)
-                sendAttributeEvent(state)
-            }
-
-            @Override
-            protected List<MetaItemDescriptor> getProtocolConfigurationMetaItemDescriptors() {
-                return null
-            }
-
-            @Override
-            protected List<MetaItemDescriptor> getLinkedAttributeMetaItemDescriptors() {
-                return null
-            }
-
-            @Override
-            protected void doConnect() {
-                protocolMethodCalls.add("LINK_PROTOCOL")
-                protocolLinkedConfigurations.add(protocolConfiguration)
-                if (!protocolConfiguration.getMetaItem("MOCK_REQUIRED_META").isPresent()) {
-                    updateStatus(protocolConfiguration.getReferenceOrThrow(), ConnectionStatus.ERROR)
-                } else if(protocolConfiguration.getMetaItem("MOCK_THROW_EXCEPTION").isPresent()) {
-                    throw new IllegalStateException("Exception occurred whilst linking the protocol configuration")
-                } else {
-                    updateStatus(protocolConfiguration.getReferenceOrThrow(), ConnectionStatus.CONNECTED)
-                }
-            }
-
-            @Override
-            protected void doDisconnect() {
-                protocolMethodCalls.add("UNLINK_PROTOCOL")
-                protocolLinkedConfigurations.removeAll { (it.getReferenceOrThrow() == protocolConfiguration.getReferenceOrThrow())
-                }
-            }
-
-            @Override
-            protected void doLinkAttribute(String assetId, Attribute<?> attribute) {
-                protocolMethodCalls.add("LINK_ATTRIBUTE")
-
-                if (!attribute.getMetaItem("MOCK_ATTRIBUTE_REQUIRED_META").isPresent()) {
-                    // This tests exception handling during linking of attributes
-                    throw new IllegalStateException("Attribute is not valid")
-                }
-                protocolLinkedAttributes[agent.getName().orElse("")] << attribute
-
-                def deploymentStatus = getStatus(agent)
-                if (deploymentStatus == ConnectionStatus.CONNECTED) {
-                    String attributeName = attribute.getName().orElse("")
-
-                    if (attributeName.startsWith("lightToggle")) {
-                        // Set all lights to on
-                        updateLinkedAttribute(new AttributeState(attribute.getReferenceOrThrow(), true))
-                    } else if (attributeName.startsWith("tempTarget")) {
-                        // Set target temps to 25.5
-                        updateLinkedAttribute(new AttributeState(attribute.getReferenceOrThrow(), 25.5d))
-                    }
-                }
-            }
-
-            @Override
-            protected void doUnlinkAttribute(String assetId, Attribute<?> attribute) {
-                protocolMethodCalls.add("UNLINK_ATTRIBUTE")
-                (protocolLinkedAttributes[agent.getName().orElse("")])
-                        .removeAll { (it.getReferenceOrThrow() == attribute.getReferenceOrThrow())}
-            }
-
-            @Override
-            protected void processLinkedAttributeWrite(AttributeEvent event, Value processedValue, Attribute protocolConfiguration) {
-                protocolMethodCalls.add("ATTRIBUTE_WRITE")
-                if (!(protocolLinkedAttributes[protocolConfiguration.getName().orElse("")])
-                        .any {(it.getReferenceOrThrow() == event.attributeRef)}) {
-                    throw new IllegalStateException("Attribute is not linked")
-                }
-                protocolWriteAttributeEvents.add(event)
-            }
-
-
-            @Override
-            String getProtocolName() {
-                return mockProtocolName
-            }
-
-            @Override
-            String getProtocolDisplayName() {
-                return "Mock"
-            }
-        }
-
-        and: "the container is started with the mock protocol"
-        def container = startContainer(defaultConfig(), defaultServices(mockProtocol))
+        and: "the container is started"
         def assetStorageService = container.getService(AssetStorageService.class)
         def agentService = container.getService(AgentService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
 
-        when: "a mock agent that uses the mock protocol is created with several protocol configurations"
-        def mockAgent = new Asset()
-        mockAgent.setName("Mock Agent")
-        mockAgent.setType(AssetType.AGENT)
-        mockAgent.getAttributes().addOrReplace(
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("mockConfig1"), mockProtocolName)
-                .addMeta(
-                    new MetaItem<>("MOCK_REQUIRED_META", true)
-                ),
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("mockConfig2"), mockProtocolName),
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("mockConfig3"), mockProtocolName)
-                .addMeta(
-                    new MetaItem<>("MOCK_THROW_EXCEPTION", "")
-                ),
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("mockConfig4"), mockProtocolName)
-                .addMeta(
-                    new MetaItem<>("MOCK_REQUIRED_META", true),
-                    new MetaItem<>(MetaItemType.DISABLED, true)
-                )
-        )
-        mockAgent.setRealm(MASTER_REALM)
-        mockAgent = assetStorageService.merge(mockAgent)
+        when: "several mock agents that uses the mock protocol are created"
+        def mockAgent1 = new MockAgent("Mock agent 1")
+            .setRealm(MASTER_REALM)
+            .setRequired(true)
+        mockAgent1 = assetStorageService.merge(mockAgent1)
 
-        then: "the protocol configurations should be linked and their deployment status should be available in the agent service"
+        def mockAgent2 = new MockAgent("Mock agent 2")
+            .setRealm(MASTER_REALM)
+            .setRequired(true)
+            .setDisabled(true)
+        mockAgent2 = assetStorageService.merge(mockAgent2)
+
+        def mockAgent3 = new MockAgent("Mock agent 3")
+            .setRealm(MASTER_REALM)
+        mockAgent3 = assetStorageService.merge(mockAgent3)
+
+        then: "the protocol instances should have been created and the agent status attributes should be updated"
         conditions.eventually {
-            assert protocolLinkedConfigurations.size() == 3
-            def config1 = protocolLinkedConfigurations.find { (it.getName().orElse("") == "mockConfig1")}
-            def config2 = protocolLinkedConfigurations.find { (it.getName().orElse("") == "mockConfig2")}
-            def config3 = protocolLinkedConfigurations.find { (it.getName().orElse("") == "mockConfig3")}
-            def config4 = protocolLinkedConfigurations.find { (it.getName().orElse("") == "mockConfig4")}
-            assert config1 != null
-            assert config2 != null
-            assert config3 != null
-            assert config4 == null
-            assert agentService.getAgentConnectionStatus(config1.getReferenceOrThrow()) == ConnectionStatus.CONNECTED
-            assert agentService.getAgentConnectionStatus(config2.getReferenceOrThrow()) == ConnectionStatus.ERROR
-            assert agentService.getAgentConnectionStatus(config3.getReferenceOrThrow()) == ConnectionStatus.ERROR
-            assert agentService.getAgentConnectionStatus(new AttributeRef(mockAgent.id, "mockConfig4")) == ConnectionStatus.DISABLED
+            assert agentService.agentMap.size() == 3
+            assert agentService.protocolInstanceMap.size() == 2
+            assert agentService.getAgent(mockAgent1.id) != null
+            assert agentService.getAgent(mockAgent2.id) != null
+            assert agentService.getAgent(mockAgent3.id) != null
+            assert agentService.getProtocolInstance(mockAgent1.id) != null
+            assert agentService.getProtocolInstance(mockAgent2.id) == null
+            assert agentService.getProtocolInstance(mockAgent3.id) != null
+            assert agentService.getAgent(mockAgent1.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
+            assert agentService.getAgent(mockAgent2.id).getAgentStatus().orElse(null) == ConnectionStatus.DISABLED
+            assert agentService.getAgent(mockAgent3.id).getAgentStatus().orElse(null) == ConnectionStatus.ERROR_CONFIGURATION
         }
 
-        when: "a mock thing asset is created that links to the mock protocol configurations"
-        def mockThing = new Asset("Mock Thing Asset", AssetType.THING, mockAgent)
-        mockThing.getAttributes().addOrReplace(
-            new Attribute<>("lightToggle1", ValueType.BOOLEAN)
-                .setMeta(
-                    new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
+        when: "a mock thing asset is created that links to the mock agents"
+        def mockThing = new ThingAsset("Mock Thing Asset")
+            .setRealm(MASTER_REALM)
+        
+        mockThing.addOrReplaceAttributes(
+            new Attribute<>("lightToggle1", BOOLEAN)
+                .addOrReplaceMeta(
                     new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
+                            .setRequiredValue(true)
                     )
                 ),
-            new Attribute<>("tempTarget1", ValueType.NUMBER)
-                .setMeta(
-                    new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
+            new Attribute<>("tempTarget1", NUMBER)
+                .addOrReplaceMeta(
                     new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
+                            .setRequiredValue(true)
                     )
                 ),
-            new Attribute<>("invalidToggle1", ValueType.BOOLEAN)
-                .setMeta(
+            new Attribute<>("invalidToggle1", BOOLEAN)
+                .addOrReplaceMeta(
                     new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
                     )
                 ),
-            new Attribute<>("lightToggle2", ValueType.BOOLEAN)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig2").toArrayValue()
-                )
-            ),
-            new Attribute<>("tempTarget2", ValueType.NUMBER)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig2").toArrayValue()
-                )
-            ),
-            new Attribute<>("lightToggle3", ValueType.BOOLEAN)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig3").toArrayValue()
-                )
-            ),
-            new Attribute<>("tempTarget3", ValueType.NUMBER)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig3").toArrayValue()
-                )
-            ),
-            new Attribute<>("lightToggle4", ValueType.BOOLEAN)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "mockConfig4").toArrayValue()
-                )
-            ),
-            new Attribute<>("tempTarget4", ValueType.NUMBER)
-                    .setMeta(
-                    new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
+            new Attribute<>("lightToggle2", BOOLEAN)
+                .addOrReplaceMeta(
                     new MetaItem<>(
-                            MetaItemType.AGENT_LINK,
-                            new AttributeRef(mockAgent.getId(), "mockConfig4").toArrayValue()
-                    )
-            ),
-            new Attribute<>("invalidToggle5", ValueType.BOOLEAN, false)
-                .setMeta(
-                    new MetaItem<>(
-                        MetaItemType.AGENT_LINK,
-                        new AttributeRef(mockAgent.getId(), "INVALID CONFIG").toArrayValue()
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent2.id)
+                            .setRequiredValue(true)
                     )
                 ),
-            new Attribute<>("plainAttribute", ValueType.STRING, "demo")
-                .setMeta(
-                new MetaItem<>(
-                        MetaItemType.DESCRIPTION,
-                        "A plain string attribute for storing information"
+            new Attribute<>("tempTarget2", NUMBER)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent2.id)
+                            .setRequiredValue(true)
+                    )
                 ),
-                new MetaItem<>(MetaItemType.READ_ONLY, true)
-            ),
-            new Attribute<>("filterRegex", ValueType.NUMBER)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                    MetaItemType.AGENT_LINK,
-                    new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+            new Attribute<>("lightToggle3", BOOLEAN)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent3.id)
+                            .setRequiredValue(true)
+                    )
                 ),
-                new MetaItem<>(
-                    Protocol.META_ATTRIBUTE_VALUE_FILTERS,
-                    Values.createArray().add(Util.objectToValue(new RegexValueFilter("\\w(\\d+)", 1, 2)).get())
-                )
-            ),
-            new Attribute<>("filterSubstring", ValueType.STRING)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                    MetaItemType.AGENT_LINK,
-                    new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+            new Attribute<>("tempTarget3", NUMBER)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent3.id)
+                            .setRequiredValue(true)
+                    )
                 ),
-                new MetaItem<>(
-                    Protocol.META_ATTRIBUTE_VALUE_FILTERS,
-                    Values.createArray().add(Util.objectToValue(new SubStringValueFilter(10, 12)).get())
-                )
-            ),
-            new Attribute<>("filterRegexSubstring", ValueType.NUMBER)
-                .setMeta(
-                new MetaItem<>("MOCK_ATTRIBUTE_REQUIRED_META", true),
-                new MetaItem<>(
-                    MetaItemType.AGENT_LINK,
-                    new AttributeRef(mockAgent.getId(), "mockConfig1").toArrayValue()
+            new Attribute<>("invalidToggle5", BOOLEAN, false)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink("invalid id")
+                            .setRequiredValue(true)
+                    )
                 ),
-                new MetaItem<>(
-                    Protocol.META_ATTRIBUTE_VALUE_FILTERS,
-                    Values.createArray()
-                        .add(Util.objectToValue(new SubStringValueFilter(23)).get())
-                        .add(Util.objectToValue(new RegexValueFilter("[a-z|\\s]+(\\d+)%\"}", 1, 0)).get())
-                )
+            new Attribute<>("plainAttribute", STRING, "demo")
+                .addOrReplaceMeta(
+                    new MetaItem<>(READ_ONLY, true)
+                ),
+            new Attribute<>("filterRegex", NUMBER)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
+                            .setRequiredValue(true)
+                            .setValueFilters(
+                                [
+                                    new RegexValueFilter("\\w(\\d+)", 1, 2)
+                                ] as ValueFilter[]
+                            )
+                    )
+                ),
+            new Attribute<>("filterSubstring", STRING)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
+                            .setRequiredValue(true)
+                        .setValueFilters(
+                            [
+                                new SubStringValueFilter(10, 12)
+                            ] as ValueFilter[]
+                        )
+                    )
+                ),
+            new Attribute<>("filterRegexSubstring", NUMBER)
+                .addOrReplaceMeta(
+                    new MetaItem<>(
+                        AGENT_LINK,
+                        new MockAgent.MockAgentLink(mockAgent1.id)
+                            .setRequiredValue(true)
+                            .setValueFilters(
+                                [
+                                    new SubStringValueFilter(23),
+                                    new RegexValueFilter("[a-z|\\s]+(\\d+)%\"}", 1, 0)
+                                ] as ValueFilter[]
+                            )
+                        )
             )
         )
+
         mockThing = assetStorageService.merge(mockThing)
 
         then: "the mock thing to be fully deployed"
         conditions.eventually {
-            assert protocolLinkedAttributes['mockConfig1'].size() == protocolExpectedLinkedAttributeCount['mockConfig1']
-            assert protocolLinkedAttributes['mockConfig2'].size() == protocolExpectedLinkedAttributeCount['mockConfig2']
-            assert protocolLinkedAttributes['mockConfig3'].size() == protocolExpectedLinkedAttributeCount['mockConfig3']
-            assert protocolLinkedAttributes['mockConfig4'].size() == 0
+            assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent1"]
+            assert agentService.getProtocolInstance(mockAgent2.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent2"]
+            assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent3"]
         }
 
         and: "the deployment should have occurred in the correct order"
-        assert protocolMethodCalls.size() == 13
-        assert protocolMethodCalls[0] == "LINK_PROTOCOL"
-        assert protocolMethodCalls[1] == "LINK_PROTOCOL"
-        assert protocolMethodCalls[2] == "LINK_PROTOCOL"
-        assert protocolMethodCalls[4] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[5] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[6] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[7] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[8] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[9] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[10] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[11] == "LINK_ATTRIBUTE"
-        assert protocolMethodCalls[12] == "LINK_ATTRIBUTE"
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.size() == 3
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(0) == "START"
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.size() == 3
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(0) == "START"
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.size() == 3
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(0) == "START"
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
+        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
 
         and: "the linked attributes values should have been updated by the protocol"
         conditions.eventually {
             def mockAsset = assetStorageService.find(mockThing.getId(), true)
             // Check all valid linked attributes have the new values
-            assert mockAsset.getAttribute("lightToggle1").flatMap{it.value}.orElse(false)
-            assert mockAsset.getAttribute("tempTarget1").get().getValueAsNumber().orElse(0d) == 25.5d
+            assert mockAsset.getAttributes().<Boolean>getValue("lightToggle1").orElse(false)
+            assert mockAsset.getAttribute("tempTarget1", Double.class).flatMap{it.getValue()}.orElse(0d) == 25.5d
             // Check disabled linked attributes don't have the new values
-            assert !mockAsset.getAttribute("lightToggle4").get().getValue().isPresent()
-            assert !mockAsset.getAttribute("tempTarget4").get().getValue().isPresent()
+            assert !mockAsset.getAttribute("lightToggle4", Boolean.class).get().getValue().isPresent()
+            assert !mockAsset.getAttribute("tempTarget4", Double.class).get().getValue().isPresent()
             // Check invalid attributes don't have the new values
-            assert !mockAsset.getAttribute("lightToggle2").get().getValue().isPresent()
-            assert !mockAsset.getAttribute("tempTarget2").get().getValue().isPresent()
-            assert !mockAsset.getAttribute("lightToggle3").get().getValue().isPresent()
-            assert !mockAsset.getAttribute("tempTarget3").get().getValue().isPresent()
+            assert !mockAsset.getAttribute("lightToggle2", Boolean.class).get().getValue().isPresent()
+            assert !mockAsset.getAttribute("tempTarget2", Double.class).get().getValue().isPresent()
+            assert !mockAsset.getAttribute("lightToggle3", Boolean.class).get().getValue().isPresent()
+            assert !mockAsset.getAttribute("tempTarget3", Double.class).get().getValue().isPresent()
         }
 
         when: "a linked attribute is removed"
@@ -387,7 +253,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
 
         then: "the protocol should not be unlinked"
         conditions.eventually {
-            assert protocolLinkedAttributes['mockConfig3'].size() == 1
+            assert protocolLinkedAttributes["mockAgent3"].size() == 1
             assert protocolMethodCalls.size() == 1
             assert protocolMethodCalls[0] == "UNLINK_ATTRIBUTE"
         }
@@ -411,7 +277,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the plain attributes value should be updated"
         conditions.eventually {
             mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("plainAttribute").get().getValueAsString().orElse("") == "UPDATE"
+            assert mockThing.getAttribute("plainAttribute").get().getValue().orElse("") == "UPDATE"
         }
 
         when: "a target temp linked attribute value is updated it should reach the protocol"
@@ -474,7 +340,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the linked attributes value should be updated with the filtered result"
         conditions.eventually {
             mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("filterSubstring").get().getValueAsString().orElse(null) == "te"
+            assert mockThing.getAttribute("filterSubstring").get().getValue().orElse(null) == "te"
         }
 
         when: "the same attribute receives a sensor value that doesn't match the substring filter"
@@ -484,7 +350,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the linked attributes value should be updated to null"
         conditions.eventually {
             mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert !mockThing.getAttribute("filterSubstring").get().getValueAsString().isPresent()
+            assert !mockThing.getAttribute("filterSubstring").get().getValue().isPresent()
         }
 
         when: "a sensor value is received that links to an attribute using a regex and substring filter"
@@ -509,7 +375,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
 
         when: "the disabled protocol configuration is enabled"
         protocolMethodCalls.clear()
-        mockAgent.getAttribute("mockConfig4").ifPresent({it.meta.removeIf({it.name.get() == MetaItemType.DISABLED.urn})})
+        mockAgent.getAttribute("mockConfig4").ifPresent({it.meta.removeIf({it.name.get() == DISABLED.urn})})
         mockAgent = assetStorageService.merge(mockAgent)
 
         then: "the newly enabled protocol configuration should be unlinked and re-linked"

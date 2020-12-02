@@ -1,4 +1,4 @@
-package org.openremote.test;
+package org.openremote.test.protocol;
 
 import java.util.logging.Logger;
 

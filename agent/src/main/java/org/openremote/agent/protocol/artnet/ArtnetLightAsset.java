@@ -6,9 +6,11 @@ import org.openremote.model.asset.impl.LightAsset;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Map;
 import java.util.Optional;
 
+@Entity
 public class ArtnetLightAsset extends LightAsset {
 
     public static final AttributeDescriptor<Integer> LED_COUNT = new AttributeDescriptor<>("lEDCount", ValueType.POSITIVE_INTEGER);

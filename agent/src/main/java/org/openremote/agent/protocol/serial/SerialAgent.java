@@ -23,10 +23,10 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
-public class SerialAgent extends IoAgent<SerialAgent, SerialClientProtocol, AgentLink> {
+public class SerialAgent extends IoAgent<SerialAgent, SerialClientProtocol, AgentLink.Default> {
 
-    public static final AgentDescriptor<SerialAgent, SerialClientProtocol, AgentLink> DESCRIPTOR = new AgentDescriptor<>(
-        SerialAgent.class, SerialClientProtocol.class, AgentLink.class
+    public static final AgentDescriptor<SerialAgent, SerialClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
+        SerialAgent.class, SerialClientProtocol.class, AgentLink.Default.class
     );
 
     public SerialAgent(String name) {

@@ -35,7 +35,7 @@ import org.openremote.model.value.MetaItemDescriptor;
  * Special type of {@link AssetDescriptor} that describes an agent {@link Asset}.
  */
 @JsonTypeName("agent")
-public class AgentDescriptor<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink> extends AssetDescriptor<T> {
+public class AgentDescriptor<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink<?>> extends AssetDescriptor<T> {
 
     public static class DiscoveryBooleanConverter extends StdConverter<Class<?>, Boolean> {
 

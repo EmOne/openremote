@@ -23,10 +23,10 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
-public class TcpClientAgent extends IoAgent<TcpClientAgent, TcpClientProtocol, AgentLink> {
+public class TcpClientAgent extends IoAgent<TcpClientAgent, TcpClientProtocol, AgentLink.Default> {
 
-    public static final AgentDescriptor<TcpClientAgent, TcpClientProtocol, AgentLink> DESCRIPTOR = new AgentDescriptor<>(
-        TcpClientAgent.class, TcpClientProtocol.class, AgentLink.class
+    public static final AgentDescriptor<TcpClientAgent, TcpClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
+        TcpClientAgent.class, TcpClientProtocol.class, AgentLink.Default.class
     );
 
 

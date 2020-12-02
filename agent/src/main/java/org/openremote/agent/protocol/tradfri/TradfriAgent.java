@@ -28,10 +28,10 @@ import org.openremote.model.value.ValueType;
 
 import java.util.Optional;
 
-public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink> {
+public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink.Default> {
 
-    public static final AgentDescriptor<TradfriAgent, TradfriProtocol, AgentLink> DESCRIPTOR = new AgentDescriptor<>(
-        TradfriAgent.class, TradfriProtocol.class, AgentLink.class
+    public static final AgentDescriptor<TradfriAgent, TradfriProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
+        TradfriAgent.class, TradfriProtocol.class, AgentLink.Default.class
     );
 
     /**

@@ -30,15 +30,15 @@ import org.openremote.model.value.ValueType;
 
 import java.util.Optional;
 
-public class ClientEventAgent extends Agent<ClientEventAgent, ClientEventProtocol, AgentLink> {
+public class ClientEventAgent extends Agent<ClientEventAgent, ClientEventProtocol, AgentLink.Default> {
 
     public static final ValueDescriptor<ClientRole> VALUE_CLIENT_ROLE = new ValueDescriptor<>("Client role", ClientRole.class);
 
     public static final AttributeDescriptor<String> CLIENT_SECRET = new AttributeDescriptor<>("clientSecret", ValueType.STRING);
     public static final AttributeDescriptor<ClientRole[]> CLIENT_ROLES = new AttributeDescriptor<>("clientRoles", VALUE_CLIENT_ROLE.asArray());
 
-    public static final AgentDescriptor<ClientEventAgent, ClientEventProtocol, AgentLink> DESCRIPTOR = new AgentDescriptor<>(
-        ClientEventAgent.class, ClientEventProtocol.class, AgentLink.class
+    public static final AgentDescriptor<ClientEventAgent, ClientEventProtocol, AgentLink.Default> DESCRIPTOR =new AgentDescriptor<>(
+        ClientEventAgent.class, ClientEventProtocol.class, AgentLink.Default.class
     );
 
     public ClientEventAgent(String name) {

@@ -24,6 +24,7 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
 public class CityAsset extends Asset<CityAsset> {

@@ -32,19 +32,26 @@ public class ObjectValueKeyPredicate implements ValuePredicate {
     public static final String name = "object-value-key";
     public boolean negated;
     public String key;
+    public ValuePredicate value;
 
-    public ObjectValueKeyPredicate(String hasKey) {
-        key = hasKey;
+    public ObjectValueKeyPredicate(String key) {
+        this.key = key;
     }
 
     @JsonCreator
-    public ObjectValueKeyPredicate(@JsonProperty("key") String hasKey, @JsonProperty("negated") boolean negate) {
-        key = hasKey;
+    public ObjectValueKeyPredicate(@JsonProperty("key") String key, @JsonProperty("value") ValuePredicate value, @JsonProperty("negated") boolean negate) {
+        this.key = key;
+        this.value = value;
         negated = negate;
     }
 
     public ObjectValueKeyPredicate negate() {
         negated = !negated;
+        return this;
+    }
+
+    public ObjectValueKeyPredicate value(ValuePredicate value) {
+        this.value = value;
         return this;
     }
 

@@ -51,8 +51,13 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
 
         // Auto merge meta from attribute descriptor
         if (attributeDescriptor.getMeta() != null) {
-            getMeta().addAll(attributeDescriptor.getMeta());
+            getMeta().addOrReplace(attributeDescriptor.getMeta());
         }
+    }
+
+    public Attribute(AttributeDescriptor<T> attributeDescriptor, T value, long timestamp) {
+        this(attributeDescriptor, value);
+        setTimestamp(timestamp);
     }
 
     @SuppressWarnings("unchecked")
@@ -69,6 +74,11 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
         }
     }
 
+    public Attribute(String name, ValueDescriptor<T> valueDescriptor, T value, long timestamp) {
+        this(name, valueDescriptor, value);
+        setTimestamp(timestamp);
+    }
+
     public MetaList getMeta() {
         if (meta == null) {
             meta = new MetaList();
@@ -77,8 +87,9 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
         return meta;
     }
 
-    public void setMeta(MetaList meta) {
+    public Attribute<T> setMeta(MetaList meta) {
         this.meta = meta;
+        return this;
     }
 
     public Attribute<T> addMeta(@NotNull MetaList meta) {

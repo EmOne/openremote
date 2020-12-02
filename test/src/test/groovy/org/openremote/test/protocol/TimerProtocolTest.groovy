@@ -13,8 +13,6 @@ import org.openremote.model.query.AssetQuery
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.attribute.AttributeRef
-import org.openremote.model.attribute.AttributeValueType
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import org.quartz.CronTrigger
 import org.quartz.JobKey
@@ -33,7 +31,6 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
         def assetStorageService = container.getService(AssetStorageService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
-        def timerProtocol = container.getService(TimerProtocol.class)
         Asset sceneAgent
         Asset apartment1
 
@@ -45,7 +42,7 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
             apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
             sceneAgent = assetStorageService.find(new AssetQuery().names("Scene Agent").types(AssetType.AGENT).parents(managerTestSetup.apartment1Id))
             sceneAgent = assetStorageService.find(sceneAgent.id, true)
-            assert apartment1.getAttribute("daySceneTimeFRIDAY").get().getValueAsString().orElse("") == "08:30:00"
+            assert apartment1.getAttribute("daySceneTimeFRIDAY").get().getValue().orElse("") == "08:30:00"
             assert sceneAgent != null
         }
 
@@ -134,7 +131,7 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
 
         when: "an attribute is added that links to a timers cron expression"
         apartment1.addAttributes(
-                new Attribute<>("daySceneCronFRIDAY", ValueType.STRING)
+                new Attribute<>("daySceneCronFRIDAY", STRING)
                     .addMeta(
                         AgentLink.asAgentLinkMetaItem(new AttributeRef(sceneAgent.id, "daySceneFRIDAY")),
                         TimerValue.CRON_EXPRESSION.asMetaItem()
@@ -145,7 +142,7 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the attributes value should contain the timers cron expression"
         conditions.eventually {
             apartment1 = assetStorageService.find(apartment1.id, true)
-            apartment1.getAttribute("daySceneCronFRIDAY").get().getValueAsString().get() == "0 0 4 ? * FRI *"
+            apartment1.getAttribute("daySceneCronFRIDAY").get().getValue().get() == "0 0 4 ? * FRI *"
         }
 
         when: "the trigger cron expression is modified"
@@ -172,8 +169,8 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the linked macro should have been executed"
         conditions.eventually {
             apartment1 = assetStorageService.find(apartment1.id, true)
-            apartment1.getAttribute("dayScene").get().getValueAsString().get() == "COMPLETED"
-            apartment1.getAttribute("lastExecutedScene").get().getValueAsString().get() == "DAY"
+            apartment1.getAttribute("dayScene").get().getValue().get() == "COMPLETED"
+            apartment1.getAttribute("lastExecutedScene").get().getValue().get() == "DAY"
         }
 
         when: "a trigger is deleted"

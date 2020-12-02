@@ -6,15 +6,13 @@ import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.Constants
 import org.openremote.model.asset.AssetResource
 import org.openremote.model.asset.Asset
+import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.AttributeType
+import org.openremote.model.attribute.MetaList
 import org.openremote.model.query.AssetQuery
-import org.openremote.model.attribute.AttributeValueType
-import org.openremote.model.attribute.Meta
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.query.filter.ParentPredicate
 import org.openremote.model.query.filter.TenantPredicate
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -25,10 +23,8 @@ import static org.openremote.container.util.MapAccess.getString
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
-import static org.openremote.model.attribute.MetaItemType.*
-import static org.openremote.model.attribute.ValueType.BOOLEAN
-import static org.openremote.model.attribute.ValueType.NUMBER
-import static org.openremote.model.attribute.MetaItem.isMetaNameEqualTo
+import static org.openremote.model.value.MetaItemType.*
+import static org.openremote.model.value.ValueType.*
 
 class AssetPermissionsTest extends Specification implements ManagerContainerTrait {
 
@@ -130,13 +126,15 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         /* ############################################## WRITE ####################################### */
 
         when: "an asset is created in the authenticated realm"
-        def testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.masterTenant.realm)
+        def testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.masterTenant.realm)
+
         testAsset = assetResource.create(null, testAsset)
         testAsset = assetResource.get(null, testAsset.getId())
 
         then: "the asset should exist"
         testAsset.name == "Test Room"
-        testAsset.wellKnownType == AssetType.ROOM
+        testAsset.type == RoomAsset.DESCRIPTOR.getName()
         testAsset.realm == keycloakTestSetup.masterTenant.realm
         testAsset.parentId == null
 
@@ -315,13 +313,13 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         /* ############################################## WRITE ####################################### */
 
         when: "an asset is created in the authenticated realm"
-        def testAsset = new Asset("Test Room", AssetType.ROOM)  // Note: no realm means auth realm
+        def testAsset = new RoomAsset("Test Room")  // Note: no realm means auth realm
         testAsset = assetResource.create(null, testAsset)
         testAsset = assetResource.get(null, testAsset.getId())
 
         then: "the asset should exist"
         testAsset.name == "Test Room"
-        testAsset.wellKnownType == AssetType.ROOM
+        testAsset.type == RoomAsset.DESCRIPTOR.getName()
         testAsset.realm == keycloakTestSetup.masterTenant.realm
         testAsset.parentId == null
 
@@ -469,7 +467,8 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         /* ############################################## WRITE ####################################### */
 
         when: "an asset is created in a foreign realm"
-        def testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.masterTenant.realm)
+        def testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.masterTenant.realm)
         assetResource.create(null, testAsset)
 
         then: "access should be forbidden"
@@ -486,7 +485,8 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 403
 
         when: "an asset is created in the authenticated realm"
-        testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.tenantBuilding.realm)
+        testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.tenantBuilding.realm)
         assetResource.create(null, testAsset)
 
         then: "access should be forbidden"
@@ -553,7 +553,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         apartment1.name == "Apartment 1"
         apartment1.createdOn.getTime() < System.currentTimeMillis()
         apartment1.realm == keycloakTestSetup.tenantBuilding.realm
-        apartment1.type == AssetType.RESIDENCE.type
+        apartment1.type == BuildingAsset.DESCRIPTOR.getName()
         apartment1.parentId == managerTestSetup.smartBuildingId
         apartment1.path == null
         apartment1.attributesList.size() == 0
@@ -649,18 +649,19 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         apartment1Livingroom.name == "Living Room 1"
         def resultAttributes = apartment1Livingroom.getAttributes()
         resultAttributes.size() == 7
-        def currentTemperature = apartment1Livingroom.getAttribute("currentTemperature").get()
-        currentTemperature.getValueType().get() == ValueType.TEMPERATURE
-        !currentTemperature.getValue().isPresent()
-        Meta resultMeta = currentTemperature.getMeta()
+        def currentTemperatureAttr = apartment1Livingroom.getAttribute("currentTemperature", NUMBER.type).orElse(null)
+        currentTemperatureAttr.getValueType() == NUMBER
+        !currentTemperatureAttr.getValue().isPresent()
+
+        MetaList resultMeta = currentTemperatureAttr.getMeta()
         resultMeta.size() == 7
-        resultMeta.stream().filter(isMetaNameEqualTo(LABEL)).findFirst().get().getValueAsString().get() == "Current temperature"
-        resultMeta.stream().filter(isMetaNameEqualTo(READ_ONLY)).findFirst().flatMap{it.value}.orElse(false)
-        resultMeta.stream().filter(isMetaNameEqualTo(RULE_STATE)).findFirst().flatMap{it.value}.orElse(false)
-        resultMeta.stream().filter(isMetaNameEqualTo(STORE_DATA_POINTS)).findFirst().flatMap{it.value}.orElse(false)
-        resultMeta.stream().filter(isMetaNameEqualTo(SHOW_ON_DASHBOARD)).findFirst().flatMap{it.value}.orElse(false)
-        resultMeta.stream().filter(isMetaNameEqualTo(FORMAT)).findFirst().get().getValueAsString().get() == "%0.1f° C"
-        resultMeta.stream().filter(isMetaNameEqualTo(UNIT_TYPE)).findFirst().get().getValueAsString().get() == Constants.UNITS_TEMPERATURE_CELSIUS
+        resultMeta.getValueOrDefault(LABEL) == "Current temperature"
+        resultMeta.getValue(READ_ONLY).orElse(false)
+        resultMeta.getValue(RULE_STATE).orElse(false)
+        resultMeta.getValue(STORE_DATA_POINTS).orElse(false)
+        resultMeta.getValue(SHOW_ON_DASHBOARD).orElse(false)
+        resultMeta.getValueOrDefault(FORMAT) == "%0.1f° C"
+        resultMeta.getValueOrDefault(UNIT_TYPE) == UNITS_TEMPERATURE_CELSIUS
 
         when: "an asset is retrieved by ID in a foreign realm"
         assetResource.get(null, managerTestSetup.thingId)
@@ -672,7 +673,8 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         /* ############################################## WRITE ####################################### */
 
         when: "an asset is created in a foreign realm"
-        def testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.masterTenant.realm)
+        def testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.masterTenant.realm)
         assetResource.create(null, testAsset)
 
         then: "access should be forbidden"
@@ -716,7 +718,8 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         assert testAsset.getName() == "Living Room 1"
 
         when: "an asset is created in the authenticated realm"
-        testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.tenantBuilding.realm)
+        testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.tenantBuilding.realm)
         assetResource.create(null, testAsset)
 
         then: "access should be forbidden"

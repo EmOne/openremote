@@ -209,6 +209,16 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         });
     }
 
+    @SuppressWarnings("unchecked")
+    public <S> Optional<S> getValue(String name) {
+        return get(name).flatMap(ValueHolder::getValue).map(v -> (S)v);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S> S getValueOrDefault(String name) {
+        return (S) get(name).flatMap(ValueHolder::getValue).orElse(null);
+    }
+
     public <S> Optional<S> getValue(AbstractNameValueDescriptorHolder<S> nameValueDescriptorProvider) {
         return get(nameValueDescriptorProvider).flatMap(ValueHolder::getValue);
     }

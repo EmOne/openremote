@@ -64,8 +64,9 @@ public class AttributeState {
         return attributeRef;
     }
 
-    public Optional<Object> getValue() {
-        return Optional.ofNullable(value);
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getValue() {
+        return Optional.ofNullable(value).map(v -> (T)v);
     }
 
     public void setValue(Object value) {

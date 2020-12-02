@@ -66,14 +66,14 @@ Closure<Boolean> roomThresholdMatch =
                     new AssetQuery().types(ROOM).parents(residence.id).attributeValue(attribute, GREATER_THAN, 0)
             ).max { roomA, roomB ->
                 // get the room with the highest level
-                Double.compare(roomA.valueAsNumber.orElse(0), roomB.valueAsNumber.orElse(0))
+                Double.compare(roomA.value.orElse(0))
             }
 
             if (roomWithMaxLevel.isPresent()) {
                 // if we have a room with max level
                 return roomWithMaxLevel.filter { room ->
                     // and the level is above/below threshold
-                    room.valueAsNumber.filter({ level -> above ? level > threshold : level <= threshold }).isPresent()
+                    room.value.isPresent()
                 }.filter { roomAboveBelowThreshold ->
                     // and no level above/below threshold in the time window
                     facts.matchAssetEvent(

@@ -145,7 +145,7 @@ public abstract class AbstractManagerSetup implements Setup {
         return room;
     }
 
-    protected void addDemoApartmentRoomMotionSensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink> agentLinker) {
+    protected void addDemoApartmentRoomMotionSensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
             new Attribute<>("motionSensor", INTEGER)
                 .addMeta(
@@ -178,7 +178,7 @@ public abstract class AbstractManagerSetup implements Setup {
         );
     }
 
-    protected void addDemoApartmentRoomCO2Sensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink> agentLinker) {
+    protected void addDemoApartmentRoomCO2Sensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
             new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, Constants.UNITS_DENSITY_PARTS_MILLION)))
                 .addMeta(
@@ -195,7 +195,7 @@ public abstract class AbstractManagerSetup implements Setup {
         );
     }
 
-    protected void addDemoApartmentRoomHumiditySensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink> agentLinker) {
+    protected void addDemoApartmentRoomHumiditySensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
             new Attribute<>("humidity", POSITIVE_INTEGER)
                 .addMeta(
@@ -214,7 +214,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected void addDemoApartmentRoomThermometer(RoomAsset room,
                                                    boolean shouldBeLinked,
-                                                   Supplier<AgentLink> agentLinker) {
+                                                   Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
             new Attribute<>("currentTemperature", NUMBER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)))
                 .addMeta(
@@ -231,7 +231,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected void addDemoApartmentTemperatureControl(RoomAsset room,
                                                       boolean shouldBeLinked,
-                                                      Supplier<AgentLink> agentLinker) {
+                                                      Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
             new Attribute<>("targetTemperature", NUMBER)
                 .addMeta(
@@ -305,7 +305,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected void addDemoApartmentVentilation(BuildingAsset apartment,
                                                boolean shouldBeLinked,
-                                               Supplier<AgentLink> agentLinker) {
+                                               Supplier<AgentLink<?>> agentLinker) {
         apartment.getAttributes().addOrReplace(
             new Attribute<>("ventilationLevel", NUMBER)
                 .addMeta(
@@ -527,7 +527,7 @@ public abstract class AbstractManagerSetup implements Setup {
         );
     }
 
-    protected PeopleCounterAsset createDemoPeopleCounterAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink> agentLinker) {
+    protected PeopleCounterAsset createDemoPeopleCounterAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         PeopleCounterAsset peopleCounterAsset = new PeopleCounterAsset(name);
         peopleCounterAsset.setParentId(area.getId());
         peopleCounterAsset.getAttributes().addOrReplace(
@@ -582,7 +582,7 @@ public abstract class AbstractManagerSetup implements Setup {
         return peopleCounterAsset;
     }
 
-    protected MicrophoneAsset createDemoMicrophoneAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink> agentLinker) {
+    protected MicrophoneAsset createDemoMicrophoneAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         MicrophoneAsset microphoneAsset = new MicrophoneAsset(name);
         microphoneAsset.setParentId(area.getId());
         microphoneAsset.getAttributes().addOrReplace(
@@ -602,7 +602,7 @@ public abstract class AbstractManagerSetup implements Setup {
         return microphoneAsset;
     }
 
-    protected EnvironmentSensorAsset createDemoEnvironmentAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink> agentLinker) {
+    protected EnvironmentSensorAsset createDemoEnvironmentAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         EnvironmentSensorAsset environmentAsset = new EnvironmentSensorAsset(name);
         environmentAsset.setParentId(area.getId());
         environmentAsset.getAttributes().addOrReplace(

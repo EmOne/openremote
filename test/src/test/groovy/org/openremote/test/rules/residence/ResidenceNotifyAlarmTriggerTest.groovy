@@ -24,7 +24,7 @@ import org.openremote.model.notification.PushNotificationMessage
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TemporaryFact
-import org.openremote.model.value.ObjectValue
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
@@ -96,9 +96,9 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
 
         and: "the alarm enabled, presence detected flag of room should not be set"
         def apartment1Asset = assetStorageService.find(managerTestSetup.apartment1Id, true)
-        assert !apartment1Asset.getAttribute("alarmEnabled").get().valueAsBoolean.orElse(null)
+        assert !apartment1Asset.getAttribute("alarmEnabled").get().value.orElse(null)
         def livingRoomAsset = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
-        assert !livingRoomAsset.getAttribute("presenceDetected").orElse(null).valueAsBoolean.orElse(null)
+        assert !livingRoomAsset.getAttribute("presenceDetected").orElse(null).value.orElse(null)
 
         and: "an authenticated test user"
         def realm = "building"
@@ -136,12 +136,12 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
                                 true,
                                 true,
                                 false,
-                                (ObjectValue) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
-                        ))
+                                ((ObjectNode) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
+                        )))
                     }
                 },
                 "",
-                ["manager"] as String)
+                ["manager"] as String[])
         def returnedConsoleRegistration = authenticatedConsoleResource.register(null, consoleRegistration)
 
         then: "the console should be registered"
@@ -166,7 +166,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         then: "that value should be stored"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
-            assert asset.getAttribute("presenceDetected").get().valueAsBoolean.orElse(null)
+            assert asset.getAttribute("presenceDetected").get().value.orElse(null)
         }
 
         and: "the user should be notified"
@@ -201,7 +201,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         then: "still only one notification should have been sent"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
-            assert asset.getAttribute("co2Level").get().valueAsInteger.orElse(null) == 444
+            assert asset.getAttribute("co2Level").get().value.orElse(null) == 444
             assert notificationIds.size() == 1
         }
 
@@ -222,7 +222,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         then: "that value should be stored"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
-            assert !asset.getAttribute("presenceDetected").get().valueAsBoolean.orElse(null)
+            assert !asset.getAttribute("presenceDetected").get().value.orElse(null)
         }
 
         when: "time moves on"

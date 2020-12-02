@@ -1,8 +1,7 @@
 package org.openremote.test.model
 
-import org.openremote.model.value.ArrayValue
-import org.openremote.model.value.ObjectValue
-import org.openremote.model.value.Value
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.model.value.Values
 import spock.lang.Specification
 
@@ -10,33 +9,31 @@ class ModelValueTest extends Specification {
 
     def "Read and write JSON"() {
         expect:
-        ObjectValue sampleObject1 = Values.JSON.createObjectNode()
+        ObjectNode sampleObject1 = Values.JSON.createObjectNode()
         sampleObject1.put("object1A", "O1-AAA")
         sampleObject1.put("object1B", 456)
 
-        ArrayValue sampleArray1 = Values.createArray()
-        sampleArray1.set(0, "A0")
-        sampleArray1.set(1, "A1")
-        sampleArray1.set(2, true)
-        sampleArray1.set(3, 123.45)
-        sampleArray1.set(4, sampleObject1)
+        ArrayNode sampleArray1 = Values.JSON.createArrayNode()
+        sampleArray1.add("A0")
+        sampleArray1.add("A1")
+        sampleArray1.add(true)
+        sampleArray1.add(123.45)
+        sampleArray1.add(sampleObject1)
 
-        String rawValue = sampleArray1.toJson()
-        println rawValue
-        ArrayValue parsedValue = Values.<ArrayValue>parse(rawValue).get()
+        String rawValue = Values.asJSON(sampleArray1)
+        ArrayNode parsedValue = (ArrayNode)Values.parse(rawValue).get()
         parsedValue == sampleArray1
     }
 
     def "Null support"() {
         expect:
-        def sampleObject = Values.JSON.createObjectNode().put("prop", (Value)null)
-        sampleObject.toJson() == '{"prop":null}'
-        sampleObject.put("prop1", Values.JSON.createObjectNode().put("prop2", Values.<ObjectValue>parse('{"prop3":1234,"prop4":{"prop5":null,"prop6":true}}').get()))
-        sampleObject.getObject("prop1").flatMap({it.getObject("prop2").flatMap({it.getObject("prop4").map({it.keyContainsNull("prop5")})})}).get() == true
-        sampleObject.getObject("prop1").flatMap({it.getObject("prop2").flatMap({it.getObject("prop4").map({it.keyContainsNull("prop6")})})}).get() == false
-        sampleObject.toJson() == '{"prop":null,"prop1":{"prop2":{"prop3":1234,"prop4":{"prop5":null,"prop6":true}}}}'
-        def sampleArr = Values.createArray().add(null);
-        sampleArr.toJson() == '[null]'
+        def sampleObject = Values.JSON.createObjectNode().put("prop", null)
+        Values.asJSON(sampleObject).orElse(null) == '{"prop":null}'
+        sampleObject.set("prop1", Values.JSON.createObjectNode().put("prop2", Values.parse('{"prop3":1234,"prop4":{"prop5":null,"prop6":true}}').get()))
+        sampleObject.get("prop1").get("prop2").get("prop4").get("prop5") == null
+        sampleObject.get("prop1").get("prop2").get("prop4").get("prop6").asBoolean()
+        def sampleArr = Values.JSON.createArrayNode().add(null)
+        Values.asJSON(sampleArr) == '[null]'
     }
 
     def "Compare scalar values"() {
@@ -90,27 +87,27 @@ class ModelValueTest extends Specification {
     def "Compare non-scalar Json values"() {
 
         given:
-        ObjectValue sampleObject1 = Values.JSON.createObjectNode()
+        ObjectNode sampleObject1 = Values.JSON.createObjectNode()
         sampleObject1.put("object1A", "O1-AAA")
         sampleObject1.put("object1B", 456)
 
-        ObjectValue sampleObject2 = Values.JSON.createObjectNode()
+        ObjectNode sampleObject2 = Values.JSON.createObjectNode()
         sampleObject2.put("object2A", "O2-AAA")
         sampleObject2.put("object2B", 789)
 
-        ArrayValue sampleArray1 = Values.createArray()
+        ArrayNode sampleArray1 = Values.JSON.createArrayNode()
         sampleArray1.set(0, "A0")
         sampleArray1.set(1, "A1")
         sampleArray1.set(2, sampleObject1)
 
-        ArrayValue sampleArray2 = Values.createArray()
+        ArrayNode sampleArray2 = Values.JSON.createArrayNode()
         sampleArray1.set(0, sampleObject1)
         sampleArray1.set(1, "A1")
         sampleArray1.set(2, "A0")
 
         expect: "Array equality comparisons to be correct"
-        Values.createArray() == Values.createArray()
-        Values.createArray().hashCode() == Values.createArray().hashCode()
+        Values.JSON.createArrayNode() == Values.JSON.createArrayNode()
+        Values.JSON.createArrayNode().hashCode() == Values.JSON.createArrayNode().hashCode()
 
         sampleArray1 == sampleArray1
         sampleArray1.hashCode() == sampleArray1.hashCode()
@@ -125,16 +122,16 @@ class ModelValueTest extends Specification {
         Values.JSON.createObjectNode() == Values.JSON.createObjectNode()
         Values.JSON.createObjectNode().hashCode() == Values.JSON.createObjectNode().hashCode()
 
-        Values.createArray() != Values.JSON.createObjectNode()
-        Values.createArray().hashCode() != Values.JSON.createObjectNode().hashCode()
+        Values.JSON.createArrayNode() != Values.JSON.createObjectNode()
+        Values.JSON.createArrayNode().hashCode() != Values.JSON.createObjectNode().hashCode()
 
         and: "Objects with the same fields to be equal"
-        ObjectValue sameFields1 = Values.JSON.createObjectNode()
+        ObjectNode sameFields1 = Values.JSON.createObjectNode()
         sameFields1.put("fieldA", "AAA")
         sameFields1.put("fieldB", 123)
         sameFields1.put("fieldC", true)
         sameFields1.put("fieldD", sampleArray1)
-        ObjectValue sameFields2 = Values.JSON.createObjectNode()
+        ObjectNode sameFields2 = Values.JSON.createObjectNode()
         sameFields2.put("fieldD", sampleArray1)
         sameFields2.put("fieldC", true)
         sameFields2.put("fieldB", 123)
@@ -143,17 +140,17 @@ class ModelValueTest extends Specification {
         sameFields1.hashCode() == sameFields2.hashCode()
 
         and: "Objects with the different fields to be not equal"
-        ObjectValue otherFields1 = Values.JSON.createObjectNode()
+        ObjectNode otherFields1 = Values.JSON.createObjectNode()
         otherFields1.put("fieldA", "AAA")
-        ObjectValue otherFields2 = Values.JSON.createObjectNode()
+        ObjectNode otherFields2 = Values.JSON.createObjectNode()
         otherFields2.put("fieldB", 123)
         otherFields1 != otherFields2
         otherFields1.hashCode() != otherFields2.hashCode()
 
         and: "Objects with the different field values to be not equal"
-        ObjectValue differentValues1 = Values.JSON.createObjectNode()
+        ObjectNode differentValues1 = Values.JSON.createObjectNode()
         differentValues1.put("fieldA", "AAA")
-        ObjectValue differentValues2 = Values.JSON.createObjectNode()
+        ObjectNode differentValues2 = Values.JSON.createObjectNode()
         differentValues2.put("fieldA", "AAAAA")
         differentValues1 != differentValues2
         differentValues1.hashCode() != differentValues2.hashCode()

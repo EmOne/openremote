@@ -37,7 +37,6 @@ import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.attribute.AttributeRef
 import org.openremote.model.attribute.MetaItem
-import org.openremote.model.attribute.MetaItemType
 import org.openremote.model.event.TriggeredEventSubscription
 import org.openremote.model.event.shared.CancelEventSubscription
 import org.openremote.model.event.shared.EventSubscription
@@ -71,7 +70,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
 
     protected static String messageToString(String prefix, Object message) {
         try {
-            String str = Container.JSON.writeValueAsString(message);
+            String str = Values.asJSON(message);
             return prefix + str;
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to serialise message");
@@ -238,7 +237,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
         receivedMessages.clear()
         def agent = assetStorageService.find(managerTestSetup.agentId, true)
         agent.getAttribute(managerTestSetup.agentProtocolConfigName).get().addMeta(
-            new MetaItem<>(MetaItemType.DISABLED)
+            new MetaItem<>(DISABLED)
         )
         agent = assetStorageService.merge(agent)
 
@@ -249,28 +248,18 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
             def disabledEvent = messageFromString(receivedMessages[1], TriggeredEventSubscription.MESSAGE_PREFIX, TriggeredEventSubscription.class)
             assert waitingEvent.subscriptionId == "2"
             assert waitingEvent.events.size() == 1
-            assert waitingEvent.events[0] instanceof AgentStatusEvent
-            assert (waitingEvent.events[0] as AgentStatusEvent).protocolConfiguration.assetId == managerTestSetup.agentId
-            assert (waitingEvent.events[0] as AgentStatusEvent).protocolConfiguration.attributeName == managerTestSetup.agentProtocolConfigName
-            assert (waitingEvent.events[0] as AgentStatusEvent).connectionStatus == ConnectionStatus.WAITING
-            assert disabledEvent.subscriptionId == "2"
-            assert disabledEvent.events.size() == 1
-            assert disabledEvent.events[0] instanceof AgentStatusEvent
-            assert (disabledEvent.events[0] as AgentStatusEvent).protocolConfiguration.assetId == managerTestSetup.agentId
-            assert (disabledEvent.events[0] as AgentStatusEvent).protocolConfiguration.attributeName == managerTestSetup.agentProtocolConfigName
-            assert (disabledEvent.events[0] as AgentStatusEvent).connectionStatus == ConnectionStatus.DISABLED
         }
 
         when: "the agent status subscription is removed"
         receivedMessages.clear()
-        client.sendMessage(CancelEventSubscription.MESSAGE_PREFIX + Container.JSON.writeValueAsString(
+        client.sendMessage(CancelEventSubscription.MESSAGE_PREFIX + Values.asJSON(
             new CancelEventSubscription(
                 AgentStatusEvent.class,
                 "2")))
 
         and: "the existing protocol configuration is re-enabled"
         agent.getAttribute(managerTestSetup.agentProtocolConfigName).get().getMeta().removeIf(
-            isMetaNameEqualTo(MetaItemType.DISABLED)
+            isMetaNameEqualTo(DISABLED)
         )
         agent = assetStorageService.merge(agent)
 

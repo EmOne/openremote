@@ -30,7 +30,7 @@ import org.openremote.model.asset.agent.AgentLink;
  * This is an abstract TCP client protocol for communicating with TCP servers; concrete implementations must provide
  * an {@link IoClient<T> for handling over the wire communication}.
  */
-public abstract class AbstractTcpClientProtocol<T extends AbstractIoClientProtocol<T, U, W, X, V>, U extends IoAgent<U, T, V>, V extends AgentLink, W, X extends TcpIoClient<W>> extends AbstractIoClientProtocol<T, U, W, X, V> {
+public abstract class AbstractTcpClientProtocol<T extends AbstractIoClientProtocol<T, U, W, X, V>, U extends IoAgent<U, T, V>, V extends AgentLink<?>, W, X extends TcpIoClient<W>> extends AbstractIoClientProtocol<T, U, W, X, V> {
 
     protected AbstractTcpClientProtocol(U agent) {
         super(agent);

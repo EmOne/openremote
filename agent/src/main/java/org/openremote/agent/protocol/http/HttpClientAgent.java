@@ -31,7 +31,7 @@ import java.util.Optional;
 
 public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, HttpClientAgent.HttpClientAgentLink> {
 
-    public static class HttpClientAgentLink extends AgentLink {
+    public static class HttpClientAgentLink extends AgentLink<HttpClientAgentLink> {
 
         protected ValueType.MultivaluedStringMap headers;
         protected ValueType.MultivaluedStringMap queryParameters;
@@ -50,64 +50,72 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
             return Optional.ofNullable(headers);
         }
 
-        public void setHeaders(ValueType.MultivaluedStringMap headers) {
+        public HttpClientAgentLink setHeaders(ValueType.MultivaluedStringMap headers) {
             this.headers = headers;
+            return this;
         }
 
         public Optional<ValueType.MultivaluedStringMap> getQueryParameters() {
             return Optional.ofNullable(queryParameters);
         }
 
-        public void setQueryParameters(ValueType.MultivaluedStringMap queryParameters) {
+        public HttpClientAgentLink setQueryParameters(ValueType.MultivaluedStringMap queryParameters) {
             this.queryParameters = queryParameters;
+            return this;
         }
 
         public Optional<Integer> getPollingMillis() {
             return Optional.ofNullable(pollingMillis);
         }
 
-        public void setPollingMillis(Integer pollingMillis) {
+        public HttpClientAgentLink setPollingMillis(Integer pollingMillis) {
             this.pollingMillis = pollingMillis;
+            return this;
         }
 
         public Optional<Boolean> getPagingMode() {
             return Optional.ofNullable(pagingMode);
         }
 
-        public void setPagingMode(Boolean pagingMode) {
+        public HttpClientAgentLink setPagingMode(Boolean pagingMode) {
             this.pagingMode = pagingMode;
+            return this;            
         }
 
         public Optional<String> getPath() {
             return Optional.ofNullable(path);
         }
 
-        public void setPath(String path) {
+        public HttpClientAgentLink setPath(String path) {
             this.path = path;
+            return this;
         }
 
         public Optional<HttpMethod> getMethod() {
             return Optional.ofNullable(method);
         }
 
-        public void setMethod(HttpMethod method) {
+        public HttpClientAgentLink setMethod(HttpMethod method) {
             this.method = method;
+            return this;
         }
 
         public Optional<String> getContentType() {
             return Optional.ofNullable(contentType);
         }
 
-        public void setContentType(String contentType) {
+        public HttpClientAgentLink setContentType(String contentType) {
             this.contentType = contentType;
+            return this;
         }
 
         public Optional<String> getPollingAttribute() {
             return Optional.ofNullable(pollingAttribute);
         }
 
-        public void setPollingAttribute(String pollingAttribute) {
+        public HttpClientAgentLink setPollingAttribute(String pollingAttribute) {
             this.pollingAttribute = pollingAttribute;
+            return this;
         }
     }
 

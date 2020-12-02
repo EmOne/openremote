@@ -23,10 +23,10 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
-public class UdpClientAgent extends IoAgent<UdpClientAgent, UdpClientProtocol, AgentLink> {
+public class UdpClientAgent extends IoAgent<UdpClientAgent, UdpClientProtocol, AgentLink.Default> {
 
-    public static final AgentDescriptor<UdpClientAgent, UdpClientProtocol, AgentLink> DESCRIPTOR = new AgentDescriptor<>(
-        UdpClientAgent.class, UdpClientProtocol.class, AgentLink.class
+    public static final AgentDescriptor<UdpClientAgent, UdpClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
+        UdpClientAgent.class, UdpClientProtocol.class, AgentLink.Default.class
     );
 
     public UdpClientAgent(String name) {

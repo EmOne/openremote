@@ -183,9 +183,12 @@ public class Values {
             try {
                 return Optional.of(JSON.convertValue(value, type));
             } catch (Exception ignored) {
+                LOG.info("Failed to coerce value to requested type: input=" + value.getClass() + ", output=" + type);
+                return Optional.empty();
             }
         }
 
+        LOG.info("Failed to get value as requested type: input=" + value.getClass() + ", output=" + type);
         return Optional.empty();
     }
 
@@ -427,7 +430,7 @@ public class Values {
             // must be an object non-array class
             name = "[L" + componentType.getName() + ";";
         }
-        return classLoader != null ? classLoader.loadClass(name) : Class.forName(name);
+        return Class.forName(name);
     }
 
     /**

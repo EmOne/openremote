@@ -22,9 +22,12 @@ package org.openremote.model.asset.impl;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 
+import javax.persistence.DiscriminatorValue;
+
 /**
  * Generic asset i.e. "Thing"
  */
+@DiscriminatorValue("non null")
 public class ThingAsset extends Asset<ThingAsset> {
 
     public static final AssetDescriptor<ThingAsset> DESCRIPTOR = new AssetDescriptor<>("cube-outline", null, ThingAsset.class);

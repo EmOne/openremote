@@ -25,9 +25,6 @@ import org.openremote.agent.protocol.velbus.device.*
 import org.openremote.container.concurrent.ContainerScheduledExecutor
 import org.openremote.manager.concurrent.ManagerExecutorService
 import org.openremote.model.asset.agent.ConnectionStatus
-import org.openremote.model.value.ValueType
-import org.openremote.model.value.Values
-import org.openremote.test.MockVelbusClient
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -851,7 +848,7 @@ class VelbusBasicTest extends Specification {
         VelbusDevice device = null
 
         when: "A device property value consumer is registered for device address 2 (VMB4AN)"
-        DevicePropertyValue ioAlarm1;
+        Object ioAlarm1;
         network.addPropertyValueConsumer(2, "CH1", {
             newValue -> ioAlarm1 = newValue
         })
@@ -866,9 +863,9 @@ class VelbusBasicTest extends Specification {
             1.upto(8, {
                 def state = (it == 5 ? InputProcessor.ChannelState.PRESSED : InputProcessor.ChannelState.RELEASED)
                 def locked = it == 3
-                assert device.getPropertyValue("CH" + it).getPropertyValue() == state
-                assert device.getPropertyValue("CH" + it + "_LOCKED").getPropertyValue() == locked
-                assert device.getPropertyValue("CH" + it + "_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+                assert device.getPropertyValue("CH" + it) == state
+                assert device.getPropertyValue("CH" + it + "_LOCKED") == locked
+                assert device.getPropertyValue("CH" + it + "_LED") == FeatureProcessor.LedState.OFF
             })
         }
 
@@ -877,13 +874,13 @@ class VelbusBasicTest extends Specification {
 
         then: "the channel should become locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH8_LOCKED")
         }
 
         and: "the channel should become unlocked again"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 02 06 ED 10 04 00 01 00 EC 04 00 00"))
         conditions.eventually {
-            assert !device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert !device.getPropertyValue("CH8_LOCKED")
         }
 
         when: "an input channel is locked indefinitely"
@@ -891,7 +888,7 @@ class VelbusBasicTest extends Specification {
 
         then: "the channel should become locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH8_LOCKED")
         }
 
         when: "the channel lock is cancelled"
@@ -900,11 +897,11 @@ class VelbusBasicTest extends Specification {
         then: "the channel should become unlocked again"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 02 06 ED 10 04 00 01 00 EC 04 00 00"))
         conditions.eventually {
-            assert !device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert !device.getPropertyValue("CH8_LOCKED")
         }
 
         when: "A device property value consumer is registered for device address 1 (VMBGP1)"
-        DevicePropertyValue gp1Channel1;
+        Object gp1Channel1;
         network.addPropertyValueConsumer(1, "CH1", {
             newValue -> gp1Channel1 = newValue;
         })
@@ -925,7 +922,7 @@ class VelbusBasicTest extends Specification {
 
             // Check channels are enabled
             1.upto(8, {
-                assert inputButtonProcessor.isChannelEnabled(device, it)
+                assert inputButtonProcessor.isChannelEnabled(device, (int)it)
             })
         }
 
@@ -937,9 +934,9 @@ class VelbusBasicTest extends Specification {
         }
 
         when: "A device property value consumer is registered for device address 48 (VMBGPOD)"
-        DevicePropertyValue gpodChannel22;
+        Object gpodChannel22
         network.addPropertyValueConsumer(48, "CH22", {
-            newValue -> gpodChannel22 = newValue;
+            newValue -> gpodChannel22 = newValue
         })
         device = network.getDevice(48)
 
@@ -970,15 +967,15 @@ class VelbusBasicTest extends Specification {
         conditions.eventually {
             1.upto(32, {
                 if (it >= 25 && it <= 32) {
-                    assert device.getPropertyValue("CH" + it).getPropertyValue() == InputProcessor.ChannelState.RELEASED
-                    assert !device.getPropertyValue("CH" + it + "_ENABLED").getPropertyValue()
-                    assert device.getPropertyValue("CH" + it + "_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-                    assert !device.getPropertyValue("CH" + it + "_LOCKED").getPropertyValue()
+                    assert device.getPropertyValue("CH" + it) == InputProcessor.ChannelState.RELEASED
+                    assert !device.getPropertyValue("CH" + it + "_ENABLED")
+                    assert device.getPropertyValue("CH" + it + "_LED") == FeatureProcessor.LedState.OFF
+                    assert !device.getPropertyValue("CH" + it + "_LOCKED")
                 } else {
                     assert device.getPropertyValue("CH" + it) == InputProcessor.ChannelState.RELEASED
                     assert device.getPropertyValue("CH" + it + "_LED") == FeatureProcessor.LedState.OFF
-                    assert !device.getPropertyValue("CH" + it + "_LOCKED").getPropertyValue()
-                    assert device.getPropertyValue("CH" + it + "_ENABLED").getPropertyValue()
+                    assert !device.getPropertyValue("CH" + it + "_LOCKED")
+                    assert device.getPropertyValue("CH" + it + "_ENABLED")
                 }
             })
         }
@@ -1026,11 +1023,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a button press is written to the device"
         messageProcessor.sentMessages.clear()
-        network.writeProperty(48, "CH22", InputProcessor.ChannelState.PRESSED.toValue(ValueType.STRING))
+        network.writeProperty(48, "CH22", InputProcessor.ChannelState.PRESSED.name())
 
         then: "the button press packet should have been sent to the message processor"
         conditions.eventually {
-            assert device.getPropertyValue("CH22").getPropertyValue() == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("CH22") == InputProcessor.ChannelState.PRESSED
         }
         if (network.client == messageProcessor) {
             assert messageProcessor.sentMessages.size() == 1
@@ -1038,11 +1035,11 @@ class VelbusBasicTest extends Specification {
         }
 
         when: "a button release is written to the device"
-        network.writeProperty(48, "CH22", InputProcessor.ChannelState.RELEASED.toValue(ValueType.STRING))
+        network.writeProperty(48, "CH22", InputProcessor.ChannelState.RELEASED.name())
 
         then: "the button release packet should have been sent to the message processor"
         conditions.eventually {
-            assert device.getPropertyValue("CH22").getPropertyValue() == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH22") == InputProcessor.ChannelState.RELEASED
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 2
                 assert messageProcessor.sentMessages[1].toString() == "0F F8 32 04 00 00 20 00 A3 04 00 00 00 00"
@@ -1054,13 +1051,13 @@ class VelbusBasicTest extends Specification {
 
         then: "the channel should become locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH8_LOCKED")
         }
 
         and: "the channel should become unlocked again"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 30 07 ED 00 FF FF 00 00 00 D4 04"))
         conditions.eventually {
-            assert !device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert !device.getPropertyValue("CH8_LOCKED")
         }
 
         when: "an input channel is locked indefinitely"
@@ -1068,7 +1065,7 @@ class VelbusBasicTest extends Specification {
 
         then: "the channel should become locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH8_LOCKED")
         }
 
         when: "the channel lock is cancelled"
@@ -1077,7 +1074,7 @@ class VelbusBasicTest extends Specification {
         then: "the channel should become unlocked again"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 30 07 ED 00 FF FF 00 00 00 D4 04"))
         conditions.eventually {
-            assert !device.getPropertyValue("CH8_LOCKED").getPropertyValue()
+            assert !device.getPropertyValue("CH8_LOCKED")
         }
 
         and: "eventually the message queue should become empty"
@@ -1087,11 +1084,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a channel LED is set to on"
         messageProcessor.sentMessages.clear()
-        device.writeProperty("CH1_LED", FeatureProcessor.LedState.ON.toValue(ValueType.STRING))
+        device.writeProperty("CH1_LED", FeatureProcessor.LedState.ON.name())
 
         then: "the LED should be on"
         conditions.eventually {
-            device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.ON
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 02 F6 01 CD 04 00 00 00 00 00 00"
@@ -1100,11 +1097,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a channel LED is set to slow"
         messageProcessor.sentMessages.clear()
-        device.writeProperty("CH1_LED", FeatureProcessor.LedState.SLOW.toValue(ValueType.STRING))
+        device.writeProperty("CH1_LED", FeatureProcessor.LedState.SLOW.name())
 
         then: "the LED should be on slow"
         conditions.eventually {
-            device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.SLOW
+            device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.SLOW
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 02 F7 01 CC 04 00 00 00 00 00 00"
@@ -1113,11 +1110,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a channel LED is set to fast"
         messageProcessor.sentMessages.clear()
-        device.writeProperty("CH1_LED", FeatureProcessor.LedState.FAST.toValue(ValueType.STRING))
+        device.writeProperty("CH1_LED", FeatureProcessor.LedState.FAST.name())
 
         then: "the LED should be on fast"
         conditions.eventually {
-            device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.FAST
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 02 F8 01 CB 04 00 00 00 00 00 00"
@@ -1126,11 +1123,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a channel LED is set to very fast"
         messageProcessor.sentMessages.clear()
-        device.writeProperty("CH1_LED", FeatureProcessor.LedState.VERYFAST.toValue(ValueType.STRING))
+        device.writeProperty("CH1_LED", FeatureProcessor.LedState.VERYFAST.name())
 
         then: "the LED should be on very fast"
         conditions.eventually {
-            device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.VERYFAST
+            device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.VERYFAST
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 02 F9 01 CA 04 00 00 00 00 00 00"
@@ -1139,11 +1136,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a channel LED is set to off"
         messageProcessor.sentMessages.clear()
-        device.writeProperty("CH1_LED", FeatureProcessor.LedState.OFF.toValue(ValueType.STRING))
+        device.writeProperty("CH1_LED", FeatureProcessor.LedState.OFF.name())
 
         then: "the LED should be off"
         conditions.eventually {
-            device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 02 F5 01 CE 04 00 00 00 00 00 00"
@@ -1151,7 +1148,7 @@ class VelbusBasicTest extends Specification {
         }
 
         when: "A device property value consumer is registered for device address 10 (VMB7IN)"
-        DevicePropertyValue vmb7InChannel1;
+        Object vmb7InChannel1;
         network.addPropertyValueConsumer(10, "CH1", {
             newValue -> vmb7InChannel1 = newValue;
         })
@@ -1182,8 +1179,8 @@ class VelbusBasicTest extends Specification {
                     assert device.getPropertyValue("CH" + it) == InputProcessor.ChannelState.RELEASED
                 }
                 assert device.getPropertyValue("CH" + it + "_LED") == FeatureProcessor.LedState.OFF
-                assert !device.getPropertyValue("CH" + it + "_LOCKED").getPropertyValue()
-                assert device.getPropertyValue("CH" + it + "_ENABLED").getPropertyValue()
+                assert !device.getPropertyValue("CH" + it + "_LOCKED")
+                assert device.getPropertyValue("CH" + it + "_ENABLED")
             })
         }
 
@@ -1226,11 +1223,11 @@ class VelbusBasicTest extends Specification {
 
         when: "a button press is written to the device"
         messageProcessor.sentMessages.clear()
-        network.writeProperty(10, "CH3", InputProcessor.ChannelState.PRESSED.toValue(ValueType.STRING))
+        network.writeProperty(10, "CH3", InputProcessor.ChannelState.PRESSED.name())
 
         then: "the button press packet should have been sent to the message processor"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("CH3") == InputProcessor.ChannelState.PRESSED
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 1
                 assert messageProcessor.sentMessages[0].toString() == "0F F8 0A 04 00 04 00 00 E7 04 00 00 00 00"
@@ -1238,11 +1235,11 @@ class VelbusBasicTest extends Specification {
         }
 
         when: "a button release is written to the device"
-        network.writeProperty(10, "CH3", InputProcessor.ChannelState.RELEASED.toValue(ValueType.STRING))
+        network.writeProperty(10, "CH3", InputProcessor.ChannelState.RELEASED.name())
 
         then: "the button release packet should have been sent to the message processor"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH3") == InputProcessor.ChannelState.RELEASED
             if (network.client == messageProcessor) {
                 assert messageProcessor.sentMessages.size() == 2
                 assert messageProcessor.sentMessages[1].toString() == "0F F8 0A 04 00 00 04 00 E7 04 00 00 00 00"
@@ -1257,7 +1254,7 @@ class VelbusBasicTest extends Specification {
         VelbusDevice device = null
 
         when: "A device property value consumer is registered for a VMBGP1 device with the thermostat enabled"
-        DevicePropertyValue gp1CurrentTemp;
+        Object gp1CurrentTemp;
         network.addPropertyValueConsumer(1, "TEMP_CURRENT", {
             newValue -> gp1CurrentTemp = newValue;
         })
@@ -1298,7 +1295,7 @@ class VelbusBasicTest extends Specification {
         }
 
         when: "A device property value consumer is registered for a VMBGPOD device with the thermostat enabled"
-        DevicePropertyValue gpodHeatNight;
+        Object gpodHeatNight;
         network.addPropertyValueConsumer(48, "TEMP_TARGET_HEAT_NIGHT", {
             newValue -> gpodHeatNight = newValue;
         })
@@ -1320,26 +1317,26 @@ class VelbusBasicTest extends Specification {
 
         and: "the thermostat values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("HEATER").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("BOOST").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("PUMP").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("COOLER").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_ALARM1").getPropertyValue() == InputProcessor.ChannelState.PRESSED
-            assert device.getPropertyValue("TEMP_ALARM2").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_ALARM3").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_ALARM4").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_SAFE
-            assert device.getPropertyValue("TEMP_CURRENT").getPropertyValue() == 28.0d
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 12d
-            assert device.getPropertyValue("TEMP_TARGET_COOL_COMFORT").getPropertyValue() == 21d
-            assert device.getPropertyValue("TEMP_TARGET_COOL_DAY").getPropertyValue() == 23d
-            assert device.getPropertyValue("TEMP_TARGET_COOL_NIGHT").getPropertyValue() == 26d
-            assert device.getPropertyValue("TEMP_TARGET_COOL_SAFE").getPropertyValue() == 36d
-            assert device.getPropertyValue("TEMP_TARGET_HEAT_COMFORT").getPropertyValue() == 25d
-            assert device.getPropertyValue("TEMP_TARGET_HEAT_DAY").getPropertyValue() == 22d
-            assert device.getPropertyValue("TEMP_TARGET_HEAT_NIGHT").getPropertyValue() == 16d
-            assert device.getPropertyValue("TEMP_TARGET_HEAT_SAFE").getPropertyValue() == 12d
+            assert device.getPropertyValue("HEATER") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("BOOST") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("PUMP") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("COOLER") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_ALARM1") == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("TEMP_ALARM2") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_ALARM3") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_ALARM4") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_SAFE
+            assert device.getPropertyValue("TEMP_CURRENT") == 28.0d
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 12d
+            assert device.getPropertyValue("TEMP_TARGET_COOL_COMFORT") == 21d
+            assert device.getPropertyValue("TEMP_TARGET_COOL_DAY") == 23d
+            assert device.getPropertyValue("TEMP_TARGET_COOL_NIGHT") == 26d
+            assert device.getPropertyValue("TEMP_TARGET_COOL_SAFE") == 36d
+            assert device.getPropertyValue("TEMP_TARGET_HEAT_COMFORT") == 25d
+            assert device.getPropertyValue("TEMP_TARGET_HEAT_DAY") == 22d
+            assert device.getPropertyValue("TEMP_TARGET_HEAT_NIGHT") == 16d
+            assert device.getPropertyValue("TEMP_TARGET_HEAT_SAFE") == 12d
         }
 
         when: "we update the heat night temperature property"
@@ -1347,61 +1344,61 @@ class VelbusBasicTest extends Specification {
 
         then: "the heat night temp should be updated"
         conditions.eventually {
-            assert gpodHeatNight.getPropertyValue() == 20.5
+            assert gpodHeatNight == 20.5d
         }
 
         when: "we receive a temperature sensor value"
         network.client.onMessageReceived(VelbusPacket.fromString("0F FB 30 07 E6 3F 60 30 A0 3F 80 AB 04"))
 
         then: "the temperature value should be resolved to 0.1 degrees"
-        assert device.getPropertyValue("TEMP_CURRENT").getPropertyValue() == 31.7d
+        assert device.getPropertyValue("TEMP_CURRENT") == 31.7d
 
         when: "we set thermostat state to disabled"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.DISABLED
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.DISABLED
         }
 
         when: "we set the thermostat state to manual"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.MANUAL
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.MANUAL
         }
 
         when: "we set the thermostat state to normal"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
         }
 
         when: "we set the thermostat state to manual"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.MANUAL
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.MANUAL
         }
 
         when: "we set the thermostat state to disabled"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.DISABLED
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.DISABLED
         }
 
         when: "we set the thermostat state to normal"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
         }
 
         when: "we set the thermostat mode to heat comfort with timer"
@@ -1409,18 +1406,18 @@ class VelbusBasicTest extends Specification {
 
         then: "the state and mode should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.TIMER
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 25d
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.TIMER
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 25d
         }
 
         when: "we set the thermostat state to disabled"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.DISABLED.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.DISABLED
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_SAFE
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.DISABLED
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_SAFE
         }
 
         when: "we set the thermostat mode to heat comfort with timer"
@@ -1428,18 +1425,18 @@ class VelbusBasicTest extends Specification {
 
         then: "the state and mode should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.TIMER
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 25d
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.TIMER
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 25d
         }
 
         when: "we set the thermostat state to manual"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.MANUAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.MANUAL
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.MANUAL
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
         }
 
         when: "we set the thermostat mode to heat comfort with timer"
@@ -1447,36 +1444,36 @@ class VelbusBasicTest extends Specification {
 
         then: "the state and mode should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.TIMER
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 25d
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.TIMER
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 25d
         }
 
         when: "we set the thermostat state to normal"
-        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.toValue(ValueType.STRING));
+        device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.name());
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_COMFORT
         }
 
         when: "we switch back to HEAT SAFE"
-        device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.HEAT_SAFE.toValue(ValueType.STRING))
+        device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.HEAT_SAFE.name())
 
         then: "the state should update"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_SAFE
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_SAFE
         }
 
         when: "we set temp mode to COOL DAY"
-        device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.COOL_DAY.toValue(ValueType.STRING))
+        device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.COOL_DAY.name())
 
         then: "the current temp mode should change"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.COOL_DAY
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 23d
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.COOL_DAY
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 23d
         }
 
         when: "we set temp mode to COOL COMFORT permanently"
@@ -1489,22 +1486,22 @@ class VelbusBasicTest extends Specification {
 
         then: "the current temp mode should change"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.MANUAL
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.COOL_COMFORT
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.MANUAL
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.COOL_COMFORT
         }
 
         cleanup: "Reset the heat night target temperature"
         if (device != null) {
             device.writeProperty("TEMP_TARGET_HEAT_NIGHT", 16d)
-            device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.toValue(ValueType.STRING))
-            device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.HEAT_SAFE.toValue(ValueType.STRING))
+            device.writeProperty("TEMP_STATE", ThermostatProcessor.TemperatureState.NORMAL.name())
+            device.writeProperty("TEMP_MODE", ThermostatProcessor.TemperatureMode.HEAT_SAFE.name())
         }
     }
 
     def "Programs Processor Test"() {
 
         when: "A device property value consumer is registered for device address 48 (VMBGPOD)"
-        DevicePropertyValue gpodAlarm1WakeTime;
+        Object gpodAlarm1WakeTime;
         network.addPropertyValueConsumer(48, "ALARM1_WAKE_TIME", {
             newValue -> gpodAlarm1WakeTime = newValue;
         })
@@ -1525,22 +1522,22 @@ class VelbusBasicTest extends Specification {
         conditions.eventually {
             1.upto(24, {
                 def programStepsEnabled = it != 13
-                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue() == programStepsEnabled
+                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX) == programStepsEnabled
             })
 
-            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
-            assert !device.getPropertyValue("SUNRISE_ENABLED").getPropertyValue()
-            assert device.getPropertyValue("SUNSET_ENABLED").getPropertyValue()
-            assert device.getPropertyValue("ALARM1_ENABLED").getPropertyValue()
-            assert !device.getPropertyValue("ALARM2_ENABLED").getPropertyValue()
-            assert device.getPropertyValue("ALARM1_MASTER").getPropertyValue()
-            assert !device.getPropertyValue("ALARM2_MASTER").getPropertyValue()
+            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
+            assert !device.getPropertyValue("SUNRISE_ENABLED")
+            assert device.getPropertyValue("SUNSET_ENABLED")
+            assert device.getPropertyValue("ALARM1_ENABLED")
+            assert !device.getPropertyValue("ALARM2_ENABLED")
+            assert device.getPropertyValue("ALARM1_MASTER")
+            assert !device.getPropertyValue("ALARM2_MASTER")
             assert device.getPropertyValue("ALARM1_WAKE_TIME").equals(gpodAlarm1WakeTime)
-            assert device.getPropertyValue("ALARM1_WAKE_TIME").getPropertyValue() == "16:00"
-            assert device.getPropertyValue("ALARM1_BED_TIME").getPropertyValue() == "22:00"
-            assert device.getPropertyValue("ALARM2_WAKE_TIME").getPropertyValue() == "08:00"
-            assert device.getPropertyValue("ALARM2_BED_TIME").getPropertyValue() == "23:00"
-            assert device.getPropertyValue("PROGRAM").getPropertyValue() == ProgramsProcessor.Program.SUMMER
+            assert device.getPropertyValue("ALARM1_WAKE_TIME") == "16:00"
+            assert device.getPropertyValue("ALARM1_BED_TIME") == "22:00"
+            assert device.getPropertyValue("ALARM2_WAKE_TIME") == "08:00"
+            assert device.getPropertyValue("ALARM2_BED_TIME") == "23:00"
+            assert device.getPropertyValue("PROGRAM") == ProgramsProcessor.Program.SUMMER
         }
 
         when: "alarm 1 is disabled and alarm 2 is enabled"
@@ -1549,8 +1546,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the alarms should update to match"
         conditions.eventually {
-            assert !device.getPropertyValue("ALARM1_ENABLED").getPropertyValue()
-            assert device.getPropertyValue("ALARM2_ENABLED").getPropertyValue()
+            assert !device.getPropertyValue("ALARM1_ENABLED")
+            assert device.getPropertyValue("ALARM2_ENABLED")
         }
 
         when: "sunrise is enabled and sunset disabled"
@@ -1559,8 +1556,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the alarms should update to match"
         conditions.eventually {
-            assert device.getPropertyValue("SUNRISE_ENABLED").getPropertyValue()
-            assert !device.getPropertyValue("SUNSET_ENABLED").getPropertyValue()
+            assert device.getPropertyValue("SUNRISE_ENABLED")
+            assert !device.getPropertyValue("SUNSET_ENABLED")
         }
 
         when: "we enable program steps on channel 13"
@@ -1568,8 +1565,8 @@ class VelbusBasicTest extends Specification {
 
         then: "channel 13 program steps should be enabled and all channel program steps should now show as enabled"
         conditions.eventually {
-            assert device.getPropertyValue("CH13" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
-            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+            assert device.getPropertyValue("CH13" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
+            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
         }
 
         when: "all channel program steps are disabled for 1s"
@@ -1577,9 +1574,9 @@ class VelbusBasicTest extends Specification {
 
         then: "all channels should show as disabled"
         conditions.eventually {
-            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
             1.upto(24, {
-                assert !device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+                assert !device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
             })
         }
 
@@ -1592,9 +1589,9 @@ class VelbusBasicTest extends Specification {
 
         then: "all channels should show as enabled again"
         conditions.eventually {
-            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
             1.upto(24, {
-                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
 
             })
         }
@@ -1604,10 +1601,10 @@ class VelbusBasicTest extends Specification {
 
         then: "only channel 20 should show as disabled"
         conditions.eventually {
-            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+            assert !device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
             1.upto(24, {
                 def programStepsEnabled = it != 20
-                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue() == programStepsEnabled
+                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX) == programStepsEnabled
             })
         }
 
@@ -1620,19 +1617,19 @@ class VelbusBasicTest extends Specification {
 
         then: "all channels should show as enabled again"
         conditions.eventually {
-            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+            assert device.getPropertyValue("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
             1.upto(24, {
-                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX).getPropertyValue()
+                assert device.getPropertyValue("CH" + it + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX)
 
             })
         }
 
         when: "the current program is changed to winter"
-        device.writeProperty("PROGRAM", ProgramsProcessor.Program.WINTER.toValue(ValueType.STRING))
+        device.writeProperty("PROGRAM", ProgramsProcessor.Program.WINTER.name())
 
         then: "the program should update"
         conditions.eventually {
-            assert device.getPropertyValue("PROGRAM").getPropertyValue() == ProgramsProcessor.Program.WINTER
+            assert device.getPropertyValue("PROGRAM") == ProgramsProcessor.Program.WINTER
         }
 
         when: "the master alarm 1 wake and sleep times are updated"
@@ -1641,8 +1638,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the properties should update"
         conditions.eventually {
-            assert device.getPropertyValue("ALARM1_WAKE_TIME").getPropertyValue() == "04:00"
-            assert device.getPropertyValue("ALARM1_BED_TIME").getPropertyValue() == "20:00"
+            assert device.getPropertyValue("ALARM1_WAKE_TIME") == "04:00"
+            assert device.getPropertyValue("ALARM1_BED_TIME") == "20:00"
         }
 
         cleanup: "return initial state"
@@ -1653,7 +1650,7 @@ class VelbusBasicTest extends Specification {
             device.writeProperty("SUNSET_ENABLED", true)
             device.writeProperty("ALL" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX, true)
             device.writeProperty("CH13" + ProgramsProcessor.PROGRAM_STEPS_ENABLED_SUFFIX, false)
-            device.writeProperty("PROGRAM", ProgramsProcessor.Program.SUMMER.toValue(ValueType.STRING))
+            device.writeProperty("PROGRAM", ProgramsProcessor.Program.SUMMER.name())
             device.writeProperty("ALARM1_WAKE_TIME", "16:00")
             device.writeProperty("ALARM1_BED_TIME", "22:00")
         }
@@ -1662,7 +1659,7 @@ class VelbusBasicTest extends Specification {
     def "OLED Processor Test"() {
 
         when: "A device property value consumer is registered for device address 48 (VMBGPOD)"
-        DevicePropertyValue gpodMemoText;
+        Object gpodMemoText;
         network.addPropertyValueConsumer(48, "MEMO_TEXT", {
             newValue -> gpodMemoText = newValue;
         })
@@ -1677,7 +1674,7 @@ class VelbusBasicTest extends Specification {
 
         and: "the OLED property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("MEMO_TEXT").getPropertyValue() == ""
+            assert device.getPropertyValue("MEMO_TEXT") == ""
         }
 
         and: "eventually the message queue should become empty"
@@ -1693,7 +1690,7 @@ class VelbusBasicTest extends Specification {
         then: "the memo text property should contain the text and the correct packets should have been sent to the device"
         if (network.client == messageProcessor) {
             conditions.eventually {
-                assert device.getPropertyValue("MEMO_TEXT").getPropertyValue() == msg.substring(0, 62)
+                assert device.getPropertyValue("MEMO_TEXT") == msg.substring(0, 62)
                 assert messageProcessor.sentMessages.size() == 13
                 assert messageProcessor.sentMessages[0].toString() == "0F FB 30 08 AC 00 00 48 65 6C 6C 6F 1E 04"
                 assert messageProcessor.sentMessages[1].toString() == "0F FB 30 08 AC 00 05 20 77 6F 72 6C 29 04"
@@ -1720,7 +1717,7 @@ class VelbusBasicTest extends Specification {
     def "Relay Processor Test"() {
 
         when: "A device property value consumer is registered for device address 81 (VMB1RYNO)"
-        DevicePropertyValue relayChannel1State;
+        Object relayChannel1State;
         network.addPropertyValueConsumer(81, "CH1", {
             newValue -> relayChannel1State = newValue;
         })
@@ -1735,31 +1732,31 @@ class VelbusBasicTest extends Specification {
 
         and: "the relay property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH5").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH5_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("CH1_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH3_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH4_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH5_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH1_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH3_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH4_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH5_INHIBITED").getPropertyValue()
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH5_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH5") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH5_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("CH1_LOCKED")
+            assert !device.getPropertyValue("CH2_LOCKED")
+            assert !device.getPropertyValue("CH3_LOCKED")
+            assert !device.getPropertyValue("CH4_LOCKED")
+            assert !device.getPropertyValue("CH5_LOCKED")
+            assert !device.getPropertyValue("CH1_INHIBITED")
+            assert !device.getPropertyValue("CH2_INHIBITED")
+            assert !device.getPropertyValue("CH3_INHIBITED")
+            assert !device.getPropertyValue("CH4_INHIBITED")
+            assert !device.getPropertyValue("CH5_INHIBITED")
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH5_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is switched on"
@@ -1767,8 +1764,8 @@ class VelbusBasicTest extends Specification {
 
         then: "a relay should be on"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == RelayProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4") == RelayProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is switched off"
@@ -1776,18 +1773,18 @@ class VelbusBasicTest extends Specification {
 
         then: "a relay should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is set to intermittent"
-        device.writeProperty("CH1", RelayProcessor.ChannelState.INTERMITTENT.toValue(ValueType.STRING))
+        device.writeProperty("CH1", RelayProcessor.ChannelState.INTERMITTENT.name())
 
         then: "the relay should be in intermittent mode"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.INTERMITTENT
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.INTERMITTENT
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.FAST
         }
 
         when: "the relay is switched off again"
@@ -1795,9 +1792,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is set to intermittent for 1s"
@@ -1805,16 +1802,16 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be in intermittent state"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.INTERMITTENT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.INTERMITTENT
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.FAST
         }
 
         and: "the relay should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is set to intermittent indefinitely"
@@ -1822,9 +1819,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be in intermittent state"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.INTERMITTENT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.INTERMITTENT
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.FAST
         }
 
         when: "the relay intermittent state is cancelled"
@@ -1833,8 +1830,8 @@ class VelbusBasicTest extends Specification {
         then: "the relay should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is inhibited for 1s"
@@ -1842,15 +1839,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.INHIBITED
         }
 
         and: "the relay should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is inhibited indefinitely"
@@ -1858,8 +1855,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.INHIBITED
         }
 
         when: "the relay inhibit is cancelled"
@@ -1868,8 +1865,8 @@ class VelbusBasicTest extends Specification {
         then: "the relay should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is forced on for 1s"
@@ -1877,18 +1874,18 @@ class VelbusBasicTest extends Specification {
 
         then: "a relay should be on"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == RelayProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.FORCED
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH3") == RelayProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.FORCED
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.ON
         }
 
         and: "the relay should switch off again"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 04 00 00 00 00 00 00 9E 04"))
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 30 02 F5 02 CD 04 00 00 00 00 00 00"))
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is locked for 1s"
@@ -1896,18 +1893,18 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be off and disabled (forced off)"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
-            assert device.getPropertyValue("CH1_LOCKED").getPropertyValue()
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH1_LOCKED")
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
         }
 
         and: "the relay should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 01 00 00 00 00 00 00 A1 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is switched on for 1s"
@@ -1915,9 +1912,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be on and in normal state"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.FAST
         }
 
         and: "the relay should return to off"
@@ -1925,9 +1922,9 @@ class VelbusBasicTest extends Specification {
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 40 02 F5 01 BE 04 00 00 00 00 00 00"))
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F F8 51 04 00 00 01 00 A3 04 00 00 00 00"))
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is switched on indefinitely"
@@ -1935,9 +1932,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be on and in normal state"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.ON
         }
 
         when: "we cancel the on timer"
@@ -1945,9 +1942,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should return to off"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a relay is locked for 1s"
@@ -1955,15 +1952,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be disabled"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
         }
 
         and: "the relay should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a relay is locked indefinitely"
@@ -1971,8 +1968,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the relay should be locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
         }
 
         when: "the relay lock is cancelled"
@@ -1981,8 +1978,8 @@ class VelbusBasicTest extends Specification {
         then: "the relay should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 51 08 FB 02 00 00 00 00 00 00 A0 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == RelayProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == RelayProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         cleanup: "put the device state back"
@@ -1998,7 +1995,7 @@ class VelbusBasicTest extends Specification {
     def "Counter Processor Test"() {
 
         when: "A device property value consumer is registered for device address 10 (VMB7IN)"
-        DevicePropertyValue vmb7InCounter1;
+        Object vmb7InCounter1;
         network.addPropertyValueConsumer(10, "COUNTER1", {
             newValue -> vmb7InCounter1 = newValue;
         })
@@ -2015,19 +2012,19 @@ class VelbusBasicTest extends Specification {
         conditions.eventually {
             1.upto(4, {
                 if (it == 1) {
-                    assert device.getPropertyValue("COUNTER" + it + "_ENABLED").getPropertyValue()
-                    assert device.getPropertyValue("COUNTER" + it).getPropertyValue() == 0d
-                    assert device.getPropertyValue("COUNTER" + it + "_INSTANT").getPropertyValue() == 0.02
-                    assert device.getPropertyValue("COUNTER" + it + "_UNITS").getPropertyValue() == CounterProcessor.CounterUnits.LITRES
+                    assert device.getPropertyValue("COUNTER" + it + "_ENABLED")
+                    assert device.getPropertyValue("COUNTER" + it) == 0d
+                    assert device.getPropertyValue("COUNTER" + it + "_INSTANT") == 0.02
+                    assert device.getPropertyValue("COUNTER" + it + "_UNITS") == CounterProcessor.CounterUnits.LITRES
                 } else if (it == 2) {
-                        assert device.getPropertyValue("COUNTER" + it + "_ENABLED").getPropertyValue()
-                        assert device.getPropertyValue("COUNTER" + it).getPropertyValue() == 0d
-                        assert device.getPropertyValue("COUNTER" + it + "_INSTANT").getPropertyValue() == 140d
-                        assert device.getPropertyValue("COUNTER" + it + "_UNITS").getPropertyValue() == CounterProcessor.CounterUnits.KILOWATTS
+                        assert device.getPropertyValue("COUNTER" + it + "_ENABLED")
+                        assert device.getPropertyValue("COUNTER" + it) == 0d
+                        assert device.getPropertyValue("COUNTER" + it + "_INSTANT") == 140d
+                        assert device.getPropertyValue("COUNTER" + it + "_UNITS") == CounterProcessor.CounterUnits.KILOWATTS
                 } else {
-                    assert !device.getPropertyValue("COUNTER" + it + "_ENABLED").getPropertyValue()
-                    assert device.getPropertyValue("COUNTER" + it).getPropertyValue() == 0d
-                    assert device.getPropertyValue("COUNTER" + it + "_INSTANT").getPropertyValue() == 0d
+                    assert !device.getPropertyValue("COUNTER" + it + "_ENABLED")
+                    assert device.getPropertyValue("COUNTER" + it) == 0d
+                    assert device.getPropertyValue("COUNTER" + it + "_INSTANT") == 0d
                     assert device.getPropertyValue("COUNTER" + it + "_UNITS") == null
                 }
             })
@@ -2038,8 +2035,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the counter should update to match"
         conditions.eventually {
-            assert device.getPropertyValue("COUNTER1").getPropertyValue() == 0.04
-            assert device.getPropertyValue("COUNTER1_INSTANT").getPropertyValue() == 0.15
+            assert device.getPropertyValue("COUNTER1") == 0.04
+            assert device.getPropertyValue("COUNTER1_INSTANT") == 0.15
         }
 
         when: "the counter is reset"
@@ -2047,8 +2044,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the counter should update to match"
         conditions.eventually {
-            assert device.getPropertyValue("COUNTER1").getPropertyValue() == 0d
-            assert device.getPropertyValue("COUNTER1_INSTANT").getPropertyValue() == 0.02
+            assert device.getPropertyValue("COUNTER1") == 0d
+            assert device.getPropertyValue("COUNTER1_INSTANT") == 0.02
         }
     }
 
@@ -2056,7 +2053,7 @@ class VelbusBasicTest extends Specification {
     def "Analog Output Processor Test"() {
 
         when: "A device property value consumer is registered for device address 187 (VMB4DC)"
-        DevicePropertyValue output1State;
+        Object output1State;
         network.addPropertyValueConsumer(2, "OUTPUT1", {
             newValue -> output1State = newValue;
         })
@@ -2071,30 +2068,30 @@ class VelbusBasicTest extends Specification {
 
         and: "the IO module property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("OUTPUT1").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("OUTPUT2").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("OUTPUT3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("OUTPUT1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("OUTPUT2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("OUTPUT3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("OUTPUT1_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT2_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT3_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT4_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT1_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT2_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT3_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("OUTPUT4_INHIBITED").getPropertyValue()
-            assert device.getPropertyValue("OUTPUT1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("OUTPUT2_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("OUTPUT3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("OUTPUT4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("OUTPUT1_VALUE").getPropertyValue() == 0d
-            assert device.getPropertyValue("OUTPUT2_VALUE").getPropertyValue() == 0d
-            assert device.getPropertyValue("OUTPUT3_VALUE").getPropertyValue() == 0d
-            assert device.getPropertyValue("OUTPUT4_VALUE").getPropertyValue() == 0d
+            assert device.getPropertyValue("OUTPUT1") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("OUTPUT2") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("OUTPUT3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("OUTPUT1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("OUTPUT2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("OUTPUT3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("OUTPUT1_LOCKED")
+            assert !device.getPropertyValue("OUTPUT2_LOCKED")
+            assert !device.getPropertyValue("OUTPUT3_LOCKED")
+            assert !device.getPropertyValue("OUTPUT4_LOCKED")
+            assert !device.getPropertyValue("OUTPUT1_INHIBITED")
+            assert !device.getPropertyValue("OUTPUT2_INHIBITED")
+            assert !device.getPropertyValue("OUTPUT3_INHIBITED")
+            assert !device.getPropertyValue("OUTPUT4_INHIBITED")
+            assert device.getPropertyValue("OUTPUT1_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("OUTPUT2_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("OUTPUT3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("OUTPUT4_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("OUTPUT1_VALUE") == 0d
+            assert device.getPropertyValue("OUTPUT2_VALUE") == 0d
+            assert device.getPropertyValue("OUTPUT3_VALUE") == 0d
+            assert device.getPropertyValue("OUTPUT4_VALUE") == 0d
         }
 
 //        when: "an output channel is switched on"
@@ -2102,10 +2099,10 @@ class VelbusBasicTest extends Specification {
 //
 //        then: "the output should be on 100%"
 //        conditions.eventually {
-//            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-//            assert device.getPropertyValue("OUTPUT4_VALUE").getPropertyValue() == 3839
-//            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-//            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+//            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.ON
+//            assert device.getPropertyValue("OUTPUT4_VALUE") == 3839
+//            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+//            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.ON
 //        }
 //
 //        when: "the output is switched off"
@@ -2113,9 +2110,9 @@ class VelbusBasicTest extends Specification {
 //
 //        then: "the output should be off"
 //        conditions.eventually {
-//            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-//            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-//            assert device.getPropertyValue("OUTPUT4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+//            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.OFF
+//            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+//            assert device.getPropertyValue("OUTPUT4_LED") == FeatureProcessor.LedState.OFF
 //        }
 //
 //        when: "a output channel is set to 50%"
@@ -2123,10 +2120,10 @@ class VelbusBasicTest extends Specification {
 //
 //        then: "the output should be on 5V"
 //        conditions.eventually {
-//            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-//            assert device.getPropertyValue("OUTPUT4_VALUE").getPropertyValue() == 50000
-//            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-//            assert device.getPropertyValue("OUTPUT4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+//            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.ON
+//            assert device.getPropertyValue("OUTPUT4_VALUE") == 50000
+//            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+//            assert device.getPropertyValue("OUTPUT4_LED") == FeatureProcessor.LedState.ON
 //        }
 //
 //        when: "the output is switched off"
@@ -2134,26 +2131,26 @@ class VelbusBasicTest extends Specification {
 //
 //        then: "the output should be off"
 //        conditions.eventually {
-//            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-//            assert device.getPropertyValue("OUTPUT4_VALUE").getPropertyValue() == 0
-//            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-//            assert device.getPropertyValue("OUTPUT4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+//            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.OFF
+//            assert device.getPropertyValue("OUTPUT4_VALUE") == 0
+//            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+//            assert device.getPropertyValue("OUTPUT4_LED") == FeatureProcessor.LedState.OFF
 //        }
 //
 //        when: "a output channel is set to last"
-//        device.writeProperty("OUTPUT4", AnalogOutputProcessor.ChannelState.LAST.objectToValue(ValueType.STRING))
+//        device.writeProperty("OUTPUT4", AnalogOutputProcessor.ChannelState.LAST.objectToValue(STRING))
 //
 //        then: "the output should go to 5V"
 //        conditions.eventually {
-//            assert device.getPropertyValue("OUTPUT4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-//            assert device.getPropertyValue("OUTPUT4_VALUE").getPropertyValue() == 50000
-//            assert device.getPropertyValue("OUTPUT4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-//            assert device.getPropertyValue("OUTPUT4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+//            assert device.getPropertyValue("OUTPUT4") == AnalogOutputProcessor.ChannelState.ON
+//            assert device.getPropertyValue("OUTPUT4_VALUE") == 50000
+//            assert device.getPropertyValue("OUTPUT4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+//            assert device.getPropertyValue("OUTPUT4_LED") == FeatureProcessor.LedState.ON
 //        }
 
 
         when: "A device property value consumer is registered for device address 187 (VMB4DC)"
-        DevicePropertyValue dimmerChannel1State;
+        Object dimmerChannel1State;
         network.addPropertyValueConsumer(187, "CH1", {
             newValue -> dimmerChannel1State = newValue;
         })
@@ -2168,30 +2165,30 @@ class VelbusBasicTest extends Specification {
 
         and: "the dimmer property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("CH1_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH3_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH4_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH1_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH3_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH4_INHIBITED").getPropertyValue()
-            assert device.getPropertyValue("CH1_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH1_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH3_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 0d
+            assert device.getPropertyValue("CH1") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH1_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("CH1_LOCKED")
+            assert !device.getPropertyValue("CH2_LOCKED")
+            assert !device.getPropertyValue("CH3_LOCKED")
+            assert !device.getPropertyValue("CH4_LOCKED")
+            assert !device.getPropertyValue("CH1_INHIBITED")
+            assert !device.getPropertyValue("CH2_INHIBITED")
+            assert !device.getPropertyValue("CH3_INHIBITED")
+            assert !device.getPropertyValue("CH4_INHIBITED")
+            assert device.getPropertyValue("CH1_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1_LEVEL") == 0d
+            assert device.getPropertyValue("CH2_LEVEL") == 0d
+            assert device.getPropertyValue("CH3_LEVEL") == 0d
+            assert device.getPropertyValue("CH4_LEVEL") == 0d
         }
 
         when: "a dimmer channel is switched on"
@@ -2199,10 +2196,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be on 100%"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 100d
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH4_LEVEL") == 100d
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.ON
         }
 
         when: "the dimmer is switched off"
@@ -2210,9 +2207,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer channel is set to 50%"
@@ -2220,10 +2217,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be on 50%"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 50d
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH4_LEVEL") == 50d
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.ON
         }
 
         when: "the dimmer is switched off"
@@ -2231,21 +2228,21 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4_LEVEL") == 0d
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer channel is set to last"
-        device.writeProperty("CH4", AnalogOutputProcessor.ChannelState.LAST.toValue(ValueType.STRING))
+        device.writeProperty("CH4", AnalogOutputProcessor.ChannelState.LAST.name())
 
         then: "the dimer should go to 50%"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 50d
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH4_LEVEL") == 50d
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.ON
         }
 
         when: "the dimmer is switched off again"
@@ -2253,10 +2250,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH4").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH4_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH4_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH4_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH4") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH4_LEVEL") == 0d
+            assert device.getPropertyValue("CH4_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH4_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer is set to 75% over 7s"
@@ -2264,10 +2261,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should reach 75% after 7s"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.ON
-            assert device.getPropertyValue("CH2_LEVEL").getPropertyValue() == 75d
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH2_LEVEL") == 75d
         }
 
         when: "the dimmer is switched off again"
@@ -2275,10 +2272,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be off"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_LEVEL") == 0d
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer is switched on for 3s"
@@ -2286,9 +2283,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should switch on"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.FAST
         }
 
         and: "eventually the message queue should become empty"
@@ -2302,10 +2299,10 @@ class VelbusBasicTest extends Specification {
             messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 02 00 00 00 00 00 00 79 04"))
         }
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH2_LEVEL").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH2_LEVEL") == 0d
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer is set to 50% over 60s"
@@ -2313,9 +2310,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should start ramping up"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.FAST
         }
 
         when: "we cancel the current dimming operation"
@@ -2323,10 +2320,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer level should be somewhere between 0-50% and be on"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED").getPropertyValue() == FeatureProcessor.LedState.ON
-            def dimLevel = device.getPropertyValue("CH2_LEVEL").getPropertyValue()
+            assert device.getPropertyValue("CH2") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH2_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED") == FeatureProcessor.LedState.ON
+            def dimLevel = device.getPropertyValue("CH2_LEVEL")
             assert dimLevel > 0 && dimLevel < 50
         }
 
@@ -2335,15 +2332,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.INHIBITED
         }
 
         and: "the dimmer should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 04 00 00 00 00 00 00 77 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a dimmer is inhibited indefinitely"
@@ -2351,8 +2348,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.INHIBITED
         }
 
         when: "the dimmer inhibit is cancelled"
@@ -2361,8 +2358,8 @@ class VelbusBasicTest extends Specification {
         then: "the dimmer should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 04 00 00 00 00 00 00 77 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a dimmer is forced on for 5s"
@@ -2370,10 +2367,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be on"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.FORCED
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.ON
-            assert device.getPropertyValue("CH3_LEVEL").getPropertyValue() == 100
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.FORCED
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH3_LEVEL") == 100
         }
 
         and: "the dimmer should switch off again"
@@ -2381,10 +2378,10 @@ class VelbusBasicTest extends Specification {
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 04 00 00 00 00 00 00 77 04"))
 
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH3_LEVEL").getPropertyValue() == 0
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3_LEVEL") == 0
         }
 
         when: "a dimmer is locked for 1s"
@@ -2392,20 +2389,20 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be off and locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
-            assert device.getPropertyValue("CH3_LOCKED").getPropertyValue()
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH3_LEVEL").getPropertyValue() == 0
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH3_LOCKED")
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3_LEVEL") == 0
         }
 
         and: "the dimmer should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 04 00 00 00 00 00 00 77 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH3_LEVEL").getPropertyValue() == 0
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3_LEVEL") == 0
         }
 
         when: "a dimmer is switched on indefinitely"
@@ -2413,9 +2410,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be on and in normal state"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.ON
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.ON
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.ON
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.ON
         }
 
         when: "we cancel the on timer"
@@ -2423,9 +2420,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should return to off"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH3_LED").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3_LED") == FeatureProcessor.LedState.OFF
         }
 
         when: "a dimmer is locked for 1s"
@@ -2433,15 +2430,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be disabled"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
         }
 
         and: "the dimmer should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB BB 08 B8 04 00 00 00 00 00 00 77 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         when: "a dimmer is locked indefinitely"
@@ -2449,8 +2446,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should be locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.LOCKED
         }
 
         when: "the dimmer lock is cancelled"
@@ -2458,8 +2455,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should return to normal"
         conditions.eventually {
-            assert device.getPropertyValue("CH3").getPropertyValue() == AnalogOutputProcessor.ChannelState.OFF
-            assert device.getPropertyValue("CH3_SETTING").getPropertyValue() == OutputChannelProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH3") == AnalogOutputProcessor.ChannelState.OFF
+            assert device.getPropertyValue("CH3_SETTING") == OutputChannelProcessor.ChannelSetting.NORMAL
         }
 
         cleanup: "put the device state back"
@@ -2474,7 +2471,7 @@ class VelbusBasicTest extends Specification {
     def "Blind Processor Test"() {
 
         when: "A device property value consumer is registered for device address 97 (VMB2BLE)"
-        DevicePropertyValue blindChannel1State;
+        Object blindChannel1State;
         network.addPropertyValueConsumer(97, "CH1", {
             newValue -> blindChannel1State = newValue;
         })
@@ -2489,20 +2486,20 @@ class VelbusBasicTest extends Specification {
 
         and: "the blind property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("CH1").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH1_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("CH1_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_LOCKED").getPropertyValue()
-            assert !device.getPropertyValue("CH1_INHIBITED").getPropertyValue()
-            assert !device.getPropertyValue("CH2_INHIBITED").getPropertyValue()
-            assert device.getPropertyValue("CH1_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH1_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH1_POSITION").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 0d
+            assert device.getPropertyValue("CH1") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH1_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("CH1_LOCKED")
+            assert !device.getPropertyValue("CH2_LOCKED")
+            assert !device.getPropertyValue("CH1_INHIBITED")
+            assert !device.getPropertyValue("CH2_INHIBITED")
+            assert device.getPropertyValue("CH1_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH1_POSITION") == 0d
+            assert device.getPropertyValue("CH2_POSITION") == 0d
         }
 
         when: "a blind channel set to down"
@@ -2510,17 +2507,17 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should reach 100%"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.DOWN
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.DOWN
         }
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 64 00 00 32 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 100d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_POSITION") == 100d
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "the blind is set to up"
@@ -2528,17 +2525,17 @@ class VelbusBasicTest extends Specification {
 
         then: "the dimmer should return to 0%"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.UP
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.UP
         }
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 00 00 00 96 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_POSITION") == 0d
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "a blind channel is set to 50%"
@@ -2546,17 +2543,17 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be at 50%"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.DOWN
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.DOWN
         }
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 32 00 00 64 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 50d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_POSITION") == 50d
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "the blind is set to up for 10s"
@@ -2564,18 +2561,18 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be up"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.UP
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.UP
         }
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 00 00 00 96 04"))
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F F8 61 04 00 00 04 00 90 04 00 00 00 00"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_POSITION") == 0d
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "a blind channel is set to down for 15s"
@@ -2583,18 +2580,18 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be down"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.DOWN
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.DOWN
         }
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 64 00 00 32 04"))
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F F8 61 04 00 00 08 00 8C 04 00 00 00 00"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_POSITION").getPropertyValue() == 100d
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_POSITION") == 100d
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "a blind is set to up"
@@ -2602,9 +2599,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should start moving up"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.UP
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.UP
         }
 
         when: "we cancel the current up operation"
@@ -2612,12 +2609,12 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should stop and the position should be somewhere between 100%-0%"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            def position = device.getPropertyValue("CH2_POSITION").getPropertyValue()
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            def position = device.getPropertyValue("CH2_POSITION")
             assert position < 100 && position > 0
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
         }
 
         when: "a blind is inhibited for 1s"
@@ -2625,15 +2622,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.INHIBITED
         }
 
         and: "the blind should return to normal after 1s"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 00 00 00 96 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
         }
 
         when: "a blind is inhibited indefinitely"
@@ -2641,8 +2638,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be inhibited"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.INHIBITED
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.INHIBITED
         }
 
         when: "the blind inhibit is cancelled"
@@ -2650,8 +2647,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should return to normal"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
         }
 
         when: "a blind is inhibited down indefinitely"
@@ -2659,10 +2656,10 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be inhibited from going down"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_LED_DOWN").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.INHIBITED_DOWN
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_LED_DOWN") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.INHIBITED_DOWN
         }
 
         when: "the blind inhibit is cancelled"
@@ -2670,8 +2667,8 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should return to normal"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
         }
 
         when: "a blind is forced up for 5s"
@@ -2679,16 +2676,16 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be up and forced"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.FAST
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.FORCED_UP
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.FAST
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.FORCED_UP
         }
 
         then: "the blind should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 00 00 00 96 04"))
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F F8 61 04 00 00 04 00 90 04 00 00 00 00"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2_LED_UP").getPropertyValue() == FeatureProcessor.LedState.OFF
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
+            assert device.getPropertyValue("CH2_LED_UP") == FeatureProcessor.LedState.OFF
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
         }
 
         when: "a blind is locked for 1s"
@@ -2696,15 +2693,15 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.LOCKED
-            assert device.getPropertyValue("CH2_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH2_LOCKED")
         }
 
         and: "the blind should return to normal"
         messageProcessor.onMessageReceived(VelbusPacket.fromString("0F FB 61 08 EC 02 09 00 00 00 00 00 96 04"))
         conditions.eventually {
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("CH2_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("CH2_LOCKED")
         }
 
         when: "a blind is locked indefinitely"
@@ -2712,9 +2709,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should be locked"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.LOCKED
-            assert device.getPropertyValue("CH2_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.LOCKED
+            assert device.getPropertyValue("CH2_LOCKED")
         }
 
         when: "the blind lock is cancelled"
@@ -2722,9 +2719,9 @@ class VelbusBasicTest extends Specification {
 
         then: "the blind should return to normal"
         conditions.eventually {
-            assert device.getPropertyValue("CH2").getPropertyValue() == BlindProcessor.ChannelState.HALT
-            assert device.getPropertyValue("CH2_SETTING").getPropertyValue() == BlindProcessor.ChannelSetting.NORMAL
-            assert !device.getPropertyValue("CH2_LOCKED").getPropertyValue()
+            assert device.getPropertyValue("CH2") == BlindProcessor.ChannelState.HALT
+            assert device.getPropertyValue("CH2_SETTING") == BlindProcessor.ChannelSetting.NORMAL
+            assert !device.getPropertyValue("CH2_LOCKED")
         }
 
         cleanup: "put the device state back"
@@ -2742,7 +2739,7 @@ class VelbusBasicTest extends Specification {
     def "Analog Input Processor Test"() {
 
         when: "A device property value consumer is registered for device address 2 (VMB4AN)"
-        DevicePropertyValue ioSensor1;
+        Object ioSensor1;
         network.addPropertyValueConsumer(2, "SENSOR1", {
             newValue -> ioSensor1 = newValue;
         })
@@ -2753,26 +2750,26 @@ class VelbusBasicTest extends Specification {
             assert device != null
             assert device.getDeviceType() == VelbusDeviceType.VMB4AN
             assert device.getBaseAddress() == 2
-            assert device.getPropertyValue("SENSOR1").getPropertyValue() == 1097.75
-            assert device.getPropertyValue("SENSOR1_TEXT").getPropertyValue() == "25.2°C         "
-            assert device.getPropertyValue("SENSOR1_TYPE").getPropertyValue() == AnalogInputProcessor.SensorType.RESISTANCE
-            assert device.getPropertyValue("SENSOR1_MODE").getPropertyValue() == AnalogInputProcessor.SensorMode.SAFE
-            assert device.getPropertyValue("SENSOR2").getPropertyValue(), closeTo(0, 0.0001)
-            assert device.getPropertyValue("SENSOR2_TEXT").getPropertyValue() == "0Unit          "
-            assert device.getPropertyValue("SENSOR2_TYPE").getPropertyValue() == AnalogInputProcessor.SensorType.CURRENT
-            assert device.getPropertyValue("SENSOR2_MODE").getPropertyValue() == AnalogInputProcessor.SensorMode.SAFE
-            assert device.getPropertyValue("SENSOR3").getPropertyValue(), closeTo(0, 0.0001)
-            assert device.getPropertyValue("SENSOR3_TEXT").getPropertyValue() == "0Unit          "
-            assert device.getPropertyValue("SENSOR3_TYPE").getPropertyValue() == AnalogInputProcessor.SensorType.VOLTAGE
-            assert device.getPropertyValue("SENSOR3_MODE").getPropertyValue() == AnalogInputProcessor.SensorMode.SAFE
-            assert device.getPropertyValue("SENSOR4").getPropertyValue(), closeTo(0, 0.0001)
-            assert device.getPropertyValue("SENSOR4_TEXT").getPropertyValue() == "0Unit          "
-            assert device.getPropertyValue("SENSOR4_TYPE").getPropertyValue() == AnalogInputProcessor.SensorType.VOLTAGE
-            assert device.getPropertyValue("SENSOR4_MODE").getPropertyValue() == AnalogInputProcessor.SensorMode.SAFE
+            assert device.getPropertyValue("SENSOR1") == 1097.75
+            assert device.getPropertyValue("SENSOR1_TEXT") == "25.2°C         "
+            assert device.getPropertyValue("SENSOR1_TYPE") == AnalogInputProcessor.SensorType.RESISTANCE
+            assert device.getPropertyValue("SENSOR1_MODE") == AnalogInputProcessor.SensorMode.SAFE
+            assert device.getPropertyValue("SENSOR2"), closeTo(0, 0.0001)
+            assert device.getPropertyValue("SENSOR2_TEXT") == "0Unit          "
+            assert device.getPropertyValue("SENSOR2_TYPE") == AnalogInputProcessor.SensorType.CURRENT
+            assert device.getPropertyValue("SENSOR2_MODE") == AnalogInputProcessor.SensorMode.SAFE
+            assert device.getPropertyValue("SENSOR3"), closeTo(0, 0.0001)
+            assert device.getPropertyValue("SENSOR3_TEXT") == "0Unit          "
+            assert device.getPropertyValue("SENSOR3_TYPE") == AnalogInputProcessor.SensorType.VOLTAGE
+            assert device.getPropertyValue("SENSOR3_MODE") == AnalogInputProcessor.SensorMode.SAFE
+            assert device.getPropertyValue("SENSOR4"), closeTo(0, 0.0001)
+            assert device.getPropertyValue("SENSOR4_TEXT") == "0Unit          "
+            assert device.getPropertyValue("SENSOR4_TYPE") == AnalogInputProcessor.SensorType.VOLTAGE
+            assert device.getPropertyValue("SENSOR4_MODE") == AnalogInputProcessor.SensorMode.SAFE
         }
 
         when: "A device property value consumer is registered for device address 254 (VMBMETEO)"
-        DevicePropertyValue tempCurrent;
+        Object tempCurrent;
         network.addPropertyValueConsumer(254, "TEMP_CURRENT", {
             newValue -> tempCurrent = newValue;
         })
@@ -2787,27 +2784,27 @@ class VelbusBasicTest extends Specification {
 
         and: "the device property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_CURRENT").getPropertyValue() == 22.2
-            assert device.getPropertyValue("TEMP_MIN").getPropertyValue() == -0.6
-            assert device.getPropertyValue("TEMP_MAX").getPropertyValue() == 43.9
-            assert device.getPropertyValue("RAINFALL").getPropertyValue() == 0d
-            assert device.getPropertyValue("LIGHT").getPropertyValue() == 13797d
-            assert device.getPropertyValue("WIND").getPropertyValue() == 0d
-            assert device.getPropertyValue("CH1").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH2").getPropertyValue() == InputProcessor.ChannelState.PRESSED
-            assert device.getPropertyValue("CH3").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH4").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH5").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH6").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH7").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH8").getPropertyValue() == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_CURRENT") == 22.2
+            assert device.getPropertyValue("TEMP_MIN") == -0.6
+            assert device.getPropertyValue("TEMP_MAX") == 43.9
+            assert device.getPropertyValue("RAINFALL") == 0d
+            assert device.getPropertyValue("LIGHT") == 13797d
+            assert device.getPropertyValue("WIND") == 0d
+            assert device.getPropertyValue("CH1") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH2") == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("CH3") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH4") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH5") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH6") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH7") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH8") == InputProcessor.ChannelState.RELEASED
         }
     }
 
     def "VMBPIRO Test"() {
 
         when: "A device property value consumer is registered for device address 8 (VMBPIRO)"
-        DevicePropertyValue tempCurrent;
+        Object tempCurrent;
         network.addPropertyValueConsumer(8, "TEMP_CURRENT", {
             newValue -> tempCurrent = newValue;
         })
@@ -2822,24 +2819,24 @@ class VelbusBasicTest extends Specification {
 
         and: "the device property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_CURRENT").getPropertyValue() == 29.6
-            assert device.getPropertyValue("TEMP_MIN").getPropertyValue() == 20.0
-            assert device.getPropertyValue("TEMP_MAX").getPropertyValue() == 29.7
-            assert device.getPropertyValue("CH1").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH2").getPropertyValue() == InputProcessor.ChannelState.PRESSED
-            assert device.getPropertyValue("CH3").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH4").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH5").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH6").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH7").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("CH8").getPropertyValue() == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_CURRENT") == 29.6
+            assert device.getPropertyValue("TEMP_MIN") == 20.0
+            assert device.getPropertyValue("TEMP_MAX") == 29.7
+            assert device.getPropertyValue("CH1") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH2") == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("CH3") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH4") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH5") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH6") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH7") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("CH8") == InputProcessor.ChannelState.RELEASED
         }
     }
 
     def "VMB1TS Test"() {
 
         when: "A device property value consumer is registered for device address 5 (VMB1TS)"
-        DevicePropertyValue tempCurrent;
+        Object tempCurrent;
         network.addPropertyValueConsumer(5, "TEMP_CURRENT", {
             newValue -> tempCurrent = newValue;
         })
@@ -2854,18 +2851,18 @@ class VelbusBasicTest extends Specification {
 
         and: "the device property values should be initialised"
         conditions.eventually {
-            assert device.getPropertyValue("TEMP_CURRENT").getPropertyValue() == 29.9
-            assert device.getPropertyValue("TEMP_MIN").getPropertyValue() == 19.3
-            assert device.getPropertyValue("TEMP_MAX").getPropertyValue() == 30.3
-            assert device.getPropertyValue("HEATER").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("BOOST").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("PUMP").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("COOLER").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_ALARM1").getPropertyValue() == InputProcessor.ChannelState.RELEASED
-            assert device.getPropertyValue("TEMP_ALARM2").getPropertyValue() == InputProcessor.ChannelState.PRESSED
-            assert device.getPropertyValue("TEMP_TARGET_CURRENT").getPropertyValue() == 5.0
-            assert device.getPropertyValue("TEMP_MODE").getPropertyValue() == ThermostatProcessor.TemperatureMode.HEAT_SAFE
-            assert device.getPropertyValue("TEMP_STATE").getPropertyValue() == ThermostatProcessor.TemperatureState.NORMAL
+            assert device.getPropertyValue("TEMP_CURRENT") == 29.9
+            assert device.getPropertyValue("TEMP_MIN") == 19.3
+            assert device.getPropertyValue("TEMP_MAX") == 30.3
+            assert device.getPropertyValue("HEATER") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("BOOST") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("PUMP") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("COOLER") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_ALARM1") == InputProcessor.ChannelState.RELEASED
+            assert device.getPropertyValue("TEMP_ALARM2") == InputProcessor.ChannelState.PRESSED
+            assert device.getPropertyValue("TEMP_TARGET_CURRENT") == 5.0
+            assert device.getPropertyValue("TEMP_MODE") == ThermostatProcessor.TemperatureMode.HEAT_SAFE
+            assert device.getPropertyValue("TEMP_STATE") == ThermostatProcessor.TemperatureState.NORMAL
         }
     }
 }

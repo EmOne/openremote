@@ -157,7 +157,7 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
         return getAttributeRef().getAttributeName();
     }
 
-    public Optional<Object> getValue() {
+    public <T> Optional<T> getValue() {
         return getAttributeState().getValue();
     }
 

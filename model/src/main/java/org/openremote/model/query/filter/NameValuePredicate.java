@@ -54,6 +54,10 @@ public class NameValuePredicate {
         this.value = value;
     }
 
+    public NameValuePredicate(NameHolder nameHolder, ValuePredicate value) {
+        this(new StringPredicate(nameHolder.getName()), value);
+    }
+
     public NameValuePredicate(StringPredicate name, ValuePredicate value) {
         this.name = name;
         this.value = value;

@@ -17,27 +17,23 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.agent.protocol.artnet;
+package org.openremote.test.protocol.velbus;
 
-import org.openremote.agent.protocol.io.IoAgent;
+import org.openremote.agent.protocol.velbus.VelbusAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
-import org.openremote.model.asset.agent.AgentLink;
 
-import javax.persistence.Entity;
+public class MockVelbusAgent extends VelbusAgent<MockVelbusAgent, MockVelbusProtocol> {
 
-@Entity
-public class ArtnetAgent extends IoAgent<ArtnetAgent, ArtnetProtocol, AgentLink.Default> {
-
-    public static final AgentDescriptor<ArtnetAgent, ArtnetProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
-        ArtnetAgent.class, ArtnetProtocol.class, AgentLink.Default.class
+    public static final AgentDescriptor<MockVelbusAgent, MockVelbusProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
+        MockVelbusAgent.class, MockVelbusProtocol.class, VelbusAgentLink.class
     );
 
-    public ArtnetAgent(String name) {
+    public MockVelbusAgent(String name) {
         super(name, DESCRIPTOR);
     }
 
     @Override
-    public ArtnetProtocol getProtocolInstance() {
-        return new ArtnetProtocol(this);
+    public MockVelbusProtocol getProtocolInstance() {
+        return new MockVelbusProtocol(this);
     }
 }

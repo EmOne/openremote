@@ -33,7 +33,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * {@link Agent}; {@link Asset}s are automatically added/removed depending on whether they are available on the gateway,
  * for a given {@link Agent} a device {@link Asset} will have a consistent ID.
  */
-public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink> {
+public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink.Default> {
 
     /**
      * The logger for the IKEA TRÅDFRI protocol.
@@ -129,17 +129,17 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink> {
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         // Nothing to do here as assets are already connected to devices
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         // Nothing to do here
     }
 
     @Override
-    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
 
         Device device = tradfriDevices.get(event.getAttributeRef().getAssetId());
 
@@ -250,7 +250,7 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink> {
 
             // Add agent links
             lightAsset.getAttributes().get(BRIGHTNESS).ifPresent(attribute -> attribute.addOrReplaceMeta(
-                new MetaItem<>(AGENT_LINK, new AgentLink(agent.getId()))
+                new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.getId()))
             ));
             asset = lightAsset;
         }

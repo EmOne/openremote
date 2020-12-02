@@ -306,9 +306,23 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                             break;
                     }
 
-                    // Agent attributes can't be updated with events
+                    // Only certain agent attributes can be updated with events
                     if (asset instanceof Agent) {
-                        throw new AssetProcessingException(ILLEGAL_AGENT_UPDATE);
+
+                        boolean ok = false;
+
+                        if (source == INTERNAL && Agent.STATUS.getName().equals(event.getAttributeName())) {
+                            ok = true;
+                        }
+
+                        if (Agent.DISABLED.getName().equals(event.getAttributeName())) {
+                            ok = true;
+                        }
+
+                        if (!ok) {
+                            LOG.info("Illegal agent attribute update: " + event);
+                            throw new AssetProcessingException(ILLEGAL_AGENT_UPDATE);
+                        }
                     }
 
                     // For executable attributes, non-sensor sources can set a writable attribute execute status

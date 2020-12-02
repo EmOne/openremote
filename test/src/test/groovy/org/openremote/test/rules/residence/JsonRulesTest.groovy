@@ -33,7 +33,7 @@ import org.openremote.model.rules.RulesetStatus
 import org.openremote.model.rules.TemporaryFact
 import org.openremote.model.rules.TenantRuleset
 import org.openremote.model.rules.json.JsonRulesetDefinition
-import org.openremote.model.value.ObjectValue
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.test.ManagerContainerTrait
 import org.simplejavamail.email.Email
 import spock.lang.Specification
@@ -46,7 +46,6 @@ import static java.util.concurrent.TimeUnit.HOURS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.openremote.manager.setup.builtin.ManagerTestSetup.DEMO_RULE_STATES_SMART_BUILDING
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
-import static org.openremote.model.attribute.AttributeType.LOCATION
 import static org.openremote.model.value.Values.parse
 
 class JsonRulesTest extends Specification implements ManagerContainerTrait {
@@ -133,11 +132,11 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
         and: "the room lights in an apartment to be on"
         conditions.eventually {
             def livingroomAsset = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert livingroomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
-            assert livingroomAsset.getAttribute("lightSwitchTriggerTimes").get().valueAsArray.get().length() == 2
-            assert livingroomAsset.getAttribute("plantsWaterLevels").get().valueAsObject.get().getNumber("cactus").get() == 0.8
+            assert livingroomAsset.getAttribute("lightSwitch", Boolean.class).get().value.get()
+            assert livingroomAsset.getAttribute("lightSwitchTriggerTimes", String[].class).get().value.get().length == 2
+            assert livingroomAsset.getAttribute("plantsWaterLevels", ObjectNode.class).get().value.get().get("cactus").asDouble() == 0.8d
             def bathRoomAsset = assetStorageService.find(managerTestSetup.apartment2BathroomId, true)
-            assert bathRoomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert bathRoomAsset.getAttribute("lightSwitch", Boolean.class).get().value.get()
         }
 
         when: "a user authenticates"
@@ -173,8 +172,8 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
                         true,
                         true,
                         false,
-                        (ObjectValue) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
-                    ))
+                        ((ObjectNode) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
+                    )))
                 }
             },
             "",
@@ -218,11 +217,11 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
         then: "the apartment lights should be switched off"
         conditions.eventually {
             def livingroomAsset = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert !livingroomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
-            assert livingroomAsset.getAttribute("lightSwitchTriggerTimes").get().valueAsArray.get().length() == 2
-            assert livingroomAsset.getAttribute("plantsWaterLevels").get().valueAsObject.get().getNumber("cactus").get() == 0.8
+            assert !livingroomAsset.getAttribute("lightSwitch").get().value.get()
+            assert livingroomAsset.getAttribute("lightSwitchTriggerTimes").get().value.length() == 2
+            assert livingroomAsset.getAttribute("plantsWaterLevels", ObjectNode.class).get().getValue().map{it.get("cactus").asDouble()}.orElse(null) == 0.8
             def bathRoomAsset = assetStorageService.find(managerTestSetup.apartment2BathroomId, true)
-            assert !bathRoomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert !bathRoomAsset.getAttribute("lightSwitch").get().value.get()
         }
 
         and: "a notification should have been sent to the console"
@@ -277,7 +276,7 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
         def version = ruleset.version
         JsonRulesetDefinition jsonRules = Container.JSON.readValue(ruleset.rules, JsonRulesetDefinition.class)
         jsonRules.rules[0].recurrence.mins = 240
-        ruleset.rules = Container.JSON.writeValueAsString(jsonRules)
+        ruleset.rules = Values.asJSON(jsonRules)
         ruleset = rulesetStorageService.merge(ruleset)
 
         then: "the ruleset to be redeployed"

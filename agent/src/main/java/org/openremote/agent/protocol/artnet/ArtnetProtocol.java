@@ -18,7 +18,7 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, ArtnetAgent, ArtnetPacket, UdpIoClient<ArtnetPacket>, AgentLink> implements ProtocolAssetImport {
+public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, ArtnetAgent, ArtnetPacket, UdpIoClient<ArtnetPacket>, AgentLink.Default> implements ProtocolAssetImport {
 
     public static final String PROTOCOL_DISPLAY_NAME = "Artnet";
     protected final Map<AttributeRef, Consumer<ArtnetPacket>> protocolMessageConsumers = new HashMap<>();
@@ -55,7 +55,7 @@ public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, Art
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
 //        AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
 //        ArtnetLight light = lights.get(assetId);
 //
@@ -100,7 +100,7 @@ public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, Art
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
 //        Attribute<?> assetAttribute = getLinkedAttribute(attribute.getReference().orElse(null));
 //        if(assetAttribute != null) {
 //            String assetId = assetAttribute.getAssetId().orElse(null);
@@ -129,7 +129,7 @@ public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, Art
     }
 
     @Override
-    protected ArtnetPacket createWriteMessage(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected ArtnetPacket createWriteMessage(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
 //        // TODO check for group later here
 //        AttributeRef attributeRef = event.getAttributeRef();
 //

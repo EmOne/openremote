@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
 
+import static javax.persistence.DiscriminatorType.STRING;
 import static org.openremote.model.Constants.PERSISTENCE_JSON_VALUE_TYPE;
 import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 
@@ -210,8 +211,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @Entity
 @Table(name = "ASSET")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "TYPE")
-@DiscriminatorValue("non null")
+@DiscriminatorColumn(name="TYPE", discriminatorType=STRING)
 @Check(constraints = "ID != PARENT_ID")
 @JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = Asset.class)
 public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
@@ -252,7 +252,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     @NotNull(message = "{Asset.type.NotNull}")
     @Size(min = 3, max = 255, message = "{Asset.type.Size}")
-    @Column(name = "TYPE", nullable = false, updatable = false)
+    @Column(name = "TYPE", nullable = false, updatable = false, insertable = false)
     protected String type;
 
     @Column(name = "ACCESS_PUBLIC_READ", nullable = false)
@@ -489,6 +489,18 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     public boolean hasAttribute(String attributeName) {
         return getAttributes().has(attributeName);
+    }
+
+    @SuppressWarnings("unchecked")
+    public T addAttributes(Attribute<?>...attributes) {
+        getAttributes().addAll(attributes);
+        return (T)this;
+    }
+
+    @SuppressWarnings("unchecked")
+    public T addOrReplaceAttributes(Attribute<?>...attributes) {
+        getAttributes().addOrReplace(attributes);
+        return (T)this;
     }
 
     @Override

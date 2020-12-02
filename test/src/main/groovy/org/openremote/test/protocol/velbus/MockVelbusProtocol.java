@@ -17,27 +17,27 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.agent.protocol.artnet;
+package org.openremote.test.protocol.velbus;
 
-import org.openremote.agent.protocol.io.IoAgent;
-import org.openremote.model.asset.agent.AgentDescriptor;
-import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.agent.protocol.io.IoClient;
+import org.openremote.agent.protocol.velbus.AbstractVelbusProtocol;
+import org.openremote.agent.protocol.velbus.VelbusPacket;
 
-import javax.persistence.Entity;
+public class MockVelbusProtocol extends AbstractVelbusProtocol<MockVelbusProtocol, MockVelbusAgent> {
 
-@Entity
-public class ArtnetAgent extends IoAgent<ArtnetAgent, ArtnetProtocol, AgentLink.Default> {
+    public static MockVelbusClient messageProcessor = new MockVelbusClient();
 
-    public static final AgentDescriptor<ArtnetAgent, ArtnetProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
-        ArtnetAgent.class, ArtnetProtocol.class, AgentLink.Default.class
-    );
-
-    public ArtnetAgent(String name) {
-        super(name, DESCRIPTOR);
+    public MockVelbusProtocol(MockVelbusAgent agent) {
+        super(agent);
     }
 
     @Override
-    public ArtnetProtocol getProtocolInstance() {
-        return new ArtnetProtocol(this);
+    public String getProtocolName() {
+        return "Mock VELBUS";
+    }
+
+    @Override
+    protected IoClient<VelbusPacket> createIoClient(MockVelbusAgent agent) throws RuntimeException {
+        return messageProcessor;
     }
 }

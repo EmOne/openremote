@@ -159,7 +159,7 @@ public class ThermostatProcessor extends FeatureProcessor {
             String modeStr = property.substring("TEMP_TARGET_".length());
             return EnumUtil
                 .enumFromString(TemperatureMode.class, modeStr)
-                .map(mode -> Values.getDouble(value)
+                .map(mode -> Values.getDoubleCoerced(value)
                     .map(newTemp -> Math.round(newTemp*2d))
                     .map(newTemp -> {
                         int busValue = Math.toIntExact(newTemp);

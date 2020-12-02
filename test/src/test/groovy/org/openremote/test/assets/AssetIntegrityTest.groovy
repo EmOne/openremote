@@ -4,10 +4,9 @@ import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.AssetResource
-import org.openremote.model.asset.Asset
+import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.AttributeValueType
-import org.openremote.model.value.Values
+import org.openremote.model.value.ValueType
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -41,19 +40,20 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         def assetResource = getClientApiTarget(serverUri, MASTER_REALM, accessToken).proxy(AssetResource.class)
 
         when: "an asset is created in the authenticated realm"
-        def testAsset = new Asset("Test Room", AssetType.ROOM, null, keycloakTestSetup.masterTenant.realm)
+        def testAsset = new RoomAsset("Test Room")
+            .setRealm(keycloakTestSetup.masterTenant.realm)
         testAsset = assetResource.create(null, testAsset)
 
         then: "the asset should exist"
         testAsset.name == "Test Room"
-        testAsset.wellKnownType == AssetType.ROOM
+        testAsset.type == RoomAsset.DESCRIPTOR.getName()
         testAsset.realm == keycloakTestSetup.masterTenant.realm
         testAsset.parentId == null
 
         when: "an asset is stored with an illegal attribute name"
         testAsset = assetResource.get(null, testAsset.getId())
-        testAsset.getAttributes().addOrReplace(
-            new Attribute<>(testAsset.id, "illegal- Attribute:name&&&", ValueType.STRING)
+        testAsset.addOrReplaceAttributes(
+            new Attribute<>("illegal- Attribute:name&&&", STRING)
         )
 
         assetResource.update(null, testAsset.getId(), testAsset)
@@ -64,15 +64,15 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
 
         when: "an asset is stored with a non-empty attribute value"
         testAsset = assetResource.get(null, testAsset.getId())
-        testAsset.getAttributes().addOrReplace(
-                new Attribute<>("foo", ValueType.STRING, "bar")
+        testAsset.addOrReplaceAttributes(
+                new Attribute<>("foo", STRING, "bar")
         )
         assetResource.update(null, testAsset.id, testAsset)
         testAsset = assetResource.get(null, testAsset.getId())
 
         then: "the attribute should exist"
         testAsset.getAttribute("foo").isPresent()
-        testAsset.getAttribute("foo").get().getValueAsString().get() == "bar"
+        testAsset.getAttribute("foo").get().getValue().get() == "bar"
 
         when: "an asset attribute value is written directly"
         assetResource.writeAttributeValue(null, testAsset.getId(), "foo", "\"bar2\"")
@@ -80,7 +80,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         then: "the attribute value should match"
         new PollingConditions(timeout: 5, delay: 0.2).eventually {
             def asset = assetResource.get(null, testAsset.getId())
-            assert asset.getAttribute("foo").get().getValueAsString().get() == "bar2"
+            assert asset.getAttribute("foo").get().getValue().get() == "bar2"
         }
 
         when: "an asset attribute value null is written directly"
@@ -99,7 +99,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         testAsset = assetResource.get(null, testAsset.getId())
 
         then: "the asset should not be updated"
-        testAsset.wellKnownType == AssetType.ROOM
+        testAsset.type == RoomAsset.DESCRIPTOR.getName()
 
         when: "an asset is updated with a non-existent realm"
         testAsset.setRealm("thisdoesnotexistitreallydoesnt")

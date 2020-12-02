@@ -27,7 +27,7 @@ import org.openremote.model.asset.agent.AgentLink;
  * This is an abstract UDP client protocol for communicating with UDP servers; concrete implementations must implement
  * {@link #getEncoderDecoderProvider} to provide encoders/decoders for messages of type &lt;T&gt;.
  */
-public abstract class AbstractUdpClientProtocol<T extends AbstractIoClientProtocol<T, U, W, X, V>, U extends IoAgent<U, T, V>, V extends AgentLink, W, X extends UdpIoClient<W>> extends AbstractIoClientProtocol<T, U, W, X, V> {
+public abstract class AbstractUdpClientProtocol<T extends AbstractIoClientProtocol<T, U, W, X, V>, U extends IoAgent<U, T, V>, V extends AgentLink<?>, W, X extends UdpIoClient<W>> extends AbstractIoClientProtocol<T, U, W, X, V> {
 
     protected AbstractUdpClientProtocol(U agent) {
         super(agent);

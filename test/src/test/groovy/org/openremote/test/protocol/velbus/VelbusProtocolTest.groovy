@@ -1,27 +1,18 @@
 package org.openremote.test.protocol.velbus
 
 import org.apache.commons.io.IOUtils
-import org.openremote.agent.protocol.io.IoClient
-import org.openremote.agent.protocol.velbus.AbstractVelbusProtocol
-import org.openremote.agent.protocol.velbus.VelbusConfiguration
-import org.openremote.agent.protocol.velbus.VelbusPacket
-import org.openremote.agent.protocol.velbus.VelbusSerialProtocol
+import org.openremote.agent.protocol.velbus.VelbusAgent
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-import org.openremote.model.asset.Asset
-import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.MetaItemType
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.agent.AgentResource
-import org.openremote.model.attribute.AttributeRef
-import org.openremote.model.attribute.AttributeValueType
+import org.openremote.model.asset.impl.ThingAsset
+import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.file.FileInfo
 import org.openremote.model.util.TextUtil
 import org.openremote.test.ManagerContainerTrait
-import org.openremote.test.MockVelbusClient
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
@@ -29,37 +20,13 @@ import static org.openremote.container.util.MapAccess.getString
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
+import static org.openremote.model.value.MetaItemType.AGENT_LINK
+import static org.openremote.model.value.ValueType.STRING
+
 class VelbusProtocolTest extends Specification implements ManagerContainerTrait {
 
-    @Shared
-    static MockVelbusClient messageProcessor = new MockVelbusClient()
-
-    @Shared
-    static AbstractVelbusProtocol velbusProtocol = new AbstractVelbusProtocol() {
-
-        @Override
-        protected IoClient<VelbusPacket> createIoClient(Attribute protocolConfiguration) throws RuntimeException {
-            return messageProcessor
-        }
-
-        @Override
-        protected String getUniqueNetworkIdentifier(Attribute protocolConfiguration) {
-            return "MOCK"
-        }
-
-        @Override
-        String getProtocolName() {
-            return PROTOCOL_NAMESPACE + ":velbusMock"
-        }
-
-        @Override
-        String getProtocolDisplayName() {
-            return "VELBUS Mock"
-        }
-    }
-
     def setupSpec() {
-        messageProcessor.mockPackets = [
+        MockVelbusProtocol.messageProcessor.mockPackets = [
             // Module Type request for address 48 - return VMBGPOD Packets
             "0F FB 30 40 86 04 00 00 00 00 00 00 00 00": [
                 "0F FB 30 07 FF 28 00 02 01 16 12 6D 04 00",
@@ -89,38 +56,27 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
         def conditions = new PollingConditions(timeout: 20, delay: 0.2)
 
         when: "the container starts"
-        def container = startContainer(defaultConfig(), defaultServices(velbusProtocol))
+        def container = startContainer(defaultConfig(), defaultServices())
         def assetStorageService = container.getService(AssetStorageService.class)
+        def agentService = container.getService(AgentService.class)
 
-        and: "a VELBUS agent is created"
-        def agent = new Asset("VELBUS", AssetType.AGENT)
+        and: "a mock VELBUS agent is created"
+        def agent = new MockVelbusAgent("VELBUS")
         agent.setRealm(MASTER_REALM)
-        agent.setType(AssetType.AGENT)
-        agent.getAttributes().addOrReplace(
-            initProtocolConfiguration(new Attribute<>("protocolConfig"), velbusProtocol.getProtocolName())
-        )
-
         agent = assetStorageService.merge(agent)
 
         and: "a device asset is created"
-        def device = new Asset("VELBUS Demo VMBGPOD", AssetType.THING, agent)
-        device.getAttributes().addOrReplace(
-            new Attribute<>("ch1State", ValueType.STRING)
-                .setMeta(
-                    new MetaItem<>(
-                        AbstractVelbusProtocol.META_VELBUS_DEVICE_ADDRESS,
-                        48
-                    ),
-                    new MetaItem<>(
-                        AbstractVelbusProtocol.META_VELBUS_DEVICE_VALUE_LINK,
-                        "CH1"
-                    ),
-                    new MetaItem<>(
-                            MetaItemType.AGENT_LINK,
-                            new AttributeRef(agent.id, "protocolConfig").toArrayValue()
+        def device = new ThingAsset("VELBUS Demo VMBGPOD")
+            .setParent(agent)
+            .addOrReplaceAttributes(
+                new Attribute<>("ch1State", STRING)
+                    .addOrReplaceMeta(
+                        new MetaItem<>(
+                                AGENT_LINK,
+                                new VelbusAgent.VelbusAgentLink(agent.id, 48, "CH1")
+                        )
                     )
-                )
-        )
+            )
 
         and: "the device asset is added to the asset service"
         device = assetStorageService.merge(device)
@@ -128,14 +84,15 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
 
         then: "a client should be created and the device asset attribute values should match the values returned by the actual device"
         conditions.eventually {
-            assert velbusProtocol.networkMap.size() == 1
+            assert agentService.getProtocolInstance(agent.id) != null
+            assert ((MockVelbusProtocol)agentService.getProtocolInstance(agent.id)).network != null
             def asset = assetStorageService.find(deviceId, true)
-            assert asset.getAttribute("ch1State").flatMap { it.getValueAsString() }.orElse(null) == "RELEASED"
+            assert asset.getAttribute("ch1State").flatMap { it.getValue() }.orElse(null) == "RELEASED"
         }
 
         cleanup: "remove agent"
         if (agent != null) {
-            assetStorageService.delete(Collections.singletonList(agent.id))
+            assetStorageService.delete([agent.id])
         }
     }
 
@@ -155,16 +112,8 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
         def velbusProjectFile = IOUtils.toString(velbusProjectFileResource, "UTF-8")
 
         and: "a VELBUS agent is created"
-        def agent = new Asset("VELBUS", AssetType.AGENT)
-        agent.setRealm(MASTER_REALM)
-        agent.setType(AssetType.AGENT)
-        agent.getAttributes().addOrReplace(
-            initProtocolConfiguration(new Attribute<>("protocolConfig"), VelbusSerialProtocol.PROTOCOL_NAME)
-                .addMeta(
-                    new MetaItem<>(VelbusSerialProtocol.META_VELBUS_SERIAL_PORT, "COM5")
-                )
-        )
-
+        def agent = new MockVelbusAgent("VELBUS")
+            .setRealm(MASTER_REALM)
         agent = assetStorageService.merge(agent)
 
         and: "an authenticated admin user"
@@ -181,13 +130,13 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
 
         expect: "the system should settle down"
         conditions.eventually {
-            assert agentService.getAgents().containsKey(agent.id)
+            assert agentService.getAgent(agent.id) != null
             assert noEventProcessedIn(assetProcessingService, 300)
         }
 
         when: "discovery is requested with a VELBUS project file"
         def fileInfo = new FileInfo("VelbusProject.vlp", velbusProjectFile, false)
-        def assets = agentResource.doProtocolAssetImport(null, agent.getId(), "protocolConfig", null, null, fileInfo)
+        def assets = agentResource.doProtocolAssetImport(null, agent.getId(), MASTER_REALM, fileInfo)
 
         then: "the correct number of assets should be returned and all should have IDs"
         assert assets != null

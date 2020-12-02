@@ -153,19 +153,20 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         protocolInstanceMap.clear();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void configure() throws Exception {
         from(PERSISTENCE_TOPIC)
             .routeId("AgentPersistenceChanges")
             .filter(isPersistenceEventForEntityType(Asset.class))
             .process(exchange -> {
-                @SuppressWarnings("unchecked")
                 PersistenceEvent<Asset<?>> persistenceEvent = (PersistenceEvent<Asset<?>>)exchange.getIn().getBody(PersistenceEvent.class);
                 Asset<?> asset = persistenceEvent.getEntity();
                 if (isPersistenceEventForAssetType(Agent.class).matches(exchange)) {
-                    processAgentChange((Agent<?, ?, ?>)asset, persistenceEvent);
+                    PersistenceEvent<Agent<?, ?, ?>> agentEvent = (PersistenceEvent<Agent<?,?,?>>)(PersistenceEvent)persistenceEvent;
+                    processAgentChange(agentEvent);
                 } else {
-                    processAssetChange(asset, persistenceEvent);
+                    processAssetChange(persistenceEvent);
                 }
             });
 
@@ -242,10 +243,10 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         assetProcessingService.sendAttributeEvent(attributeEvent);
     }
 
-    protected void processAgentChange(Agent<?, ?, ?> agent, PersistenceEvent<?> persistenceEvent) {
+    protected void processAgentChange(PersistenceEvent<Agent<?, ?, ?>> persistenceEvent) {
 
         LOG.finest("Processing agent persistence event: " + persistenceEvent.getCause());
-        Agent<?, ?, ?> oldAgent = (Agent<?, ?, ?>)persistenceEvent.getEntity();
+        Agent<?, ?, ?> agent = persistenceEvent.getEntity();
 
         switch (persistenceEvent.getCause()) {
             case CREATE:
@@ -254,21 +255,27 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                     return;
                 }
 
-                startAgent(agent);
+                if (agent.isDisabled().orElse(false)) {
+                    LOG.info("Agent is marked as disabled so not starting: " + agent);
+                } else {
+                    startAgent(agent);
+                }
 
                 break;
             case UPDATE:
+                Agent<?, ?, ?> oldAgent = getAgents().get(persistenceEvent.getEntity().getId());
+
                 if (!removeAgent(oldAgent)) {
                     LOG.finest("Agent is a gateway asset so ignoring");
                     return;
                 }
 
                 stopAgent(oldAgent);
+                addReplaceAgent(agent);
 
                 if (agent.isDisabled().orElse(false)) {
                     LOG.info("Agent is marked as disabled so not starting: " + agent);
                 } else {
-                    addReplaceAgent(agent);
                     startAgent(agent);
                 }
                 break;
@@ -283,12 +290,26 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         }
     }
 
+    protected void onAgentUpdated(Agent<?,?,?> agent, AttributeEvent attributeEvent) {
+        if (Agent.DISABLED.getName().equals(attributeEvent.getAttributeName()) && !agent.isDisabled().orElse(false).equals(attributeEvent.getValue().orElse(false))) {
+            LOG.fine("Agent disabled status has been updated: agent=" + agent.getId() + ", event=" + attributeEvent);
+
+            // Disabled status has changed
+            stopAgent(agent);
+            if (!attributeEvent.<Boolean>getValue().orElse(false)) {
+                startAgent(agent);
+            }
+        }
+    }
+
     /**
      * Looks for new, modified and obsolete AGENT_LINK attributes and links / unlinks them
      * with the protocol
      */
-    protected void processAssetChange(Asset<?> asset, PersistenceEvent<Asset<?>> persistenceEvent) {
+    protected void processAssetChange(PersistenceEvent<Asset<?>> persistenceEvent) {
+
         LOG.finest("Processing asset persistence event: " + persistenceEvent.getCause());
+        Asset<?> asset = persistenceEvent.getEntity();
 
         switch (persistenceEvent.getCause()) {
             case CREATE:
@@ -323,12 +344,12 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 }
 
                 // Unlink old agent linked attributes and relink new ones
-                Map<Agent, List<Attribute<?>>> oldAgentLinkedAttributes = getGroupedAgentLinkAttributes(
+                Map<Agent<?,?,?>, List<Attribute<?>>> oldAgentLinkedAttributes = getGroupedAgentLinkAttributes(
                     ((AttributeList)persistenceEvent.getPreviousState()[attributesIndex]).stream(),
                     attribute -> true
                 );
 
-                Map<Agent, List<Attribute<?>>> newAgentLinkedAttributes = getGroupedAgentLinkAttributes(
+                Map<Agent<?,?,?>, List<Attribute<?>>> newAgentLinkedAttributes = getGroupedAgentLinkAttributes(
                     ((AttributeList)persistenceEvent.getCurrentState()[attributesIndex]).stream(),
                     attribute -> true
                 );
@@ -409,7 +430,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                     getGroupedAgentLinkAttributes(
                         asset.getAttributes().stream(),
                         assetAttribute -> assetAttribute.getMetaValue(AGENT_LINK)
-                            .map(agentId -> agentId.equals(agent.getId()))
+                            .map(agentLink -> agentLink.getId().equals(agent.getId()))
                             .orElse(false)
                     ).forEach((agentId, attributes) -> linkAttributes(agent, asset.getId(), attributes))
             );
@@ -508,11 +529,20 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             return false;
         }
 
+        AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(asset.getId(), attribute));
+
+        if (asset instanceof Agent) {
+            LOG.fine("Attribute write for agent attribute: agent=" + asset.getId() + ", attribute=" + attribute.getName());
+            onAgentUpdated(getAgents().get(asset.getId()), attributeEvent);
+            // Don't consume the event as we want the agent attribute to be update in the DB
+            return false;
+        }
+
         Boolean result = withLockReturning(getClass().getSimpleName() + "::processAssetUpdate", () ->
             attribute.getMetaValue(AGENT_LINK)
                 .map(agentLink -> {
                     LOG.fine("Attribute write for agent linked attribute: agent=" + agentLink.getId() + ", asset=" + asset.getId() + ", attribute=" + attribute.getName());
-                    AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(asset.getId(), attribute));
+
                     messageBrokerService.getProducerTemplate().sendBodyAndHeader(
                         ACTUATOR_TOPIC,
                         attributeEvent,
@@ -528,7 +558,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     /**
      * Gets all agent link attributes and their linked protocol configuration and groups them by Protocol Configuration
      */
-    protected Map<Agent, List<Attribute<?>>> getGroupedAgentLinkAttributes(Stream<Attribute<?>> attributes,
+    protected Map<Agent<?,?,?>, List<Attribute<?>>> getGroupedAgentLinkAttributes(Stream<Attribute<?>> attributes,
                                                                                       Predicate<Attribute<?>> filter) {
         return attributes
             .filter(attribute ->
@@ -569,7 +599,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         return withLockReturning(getClass().getSimpleName() + "::removeAgent", () -> getAgents().remove(agent.getId()) != null);
     }
 
-    public Map<String, Agent<?, ?, ?>> getAgents() {
+    public Agent<?, ?, ?> getAgent(String agentId) {
+        return getAgents().get(agentId);
+    }
+
+    protected Map<String, Agent<?, ?, ?>> getAgents() {
         return withLockReturning(getClass().getSimpleName() + "::getAgents", () -> {
             if (agentMap == null) {
                 agentMap = assetStorageService.findAll(

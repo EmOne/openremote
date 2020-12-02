@@ -31,7 +31,7 @@ import java.util.Optional;
 
 public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, WebsocketClientProtocol, WebsocketClientAgent.WebsocketClientAgentLink> {
 
-    public static class WebsocketClientAgentLink extends AgentLink {
+    public static class WebsocketClientAgentLink extends AgentLink<WebsocketClientAgentLink> {
 
         protected WebsocketSubscription[] websocketSubscriptions;
 
@@ -44,8 +44,10 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
             return Optional.ofNullable(websocketSubscriptions);
         }
 
-        public void setWebsocketSubscriptions(WebsocketSubscription[] websocketSubscriptions) {
+        @SuppressWarnings("unchecked")
+        public <T extends WebsocketClientAgentLink> T setWebsocketSubscriptions(WebsocketSubscription[] websocketSubscriptions) {
             this.websocketSubscriptions = websocketSubscriptions;
+            return (T)this;
         }
     }
 
@@ -84,12 +86,30 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
         return getAttributes().getValue(CONNECT_URI);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends WebsocketClientAgent> T setConnectUri(String value) {
+        getAttributes().getOrCreate(CONNECT_URI).setValue(value);
+        return (T)this;
+    }
+
     public Optional<ValueType.MultivaluedStringMap> getConnectHeaders() {
         return getAttributes().getValue(CONNECT_HEADERS);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends WebsocketClientAgent> T setConnectHeaders(ValueType.MultivaluedStringMap value) {
+        getAttributes().getOrCreate(CONNECT_HEADERS).setValue(value);
+        return (T)this;
+    }
+
     public Optional<WebsocketSubscription[]> getConnectSubscriptions() {
         return getAttributes().getValue(CONNECT_SUBSCRIPTIONS);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends WebsocketClientAgent> T setConnectSubscriptions(WebsocketSubscription[] value) {
+        getAttributes().getOrCreate(CONNECT_SUBSCRIPTIONS).setValue(value);
+        return (T)this;
     }
 
     @Override

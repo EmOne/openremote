@@ -25,6 +25,7 @@ import org.openremote.model.value.ValueType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class CounterProcessor extends FeatureProcessor {
 
@@ -159,10 +160,10 @@ public class CounterProcessor extends FeatureProcessor {
                     // Read Counter units
                     int counterUnits = packet.getByte(3);
                     CounterUnits[] counters = new CounterUnits[4];
-                    counters[0] = (Boolean)device.getPropertyValue("COUNTER1_ENABLED") ? CounterUnits.fromCode(counterUnits & 0x03) : null;
-                    counters[1] = (Boolean)device.getPropertyValue("COUNTER2_ENABLED") ? CounterUnits.fromCode((counterUnits & 0x0C) >> 2) : null;
-                    counters[2] = (Boolean)device.getPropertyValue("COUNTER3_ENABLED") ? CounterUnits.fromCode((counterUnits & 0x30) >> 4) : null;
-                    counters[3] = (Boolean)device.getPropertyValue("COUNTER4_ENABLED") ? CounterUnits.fromCode((counterUnits & 0xC0) >> 6) : null;
+                    counters[0] = Optional.ofNullable((Boolean)device.getPropertyValue("COUNTER1_ENABLED")).orElse(false) ? CounterUnits.fromCode(counterUnits & 0x03) : null;
+                    counters[1] = Optional.ofNullable((Boolean)device.getPropertyValue("COUNTER2_ENABLED")).orElse(false) ? CounterUnits.fromCode((counterUnits & 0x0C) >> 2) : null;
+                    counters[2] = Optional.ofNullable((Boolean)device.getPropertyValue("COUNTER3_ENABLED")).orElse(false) ? CounterUnits.fromCode((counterUnits & 0x30) >> 4) : null;
+                    counters[3] = Optional.ofNullable((Boolean)device.getPropertyValue("COUNTER4_ENABLED")).orElse(false) ? CounterUnits.fromCode((counterUnits & 0xC0) >> 6) : null;
 
                     // Put values directly into cache no sensors will be linked to these values
                     device.setProperty("COUNTER1_UNITS", counters[0]);
@@ -173,7 +174,7 @@ public class CounterProcessor extends FeatureProcessor {
                     // Try and update the counter instant values if any counter is a kilowatt counter
                     for (int i=0; i<4; i++) {
                         if (counters[i] == CounterUnits.KILOWATTS) {
-                            double val = (Double) device.getPropertyValue("COUNTER" + (i + 1) + "_INSTANT");
+                            double val = Optional.ofNullable((Double)device.getPropertyValue("COUNTER" + (i + 1) + "_INSTANT")).orElse(0d);
                             val = val * 1000;
                             device.setProperty("COUNTER" + (i + 1) + "_INSTANT", val);
                         }

@@ -106,7 +106,7 @@ public class OledProcessor extends FeatureProcessor {
                         finalTimeout * 1000
                     );
 
-                    device.setProperty("MEMO_TEXT", "");
+                    device.setProperty("MEMO_TEXT", text);
                     return packets;
                 })
                 .orElse(null);

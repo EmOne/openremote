@@ -212,10 +212,10 @@ public class ProgramsProcessor extends ChannelProcessor {
                         return null;
                     }
 
-                    boolean enabled = ((Boolean)device.getPropertyValue(alarmEnabledProperty));
+                    boolean enabled = Optional.ofNullable((Boolean)device.getPropertyValue(alarmEnabledProperty)).orElse(false);
                     String wakeTime = ((String)device.getPropertyValue(alarmWakeTimeProperty));
                     String bedTime = ((String)device.getPropertyValue(alarmBedTimeProperty));
-                    boolean isGlobal = ((Boolean)device.getPropertyValue(alarmMasterProperty));
+                    boolean isGlobal = Optional.ofNullable((Boolean)device.getPropertyValue(alarmMasterProperty)).orElse(false);
 
                     if ("ENABLED".equals(alarmProperty)) {
                         Optional<Boolean> setEnabled = Values.getBooleanCoerced(value);
@@ -328,7 +328,7 @@ public class ProgramsProcessor extends ChannelProcessor {
                 boolean allEnabled = true;
 
                 for (int i=1; i<=maxChannelNumber; i++) {
-                    boolean isChannelEnabled = (Boolean)device.getPropertyValue("CH" + i + PROGRAM_STEPS_ENABLED_SUFFIX);
+                    boolean isChannelEnabled = Optional.ofNullable((Boolean)device.getPropertyValue("CH" + i + PROGRAM_STEPS_ENABLED_SUFFIX)).orElse(true);
                     if (!isChannelEnabled) {
                         allEnabled = false;
                         break;

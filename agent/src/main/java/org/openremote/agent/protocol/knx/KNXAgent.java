@@ -33,7 +33,7 @@ import java.util.Optional;
 
 public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink> {
 
-    public static class KNXAgentLink extends AgentLink {
+    public static class KNXAgentLink extends AgentLink<KNXAgentLink> {
 
         @NotNull
         @Pattern(regexp = "^\\d{1,3}\\.\\d{1,3}$")
@@ -56,24 +56,27 @@ public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink
             return Optional.ofNullable(dpt);
         }
 
-        public void setDpt(String dpt) {
+        public KNXAgentLink setDpt(String dpt) {
             this.dpt = dpt;
+            return this;
         }
 
         public Optional<String> getActionGroupAddress() {
             return Optional.ofNullable(actionGroupAddress);
         }
 
-        public void setActionGroupAddress(String actionGroupAddress) {
+        public KNXAgentLink setActionGroupAddress(String actionGroupAddress) {
             this.actionGroupAddress = actionGroupAddress;
+            return this;
         }
 
         public Optional<String> getStatusGroupAddress() {
             return Optional.ofNullable(statusGroupAddress);
         }
 
-        public void setStatusGroupAddress(String statusGroupAddress) {
+        public KNXAgentLink setStatusGroupAddress(String statusGroupAddress) {
             this.statusGroupAddress = statusGroupAddress;
+            return this;
         }
     }
 

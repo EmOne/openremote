@@ -44,7 +44,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * handle the communication and all messages are processed as strings; if you require custom message type handling
  * then please sub class the {@link AbstractSerialClientProtocol}).
  */
-public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialClientProtocol, SerialAgent, AgentLink, String, SerialIoClient<String>> {
+public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialClientProtocol, SerialAgent, AgentLink.Default, String, SerialIoClient<String>> {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, SerialClientProtocol.class);
     public static final String PROTOCOL_DISPLAY_NAME = "Serial Client";
@@ -61,7 +61,7 @@ public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialCli
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
 
         Consumer<String> messageConsumer = ProtocolUtil.createGenericAttributeMessageConsumer(assetId, attribute, agentLink, timerService::getCurrentTimeMillis, this::updateLinkedAttribute);
 
@@ -74,7 +74,7 @@ public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialCli
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         protocolMessageConsumers.removeIf(attRefConsumerPair -> attRefConsumerPair.key.equals(attributeRef));
     }
@@ -94,7 +94,7 @@ public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialCli
     }
 
     @Override
-    protected String createWriteMessage(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected String createWriteMessage(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
 
         if (attribute.getValueType().equals(ValueType.EXECUTION_STATUS)) {
             AttributeExecuteStatus status = event.getValue()

@@ -1,5 +1,6 @@
 package org.openremote.test.notification
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.collect.Lists
 import com.google.firebase.messaging.Message
 import org.openremote.container.web.WebService
@@ -14,13 +15,10 @@ import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.AttributeRef
-import org.openremote.model.attribute.AttributeType
 import org.openremote.model.console.ConsoleProvider
 import org.openremote.model.console.ConsoleRegistration
 import org.openremote.model.console.ConsoleResource
 import org.openremote.model.notification.*
-import org.openremote.model.value.ObjectValue
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import org.simplejavamail.email.Email
 import spock.lang.Specification
@@ -151,12 +149,12 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
                                 true,
                                 true,
                                 false,
-                                (ObjectValue) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
+                                (ObjectNode) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
                         ))
                     }
                 },
                 "",
-                ["manager"] as String)
+                ["manager"] as String[])
         def testuser2Console = testuser2ConsoleResource.register(null, consoleRegistration)
         def testuser3Console1 = testuser3ConsoleResource.register(null, consoleRegistration)
         def testuser3Console2 = testuser3ConsoleResource.register(null, consoleRegistration)

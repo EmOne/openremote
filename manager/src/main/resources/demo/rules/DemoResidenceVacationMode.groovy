@@ -39,7 +39,7 @@ rules.add()
                 }
             }.findFirst().map { residenceWithoutVacationMode ->
                 facts.bind("residenceId", residenceWithoutVacationMode.id)
-                        .bind("vacationUntil", residenceWithoutVacationMode.valueAsNumber.get())
+                        .bind("vacationUntil", residenceWithoutVacationMode.value.get())
                 true
             }.orElse(false)
         })
@@ -94,7 +94,7 @@ rules.add()
                                 .ids(vacationMode.residenceId)
                                 .attributes(new AttributePredicate(new StringPredicate("vacationUntil"), new ValueNotEmptyPredicate()))
                 ).map { residence ->
-                    vacationMode.until != residence.valueAsNumber.get()
+                    vacationMode.until != residence.value.get()
                 }.orElse(false)
             }.map { vacationMode ->
                 facts.bind("vacationMode", vacationMode)

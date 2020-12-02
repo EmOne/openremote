@@ -23,9 +23,9 @@ import org.openremote.agent.protocol.http.AbstractHttpServerAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
-public class HttpServerTestAgent extends AbstractHttpServerAgent<HttpServerTestAgent, TestHttpServerProtocol, AgentLink> {
+public class HttpServerTestAgent extends AbstractHttpServerAgent<HttpServerTestAgent, TestHttpServerProtocol, AgentLink<?>> {
 
-    protected HttpServerTestAgent(String name, AgentDescriptor<HttpServerTestAgent, TestHttpServerProtocol, AgentLink> descriptor) {
+    protected HttpServerTestAgent(String name, AgentDescriptor<HttpServerTestAgent, TestHttpServerProtocol, AgentLink<?>> descriptor) {
         super(name, descriptor);
     }
 

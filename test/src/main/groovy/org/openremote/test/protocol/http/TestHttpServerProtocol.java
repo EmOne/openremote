@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TestHttpServerProtocol extends AbstractHttpServerProtocol<TestHttpServerProtocol, HttpServerTestAgent, AgentLink> {
+public class TestHttpServerProtocol extends AbstractHttpServerProtocol<TestHttpServerProtocol, HttpServerTestAgent, AgentLink<?>> {
 
     public static final String PROTOCOL_DISPLAY_NAME = "HTTP Server Test Protocol";
     public TestResourceImpl resource1 = new TestResourceImpl();
@@ -43,17 +43,17 @@ public class TestHttpServerProtocol extends AbstractHttpServerProtocol<TestHttpS
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) throws RuntimeException {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink<?> agentLink) throws RuntimeException {
 
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink<?> agentLink) {
 
     }
 
     @Override
-    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink<?> agentLink, AttributeEvent event, Object processedValue) {
 
     }
 

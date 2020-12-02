@@ -68,7 +68,7 @@ class ResidenceVacationModeTest extends Specification implements ManagerContaine
             // The macro should be ready
             def asset = assetStorageService.find(managerTestSetup.apartment1Id, true)
             def executionStatus = AttributeExecuteStatus.fromString(
-                    asset.getAttribute("dayScene").get().getValueAsString().get()
+                    asset.getAttribute("dayScene").get().getValue().get()
             ).get()
             assert executionStatus == AttributeExecuteStatus.READY
         }
@@ -83,7 +83,7 @@ class ResidenceVacationModeTest extends Specification implements ManagerContaine
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1Id, true)
             def executionStatus = AttributeExecuteStatus.fromString(
-                    asset.getAttribute("dayScene").get().getValueAsString().get()
+                    asset.getAttribute("dayScene").get().getValue().get()
             ).get()
             assert executionStatus == AttributeExecuteStatus.COMPLETED
             assert !asset.getAttribute("sceneTimerEnabled").flatMap{it.value}.orElse(false)

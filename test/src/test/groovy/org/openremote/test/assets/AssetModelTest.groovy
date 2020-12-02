@@ -1,44 +1,15 @@
 package org.openremote.test.assets
 
-import org.openremote.container.util.UniqueIdentifierGenerator
-import org.openremote.model.asset.Asset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.value.Values
 import spock.lang.Specification
 
 import java.util.stream.Collectors
 
-import static org.openremote.model.AbstractValueTimestampHolder.VALUE_TIMESTAMP_FIELD_NAME
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes
-import static org.openremote.model.asset.AssetType.THING
-import static org.openremote.model.attribute.ValueType.STRING
+import static org.openremote.model.value.ValueType.*
 
+// TODO: Define new asset model tests (setValue - equality checking etc.)
 class AssetModelTest extends Specification {
-
-    def "Modifying asset identifier"() {
-
-        when: "an asset is created without identifier"
-        Asset asset = new Asset("foo", THING).getAttributes().addOrReplace(
-                new Attribute<>("foo1", STRING, "foo111"),
-                new Attribute<>("foo2", STRING, "foo222")
-        )
-
-        then: "the attributes should not have an identifier"
-        !asset.getAttribute("foo1").get().getAssetId().isPresent()
-        !asset.getAttribute("foo2").get().getAssetId().isPresent()
-        !asset.getAttributes()[0].getAssetId().isPresent()
-        !asset.getAttributes()[1].getAssetId().isPresent()
-
-        when: "the asset identifier is set later"
-        def id = UniqueIdentifierGenerator.generateId()
-        asset.setId(id)
-
-        then: "the attributes should have an identifier"
-        asset.getAttribute("foo1").get().getAssetId().get() == id
-        asset.getAttribute("foo2").get().getAssetId().get() == id
-        asset.getAttributes()[0].getAssetId().get() == id
-        asset.getAttributes()[1].getAssetId().get() == id
-    }
 
     def "Comparing asset attributes"() {
 

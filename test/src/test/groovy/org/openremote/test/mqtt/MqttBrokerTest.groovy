@@ -227,7 +227,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
         then: "The value of the attribute shouldn't be updated"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1HallwayId)
-            assert asset.getAttribute("motionSensor").get().valueAsNumber.orElse(0) == 50d
+            assert asset.getAttribute("motionSensor").get().value.orElse(0) == 50d
         }
 
         when: "a mqtt client publishes to an asset attribute"
@@ -246,7 +246,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
         then: "The value of the attribute should be updated and another publish event should be sent"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1HallwayId)
-            assert !asset.getAttribute("lights").get().valueAsBoolean.orElse(true)
+            assert !asset.getAttribute("lights").get().value.orElse(true)
             assert mqttBrokerServiceAttributeEventCalls == 3
         }
 

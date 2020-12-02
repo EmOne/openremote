@@ -32,7 +32,7 @@ import java.util.Optional;
 
 public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.MacroAgentLink> {
 
-    public static final class MacroAgentLink extends AgentLink {
+    public static final class MacroAgentLink extends AgentLink<MacroAgentLink> {
 
         @Min(0)
         protected Integer actionIndex;

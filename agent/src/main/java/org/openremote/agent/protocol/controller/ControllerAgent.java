@@ -31,7 +31,7 @@ import java.util.Optional;
 
 public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, ControllerAgent.ControllerAgentLink> {
 
-    public static class ControllerAgentLink extends AgentLink {
+    public static class ControllerAgentLink extends AgentLink<ControllerAgentLink> {
 
         protected String deviceName;
         protected String sensorName;
@@ -48,40 +48,45 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
             return Optional.ofNullable(deviceName);
         }
 
-        public void setDeviceName(String deviceName) {
+        public ControllerAgentLink setDeviceName(String deviceName) {
             this.deviceName = deviceName;
+            return this;
         }
 
         public Optional<String> getSensorName() {
             return Optional.ofNullable(sensorName);
         }
 
-        public void setSensorName(String sensorName) {
+        public ControllerAgentLink setSensorName(String sensorName) {
             this.sensorName = sensorName;
+            return this;
         }
 
         public Optional<String> getCommandDeviceName() {
             return Optional.ofNullable(commandDeviceName);
         }
 
-        public void setCommandDeviceName(String commandDeviceName) {
+        public ControllerAgentLink setCommandDeviceName(String commandDeviceName) {
             this.commandDeviceName = commandDeviceName;
+            return this;
         }
 
         public Optional<String> getCommandName() {
             return Optional.ofNullable(commandName);
         }
 
-        public void setCommandName(String commandName) {
+        public ControllerAgentLink setCommandName(String commandName) {
             this.commandName = commandName;
+            return this;
         }
 
         public Optional<ValueType.MultivaluedStringMap> getCommandsMap() {
             return Optional.ofNullable(commandsMap);
         }
 
-        public void setCommandsMap(ValueType.MultivaluedStringMap commandsMap) {
+        public ControllerAgentLink setCommandsMap(ValueType.MultivaluedStringMap commandsMap) {
             this.commandsMap = commandsMap;
+            return this;
         }
     }
 
@@ -102,5 +107,11 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
 
     public Optional<String> getControllerURI() {
         return getAttributes().getValue(CONTROLLER_URI);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends ControllerAgent> T setControllerURI(String uri) {
+        getAttributes().getOrCreate(CONTROLLER_URI).setValue(uri);
+        return (T)this;
     }
 }

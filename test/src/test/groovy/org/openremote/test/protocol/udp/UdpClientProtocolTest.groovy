@@ -27,7 +27,6 @@ import io.netty.handler.codec.MessageToMessageEncoder
 import io.netty.handler.codec.bytes.ByteArrayDecoder
 import org.openremote.agent.protocol.udp.UdpClientAgent
 import org.openremote.model.asset.agent.AgentLink
-import org.openremote.model.asset.agent.Protocol
 import org.openremote.agent.protocol.ProtocolExecutorService
 import org.openremote.agent.protocol.udp.AbstractUdpServer
 import org.openremote.agent.protocol.udp.UdpClientProtocol
@@ -36,17 +35,17 @@ import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.model.Constants
-import org.openremote.model.asset.Asset
 import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.*
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.StringPredicate
-import org.openremote.model.value.MetaItemType
-import org.openremote.model.value.ValueType
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
+
+import static org.openremote.model.value.MetaItemType.*
+import static org.openremote.model.value.ValueType.*
 
 class UdpClientProtocolTest extends Specification implements ManagerContainerTrait {
 
@@ -116,27 +115,27 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         when: "an asset is created with attributes linked to the protocol configuration"
         def asset = new ThingAsset("Test Asset")
             .setParent(agent)
-            .getAttributes().addOrReplace(
-            new Attribute<>("echoHello", ValueType.EXECUTION_STATUS)
+            .addOrReplaceAttributes(
+            new Attribute<>("echoHello", EXECUTION_STATUS)
                 .addMeta(
-                    new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink(agent.id)
+                    new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
                         .setWriteValue('"Hello {$value};"'))
                 ),
-            new Attribute<>("echoWorld", ValueType.STRING)
+            new Attribute<>("echoWorld", STRING)
                 .addMeta(
-                    new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink(agent.id)
+                    new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
                     .setWriteValue("World;"))
                 ),
-            new Attribute<>("responseHello", ValueType.STRING)
+            new Attribute<>("responseHello", STRING)
                 .addMeta(
-                    new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink(agent.id)
+                    new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
                         .setMessageMatchPredicate(
                             new StringPredicate(AssetQuery.Match.BEGIN, true, "Hello"))
                         )
                 ),
-            new Attribute<>("responseWorld", ValueType.STRING)
+            new Attribute<>("responseWorld", STRING)
                 .addMeta(
-                    new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink(agent.id)
+                    new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
                         .setMessageMatchPredicate(
                             new StringPredicate(AssetQuery.Match.BEGIN, true, "Hello"))
                     )
@@ -236,22 +235,21 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         }
 
         when: "the linked attributes are also updated to work with hex server"
-        asset.getAttribute("echoHello").ifPresent({it.getMetaValue(MetaItemType.AGENT_LINK)})
-            it.meta.replaceAll{it.name.get() == UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE.urn ? new MetaItem<>(UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE, '"abcdef"')) : it}}
-        asset.getAttribute("echoWorld").ifPresent({it.meta.replaceAll{it.name.get() == UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE.urn ? new MetaItem<>(UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE, '"123456"')) : it}}
+        asset.getAttribute("echoHello").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue('"abcdef"')}
+        asset.getAttribute("echoWorld").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue('"123456"')}
         asset = assetStorageService.merge(asset)
 
         then: "the attributes should be relinked"
         conditions.eventually {
             assert udpClientProtocol.protocolMessageConsumers.size() == 1
             assert udpClientProtocol.protocolMessageConsumers.get(new AttributeRef(agent.id, "protocolConfig")).size() == 2
-            assert udpClientProtocol.linkedAttributes.get(new AttributeRef(asset.getId(), "echoHello")).getMetaItem(UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE).flatMap{it.getValueAsString()}.orElse(null) == '"abcdef"'
+            assert udpClientProtocol.linkedAttributes.get(new AttributeRef(asset.getId(), "echoHello")).getMetaItem(UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE).flatMap{it.getValue()}.orElse(null) == '"abcdef"'
         }
 
         and: "the protocol should become CONNECTED"
         conditions.eventually {
-            def status = agentService.getAgentConnectionStatus(new AttributeRef(agent.id, "protocolConfig"))
-            assert status == ConnectionStatus.CONNECTED
+            agent = assetStorageService.find(agent.id, Agent.class)
+            assert agent.getAgentStatus().orElse(ConnectionStatus.DISCONNECTED) == ConnectionStatus.CONNECTED
         }
 
         when: "the hello linked attribute is executed"

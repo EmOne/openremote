@@ -43,7 +43,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * <p>
  * To use this protocol create a {@link UdpClientAgent}.
  */
-public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtocol, UdpClientAgent, AgentLink, String, UdpIoClient<String>> {
+public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtocol, UdpClientAgent, AgentLink.Default, String, UdpIoClient<String>> {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, UdpClientProtocol.class);
     public static final String PROTOCOL_DISPLAY_NAME = "UDP Client";
@@ -59,7 +59,7 @@ public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtoc
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
 
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         Consumer<String> messageConsumer = ProtocolUtil.createGenericAttributeMessageConsumer(assetId, attribute, agentLink, timerService::getCurrentTimeMillis, this::updateLinkedAttribute);
@@ -71,7 +71,7 @@ public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtoc
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         protocolMessageConsumers.removeIf(attributeRefConsumerPair -> attributeRefConsumerPair.key.equals(attributeRef));
     }
@@ -88,7 +88,7 @@ public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtoc
     }
 
     @Override
-    protected String createWriteMessage(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected String createWriteMessage(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
         return processedValue != null ? processedValue.toString() : null;
     }
 }

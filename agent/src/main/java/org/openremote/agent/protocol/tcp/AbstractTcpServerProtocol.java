@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  * It is up to the concrete implementations whether or not linked {@link Attribute}s can be used with this protocol and
  * to define the semantics of these linked attributes.
  */
-public abstract class AbstractTcpServerProtocol<R, S extends AbstractTcpServer<R>, T extends AbstractTcpServerProtocol<R, S, T, U, V>, U extends AbstractTcpServerAgent<U, T, V>, V extends AgentLink> extends AbstractProtocol<U, V> {
+public abstract class AbstractTcpServerProtocol<R, S extends AbstractTcpServer<R>, T extends AbstractTcpServerProtocol<R, S, T, U, V>, U extends AbstractTcpServerAgent<U, T, V>, V extends AgentLink<?>> extends AbstractProtocol<U, V> {
 
     private static final Logger LOG = Logger.getLogger(AbstractTcpServerProtocol.class.getName());
 

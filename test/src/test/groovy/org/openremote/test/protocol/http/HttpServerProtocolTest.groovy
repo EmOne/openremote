@@ -22,6 +22,7 @@ package org.openremote.test.protocol.http
 import org.jboss.resteasy.spi.ResteasyUriInfo
 import org.jboss.resteasy.util.BasicAuthHelper
 import org.openremote.agent.protocol.http.*
+import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.auth.OAuthGrant
 import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.auth.OAuthRefreshTokenGrant
@@ -31,10 +32,9 @@ import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.model.asset.Asset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.AttributeValueType
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.geo.GeoJSONPoint
-import org.openremote.model.value.ObjectValue
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
@@ -51,6 +51,8 @@ import static org.openremote.container.util.MapAccess.getString
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
+import static org.openremote.model.value.ValueType.*
+
 class HttpServerProtocolTest extends Specification implements ManagerContainerTrait {
 
     @Shared
@@ -177,7 +179,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
                             || requestContext.getHeaderString("Content-type") == MediaType.APPLICATION_XML)) {
 
                         String bodyStr = (String)requestContext.getEntity()
-                        ObjectValue body = Values.<ObjectValue>parse(bodyStr).orElse(null)
+                        ObjectNode body = Values.parse(bodyStr).orElse(null)
                         if (body.get("prop1").isPresent() && body.get("prop2").isPresent()) {
                             pingCount++
                             requestContext.abortWith(Response.ok().build())
@@ -202,7 +204,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
                         && requestContext.getHeaderString("Content-type") == MediaType.APPLICATION_JSON) {
 
                         String bodyStr = (String)requestContext.getEntity()
-                        ObjectValue body = Values.<ObjectValue>parse(bodyStr).orElse(null)
+                        ObjectNode body = Values.parse(bodyStr).orElse(null)
                         if (body.get("prop1").isPresent()
                             && body.get("prop1").get().toString() == /{"myProp1":123,"myProp2":true}/
                             && body.get("prop2").isPresent() && body.get("prop2").get().toString() == "prop2Value") {
@@ -297,11 +299,10 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
                 null).proxy(TestResource.class)
 
         when: "an agent with a test HTTP server protocol configuration is created"
-        def agent = new Asset()
-        agent.setRealm(MASTER_REALM)
-        agent.setName("Test Agent")
-        agent.setType(AssetType.AGENT)
-        agent.getAttributes().addOrReplace(
+        def agent = new HttpServerTestAgent("Test agent")
+            .setRealm(MASTER_REALM)
+            .setPath()
+            .addOrReplaceAttributes(
             initProtocolConfiguration(new Attribute<>("protocolConfig"), TestHttpServerProtocol.PROTOCOL_NAME)
                 .addMeta(
                     new MetaItem<>(
@@ -320,26 +321,25 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
 
         then: "the protocol should be deployed"
         conditions.eventually {
-            assert AbstractHttpServerProtocol.deployments.size() == 1
+            assert agentService.getProtocolInstance(agent.id) != null
         }
 
         when: "the authenticated test resource is used to post an asset"
-        def testAsset = new Asset("Test Asset", AssetType.THING)
-        testAsset.setId("12345")
-        testAsset.getAttributes().addOrReplace(
-            new Attribute<>("attribute1", ValueType.STRING, "Test")
-        )
-        testAsset.setCoordinates(new GeoJSONPoint(1d, 2d))
+        def testAsset = new ThingAsset("Test Asset")
+            .setId("12345")
+            .addOrReplaceAttributes(
+                new Attribute<>("attribute1", STRING, "Test")
+            )
+            .setLocation(new GeoJSONPoint(1d, 2d))
         authenticatedTestResource.postAsset(testAsset)
 
         then: "the asset should be stored in the test protocol"
         conditions.eventually {
             assert testServerProtocol.resource1.postedAssets.size() == 1
             assert testServerProtocol.resource1.postedAssets.get(0).name == "Test Asset"
-            assert testServerProtocol.resource1.postedAssets.get(0).hasTypeWellKnown()
-            assert testServerProtocol.resource1.postedAssets.get(0).wellKnownType == AssetType.THING
-            assert testServerProtocol.resource1.postedAssets.get(0).coordinates.x == 1d
-            assert testServerProtocol.resource1.postedAssets.get(0).coordinates.y == 2d
+            assert testServerProtocol.resource1.postedAssets.get(0).type == ThingAsset.DESCRIPTOR.getName()
+            assert testServerProtocol.resource1.postedAssets.get(0).getLocation().flatMap{it.x}.orElse(null) == 1d
+            assert testServerProtocol.resource1.postedAssets.get(0).getLocation().flatMap{it.y}.orElse(null) == 2d
         }
 
         when: "the authenticated test resource is used to get an asset"
@@ -347,7 +347,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
 
         then: "the asset should match the posted asset"
         assert asset.name == testAsset.name
-        assert asset.wellKnownType == testAsset.wellKnownType
+        assert asset.type == testAsset.type
         assert asset.coordinates.x == testAsset.coordinates.x
         assert asset.coordinates.y == testAsset.coordinates.y
 
@@ -382,22 +382,21 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
         }
 
         when: "the new test resource is used to post an asset"
-        testAsset = new Asset("Test Asset 2", AssetType.THING)
+        testAsset = new ThingAsset("Test Asset 2")
         testAsset.setId("67890")
-        testAsset.getAttributes().addOrReplace(
-            new Attribute<>("attribute2", ValueType.STRING, "Test")
+        testAsset.addOrReplaceAttributes(
+            new Attribute<>("attribute2", STRING, "Test")
         )
-        testAsset.setCoordinates(new GeoJSONPoint(3d, 4d))
+        testAsset.setLocation(new GeoJSONPoint(3d, 4d))
         authenticatedTestResource.postAsset(testAsset)
 
         then: "the asset should be stored in the test protocol"
         conditions.eventually {
             assert testServerProtocol.resource1.postedAssets.size() == 2
             assert testServerProtocol.resource1.postedAssets.get(1).name == "Test Asset 2"
-            assert testServerProtocol.resource1.postedAssets.get(1).hasTypeWellKnown()
-            assert testServerProtocol.resource1.postedAssets.get(1).wellKnownType == AssetType.THING
-            assert testServerProtocol.resource1.postedAssets.get(1).coordinates.x == 3d
-            assert testServerProtocol.resource1.postedAssets.get(1).coordinates.y == 4d
+            assert testServerProtocol.resource1.postedAssets.get(1).type == ThingAsset.DESCRIPTOR.getName()
+            assert testServerProtocol.resource1.postedAssets.get(1).getLocation().flatMap{it.x}.orElse(null) == 3d
+            assert testServerProtocol.resource1.postedAssets.get(1).getLocation().flatMap{it.y}.orElse(null) == 4d
         }
 
         when: "the new test resource is used to get an asset"
@@ -405,7 +404,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
 
         then: "the asset should match the posted asset"
         assert asset.name == testAsset.name
-        assert asset.wellKnownType == testAsset.wellKnownType
+        assert asset.type == testAsset.type
         assert asset.coordinates.x == testAsset.coordinates.x
         assert asset.coordinates.y == testAsset.coordinates.y
 

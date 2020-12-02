@@ -20,27 +20,26 @@
 package org.openremote.test.protocol
 
 import org.apache.commons.lang3.SystemUtils
-import org.openremote.model.asset.Asset
-import tuwien.auto.calimero.server.knxnetip.DefaultServiceContainer
-
-import static org.openremote.model.attribute.MetaItemType.DESCRIPTION
-import static org.openremote.model.attribute.MetaItemType.LABEL
-
+import org.openremote.agent.protocol.knx.KNXAgent
 import org.openremote.agent.protocol.knx.KNXProtocol
-import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-
 import org.openremote.model.Constants
-import org.openremote.model.asset.agent.ProtocolConfiguration
-import org.openremote.model.attribute.*
-import org.openremote.model.value.Values
-import org.openremote.test.KNXTestingNetworkLink
+import org.openremote.model.asset.agent.ConnectionStatus
+import org.openremote.model.asset.impl.ThingAsset
+import org.openremote.model.attribute.Attribute
+import org.openremote.model.attribute.AttributeEvent
+import org.openremote.model.attribute.AttributeRef
+import org.openremote.model.attribute.MetaItem
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 import tuwien.auto.calimero.server.Launcher
+import tuwien.auto.calimero.server.knxnetip.DefaultServiceContainer
+
+import static org.openremote.model.value.MetaItemType.*
+import static org.openremote.model.value.ValueType.*
 
 /**
  * This tests the KNX protocol and protocol implementation.
@@ -84,48 +83,35 @@ class KNXProtocolTest extends Specification implements ManagerContainerTrait {
         def assetProcessingService = container.getService(AssetProcessingService.class)
         
 
-        when: "a KNX agent that uses the KNX protocol is created with a valid protocol configuration"
-        def knxAgent = new Asset()
-        knxAgent.setName("KNX Agent")
-        knxAgent.setType(AssetType.AGENT)
-        knxAgent.getAttributes().addOrReplace(
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("knxConfig"), KNXProtocol.PROTOCOL_NAME)
-                .addMeta(
-                    new MetaItem<>(KNXProtocol.META_KNX_GATEWAY_HOST, "127.0.0.1"),
-                    new MetaItem<>(KNXProtocol.META_KNX_LOCAL_HOST, "127.0.0.1")
-                ),
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("knxConfigError1"), KNXProtocol.PROTOCOL_NAME),
-            ProtocolConfiguration.initProtocolConfiguration(new Attribute<>("knxConfigError2"), KNXProtocol.PROTOCOL_NAME)
-                .addMeta(
-                    new MetaItem<>(KNXProtocol.META_KNX_IP_CONNECTION_TYPE, "dummy")
-                )
-        )
-        knxAgent.setRealm(Constants.MASTER_REALM)
-        knxAgent = assetStorageService.merge(knxAgent)
+        when: "KNX agents are created"
+        def knxAgent1 = new KNXAgent("KNX Agent 2")
+            .setHost("127.0.0.1")
+            .setBindHost("127.0.0.1")
+            .setRealm(Constants.MASTER_REALM)
+        def knxAgent2 = new KNXAgent("KNX Agent 2")
+            .setRealm(Constants.MASTER_REALM)
 
-        then: "the protocol configurations should be linked and their deployment status should be available in the agent service"
+        knxAgent1 = assetStorageService.merge(knxAgent1)
+        knxAgent2 = assetStorageService.merge(knxAgent2)
+
+        then: "a protocol instance should be created for the valid agent but not the invalid one"
         conditions.eventually {
-            assert agentService.getAgentConnectionStatus(knxAgent.getAttribute("knxConfig").get().getReferenceOrThrow()) == ConnectionStatus.CONNECTED
-        }
-        conditions.eventually {
-            assert agentService.getAgentConnectionStatus(knxAgent.getAttribute("knxConfigError1").get().getReferenceOrThrow()) == ConnectionStatus.ERROR_CONFIGURATION
-        }
-        conditions.eventually {
-            assert agentService.getAgentConnectionStatus(knxAgent.getAttribute("knxConfigError2").get().getReferenceOrThrow()) == ConnectionStatus.ERROR_CONFIGURATION
+            assert agentService.getAgent(knxAgent1.id) != null
+            assert agentService.getAgent(knxAgent2.id) != null
+            assert agentService.getAgent(knxAgent1.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
+            assert agentService.getAgent(knxAgent2.id).getAgentStatus().orElse(null) == ConnectionStatus.ERROR_CONFIGURATION
+            assert agentService.getProtocolInstance(knxAgent1.id) != null
+            assert agentService.getProtocolInstance(knxAgent2.id) == null
         }
 
-
-        when: "a thing asset is created that links it's attributes to the knx protocol configuration"
-        def knxThing = new Asset("Living Room Assset", AssetType.THING, knxAgent)
-        knxThing.getAttributes().addOrReplace(
-                new Attribute<>("light1ToggleOnOff", ValueType.BOOLEAN)
-                    .setMeta(
+        when: "a thing asset is created that links it's attributes to the valid knx agent"
+        def knxThing = new ThingAsset("Living Room Asset")
+            .setParent(knxAgent1)
+            .addOrReplaceAttributes(
+                new Attribute<>("light1ToggleOnOff", BOOLEAN)
+                    .addOrReplaceMeta(
                         new MetaItem<>(LABEL, "Light 1 Toggle On/Off"),
-                        new MetaItem<>(DESCRIPTION, "Light 1 for living room"),
-                        new MetaItem<>(KNXProtocol.META_KNX_ACTION_GA, "1/0/17"),
-                        new MetaItem<>(KNXProtocol.META_KNX_STATUS_GA, "0/4/14"),
-                        new MetaItem<>(KNXProtocol.META_KNX_DPT, "1.001"),
-                        new MetaItem<>(MetaItemType.AGENT_LINK, new AttributeRef(knxAgent.getId(), "knxConfig").toArrayValue())
+                        new MetaItem<>(AGENT_LINK, new KNXAgent.KNXAgentLink(knxAgent1.id, "1.001", "1/0/17", "0/4/14"))
                     )
         )
         knxThing = assetStorageService.merge(knxThing)

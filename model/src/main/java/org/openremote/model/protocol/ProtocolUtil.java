@@ -83,7 +83,7 @@ public final class ProtocolUtil {
      * searched on every single write request (for performance reasons), instead this should be recorded when the
      * attribute is first linked.
      */
-    public static Pair<Boolean, Object> doOutboundValueProcessing(String assetId, Attribute<?> attribute, AgentLink agentLink, Object value, boolean containsDynamicPlaceholder) {
+    public static Pair<Boolean, Object> doOutboundValueProcessing(String assetId, Attribute<?> attribute, AgentLink<?> agentLink, Object value, boolean containsDynamicPlaceholder) {
 
         String writeValue = agentLink.getWriteValue().orElse(null);
 
@@ -134,7 +134,7 @@ public final class ProtocolUtil {
         return new Pair<>(false, value);
     }
 
-    public static boolean hasDynamicWriteValue(AgentLink agentLink) {
+    public static boolean hasDynamicWriteValue(AgentLink<?> agentLink) {
         return agentLink.getWriteValue().map(str -> str.contains(DYNAMIC_VALUE_PLACEHOLDER)).orElse(false);
     }
 
@@ -142,7 +142,7 @@ public final class ProtocolUtil {
      * Will perform standard value processing for inbound values (Protocol -> Linked Attribute); returning the processed
      * value and a flag indicating whether the inbound value should be ignored (i.e. drop the inbound message).
      */
-    public static Pair<Boolean, Object> doInboundValueProcessing(String assetId, Attribute<?> attribute, AgentLink agentLink, Object value) {
+    public static Pair<Boolean, Object> doInboundValueProcessing(String assetId, Attribute<?> attribute, AgentLink<?> agentLink, Object value) {
 
         Pair<Boolean, Object> ignoreAndConvertedValue;
         final AtomicReference<Object> valRef = new AtomicReference<>(value);
@@ -216,7 +216,7 @@ public final class ProtocolUtil {
             .orElse(new Pair<>(true, value));
     }
 
-    public static Consumer<String> createGenericAttributeMessageConsumer(String assetId, Attribute<?> attribute, AgentLink agentLink, Supplier<Long> currentMillisSupplier, Consumer<AttributeState> stateConsumer) {
+    public static Consumer<String> createGenericAttributeMessageConsumer(String assetId, Attribute<?> attribute, AgentLink<?> agentLink, Supplier<Long> currentMillisSupplier, Consumer<AttributeState> stateConsumer) {
 
         ValueFilter[] matchFilters =  agentLink.getMessageMatchFilters().orElse(null);
         ValuePredicate matchPredicate = agentLink.getMessageMatchPredicate().orElse(null);

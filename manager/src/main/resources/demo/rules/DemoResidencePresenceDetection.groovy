@@ -130,7 +130,7 @@ rules.add()
                             new AssetQuery().ids(roomWithMotionSensorTriggered.id)
                                     .attributeName("lastPresenceDetected")
                     ).filter({
-                        !it.value.isPresent() || it.valueAsNumber.get() < roomWithMotionSensorTriggered.timestamp
+                        !it.value.isPresent() || it.value.timestamp
                     }).map { outdatedLastPresenceDetected ->
                         // keep the room and the new timestamp
                         new Pair<AssetState, Double>(outdatedLastPresenceDetected, roomWithMotionSensorTriggered.timestamp)

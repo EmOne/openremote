@@ -30,7 +30,7 @@ enum SmartSwitchMode {
     NOW_ON, ON_AT, READY_AT
 
     static boolean matches(AssetState smartSwitch, SmartSwitchMode mode) {
-        smartSwitch.valueAsString.map({ it == mode.name() }).orElse(false)
+        smartSwitch.value.orElse(false)
     }
 }
 
@@ -120,7 +120,7 @@ rules.add()
                 smartSwitchAttributeMatch(facts, modeOnAt, SmartSwitchAttribute.BeginEnd)
             }.filter { beginEnd ->
                 // User-provided begin/end time of cycle
-                beginEnd.flatMap { it.valueAsNumber }.filter {
+                beginEnd.flatMap { it.value.filter {
                     // is now or in future
                     it >= facts.clock.timestamp
                 }.map { expectedStartTime ->
@@ -131,7 +131,7 @@ rules.add()
                     // is present
                     startTime.isPresent() &&
                             // the value is not the same as the expected start time
-                            startTime.flatMap { it.valueAsNumber }.map {
+                            startTime.flatMap { it.value.map {
                                 it != Math.floor(expectedStartTime / 1000)
                             }.orElse(true) // or actuator start time is empty
                 }.orElse(false)
@@ -144,7 +144,7 @@ rules.add()
         { facts ->
             AssetState beginEnd = facts.bound("beginEnd")
             // Start time is user-provided begin/end (in seconds)
-            def startSeconds = Math.floor(beginEnd.valueAsNumber.map({ it / 1000 }).orElse(0))
+            def startSeconds = Math.floor(beginEnd.value.orElse(0))
             // Stop time is start time plus CYCLE_TIME_SECONDS
             def stopSeconds = startSeconds + CYCLE_TIME_SECONDS
             LOG.info("Smart switch mode is ON_AT, enabling actuator with start/stop times " +
@@ -170,7 +170,7 @@ rules.add()
                 smartSwitchAttributeMatch(facts, modeReadyAt, SmartSwitchAttribute.BeginEnd)
             }.filter { beginEnd ->
                 // User-provided begin/end time of cycle
-                beginEnd.flatMap { it.valueAsNumber }.filter {
+                beginEnd.flatMap { it.value.filter {
                     // allows the cycle to complete in future
                     (it - (CYCLE_TIME_SECONDS * 1000)) >= facts.clock.timestamp
                 }.map { expectedStopTime ->
@@ -181,7 +181,7 @@ rules.add()
                     // is present
                     stopTime.isPresent() &&
                             // the value is not the same as the expected stop time
-                            stopTime.flatMap { it.valueAsNumber }.map {
+                            stopTime.flatMap { it.value.map {
                                 it != Math.floor(expectedStopTime / 1000)
                             }.orElse(true) // or actuator stop time is empty
                 }.orElse(false)
@@ -196,7 +196,7 @@ rules.add()
             // Start time is current time (in seconds)
             def startSeconds = Math.floor((double) facts.clock.timestamp / 1000)
             // Stop time is user-provided smart switch time (in seconds)
-            def stopSeconds = Math.floor(beginEnd.valueAsNumber.map({ it / 1000 }).orElse(0))
+            def stopSeconds = Math.floor(beginEnd.value.orElse(0))
             LOG.info("Smart switch mode is READY_AT, enabling actuator with start/stop times " +
                     LocalDateTime.ofInstant(Instant.ofEpochMilli((long) startSeconds * 1000), ZoneId.systemDefault()) + "/" +
                     LocalDateTime.ofInstant(Instant.ofEpochMilli((long) stopSeconds * 1000), ZoneId.systemDefault()) +
@@ -220,7 +220,7 @@ rules.add()
                 smartSwitchAttributeMatch(facts, modeOnAtOrReadyAt, SmartSwitchAttribute.StopTime)
             }.filter { stopTime ->
                 // Actuator stop time attribute is present and value (in seconds) is not zero and in the past
-                stopTime.flatMap { it.valueAsNumber }.map {
+                stopTime.flatMap { it.value.map {
                     it > 0 && (it * 1000) < facts.clock.timestamp
                 }.orElse(false)
             }.findFirst().map { stopTime ->

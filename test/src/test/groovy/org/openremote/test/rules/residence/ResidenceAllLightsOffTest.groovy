@@ -58,9 +58,9 @@ class ResidenceAllLightsOffTest extends Specification implements ManagerContaine
         and: "the room lights in an apartment to be on"
         conditions.eventually {
             def livingroomAsset = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert livingroomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert livingroomAsset.getAttribute("lightSwitch").get().value.get()
             def bathRoomAsset = assetStorageService.find(managerTestSetup.apartment2BathroomId, true)
-            assert bathRoomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert bathRoomAsset.getAttribute("lightSwitch").get().value.get()
         }
 
         when: "the ALL LIGHTS OFF push-button is pressed for an apartment"
@@ -74,9 +74,9 @@ class ResidenceAllLightsOffTest extends Specification implements ManagerContaine
             assert apartment2Engine.assetStates.size() == DEMO_RULE_STATES_APARTMENT_2
             assert apartment2Engine.assetEvents.size() == 1
             def livingroomAsset = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert !livingroomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert !livingroomAsset.getAttribute("lightSwitch").get().value.get()
             def bathRoomAsset = assetStorageService.find(managerTestSetup.apartment2BathroomId, true)
-            assert !bathRoomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert !bathRoomAsset.getAttribute("lightSwitch").get().value.get()
         }
 
         when: "time advanced by 15 seconds"
@@ -92,7 +92,7 @@ class ResidenceAllLightsOffTest extends Specification implements ManagerContaine
             assert apartment2Engine.assetStates.size() == DEMO_RULE_STATES_APARTMENT_2
             assert apartment2Engine.assetEvents.size() == 0
             def livingroomAsset = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert livingroomAsset.getAttribute("lightSwitch").get().valueAsBoolean.get()
+            assert livingroomAsset.getAttribute("lightSwitch").get().value.get()
         }
 
         cleanup: "the static rules time variable is reset"

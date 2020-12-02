@@ -43,7 +43,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * <p>
  * To use this protocol create a {@link TcpClientAgent}.
  */
-public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtocol, TcpClientAgent, AgentLink, String, TcpIoClient<String>> {
+public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtocol, TcpClientAgent, AgentLink.Default, String, TcpIoClient<String>> {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, TcpClientProtocol.class);
     public static final String PROTOCOL_DISPLAY_NAME = "TCP Client";
@@ -60,7 +60,7 @@ public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtoc
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
 
         Consumer<String> messageConsumer = ProtocolUtil.createGenericAttributeMessageConsumer(assetId, attribute, agentLink, timerService::getCurrentTimeMillis, this::updateLinkedAttribute);
 
@@ -73,7 +73,7 @@ public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtoc
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         protocolMessageConsumers.removeIf(attRefConsumerPair -> attRefConsumerPair.key.equals(attributeRef));
     }
@@ -93,7 +93,7 @@ public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtoc
     }
 
     @Override
-    protected String createWriteMessage(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected String createWriteMessage(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
         return processedValue != null ? processedValue.toString() : null;
     }
 }

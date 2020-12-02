@@ -241,7 +241,7 @@ class WebTargetTest extends Specification {
             "password")
 
         when: "it is serialised"
-        String grantStr = Container.JSON.writeValueAsString(grant)
+        String grantStr = Values.asJSON(grant)
 
         and: "deserialised again"
         OAuthGrant grant2 = Container.JSON.readValue(grantStr, OAuthGrant.class)

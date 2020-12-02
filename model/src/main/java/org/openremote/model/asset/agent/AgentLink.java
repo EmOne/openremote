@@ -33,7 +33,17 @@ import java.util.Optional;
  * own concrete implementation of this class with fields describing each configuration item and standard JSR-380
  * annotations should be used to provide validation logic.
  */
-public class AgentLink {
+public abstract class AgentLink<T extends AgentLink<?>> {
+
+    /**
+     * Does nothing other than hide the generic type parameter which causes problems with inference from class references
+     */
+    public static class Default extends AgentLink<Default> {
+
+        public Default(String id) {
+            super(id);
+        }
+    }
 
     protected String id;
     protected ValueFilter[] valueFilters;
@@ -43,7 +53,7 @@ public class AgentLink {
     protected ValuePredicate messageMatchPredicate;
     protected ValueFilter[] messageMatchFilters;
 
-    public AgentLink(String id) {
+    protected AgentLink(String id) {
         this.id = id;
     }
 
@@ -91,28 +101,40 @@ public class AgentLink {
         return Optional.ofNullable(messageMatchFilters);
     }
 
-    public void setValueFilters(ValueFilter[] valueFilters) {
+    @SuppressWarnings("unchecked")
+    public T setValueFilters(ValueFilter[] valueFilters) {
         this.valueFilters = valueFilters;
+        return (T)this;
     }
 
-    public void setValueConverter(ObjectNode valueConverter) {
+    @SuppressWarnings("unchecked")
+    public T setValueConverter(ObjectNode valueConverter) {
         this.valueConverter = valueConverter;
+        return (T)this;
     }
 
-    public void setWriteValueConverter(ObjectNode writeValueConverter) {
+    @SuppressWarnings("unchecked")
+    public T setWriteValueConverter(ObjectNode writeValueConverter) {
         this.writeValueConverter = writeValueConverter;
+        return (T)this;
     }
 
-    public void setWriteValue(String writeValue) {
+    @SuppressWarnings("unchecked")
+    public T setWriteValue(String writeValue) {
         this.writeValue = writeValue;
+        return (T)this;
     }
 
-    public void setMessageMatchPredicate(ValuePredicate messageMatchPredicate) {
+    @SuppressWarnings("unchecked")
+    public T setMessageMatchPredicate(ValuePredicate messageMatchPredicate) {
         this.messageMatchPredicate = messageMatchPredicate;
+        return (T)this;
     }
 
-    public void setMessageMatchFilters(ValueFilter[] messageMatchFilters) {
+    @SuppressWarnings("unchecked")
+    public T setMessageMatchFilters(ValueFilter[] messageMatchFilters) {
         this.messageMatchFilters = messageMatchFilters;
+        return (T)this;
     }
 
     public static <T> T getOrThrowAgentLinkProperty(Optional<T> value, String name) {

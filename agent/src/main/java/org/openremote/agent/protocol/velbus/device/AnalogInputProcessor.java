@@ -89,7 +89,7 @@ public class AnalogInputProcessor extends FeatureProcessor {
         }
     }
 
-    protected static final String EmptySensorText = "               ";
+    protected static final String EMPTY_SENSOR_TEXT = "               ";
 
     protected static final List<PropertyDescriptor> METEO_PROPERTIES = Arrays.asList(
         new PropertyDescriptor("rainfall", "Rainfall", "RAINFALL", ValueType.POSITIVE_NUMBER, true),
@@ -133,10 +133,10 @@ public class AnalogInputProcessor extends FeatureProcessor {
         if (device.getDeviceType() == VelbusDeviceType.VMB4AN) {
 
             // Initialise the text char arrays for sensors
-            device.setProperty("SENSOR1_TEXT", null);
-            device.setProperty("SENSOR2_TEXT", null);
-            device.setProperty("SENSOR3_TEXT", null);
-            device.setProperty("SENSOR4_TEXT", null);
+            device.setProperty("SENSOR1_TEXT", EMPTY_SENSOR_TEXT);
+            device.setProperty("SENSOR2_TEXT", EMPTY_SENSOR_TEXT);
+            device.setProperty("SENSOR3_TEXT", EMPTY_SENSOR_TEXT);
+            device.setProperty("SENSOR4_TEXT", EMPTY_SENSOR_TEXT);
 
             return Arrays.asList(
                 new VelbusPacket(device.getBaseAddress(), VelbusPacket.OutboundCommand.SENSOR_READOUT.getCode(), (byte) 0x08, (byte) 0x00),
@@ -222,7 +222,7 @@ public class AnalogInputProcessor extends FeatureProcessor {
                         }
                         sensorText = new String(textBytes, StandardCharsets.ISO_8859_1);
                     } catch (Exception e) {
-                        sensorText = EmptySensorText;
+                        sensorText = EMPTY_SENSOR_TEXT;
                     }
 
                     device.setProperty("SENSOR" + channel + "_TEXT", sensorText);

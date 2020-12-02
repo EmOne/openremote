@@ -105,7 +105,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
             realm = getAuthenticatedRealm();
         }
 
-        Agent<?, ?, ?> agent = agentService.getAgents().get(agentId);
+        Agent<?, ?, ?> agent = agentService.getAgent(agentId);
 
         if (agent == null) {
             throw new IllegalArgumentException("Agent not found: agent ID =" + agentId);
@@ -132,7 +132,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
             realm = getAuthenticatedRealm();
         }
 
-        Agent<?, ?, ?> agent = agentService.getAgents().get(agentId);
+        Agent<?, ?, ?> agent = agentService.getAgent(agentId);
 
         if (agent == null) {
             throw new IllegalArgumentException("Agent not found: agent ID =" + agentId);

@@ -32,9 +32,9 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
-abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends AbstractVelbusProtocol<U, T>> extends Agent<T, U, VelbusAgent.VelbusAgentLink> {
+public abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends AbstractVelbusProtocol<U, T>> extends Agent<T, U, VelbusAgent.VelbusAgentLink> {
 
-    public static class VelbusAgentLink extends AgentLink {
+    public static class VelbusAgentLink extends AgentLink<VelbusAgentLink> {
 
         @NotNull
         @Min(1)
@@ -56,16 +56,18 @@ abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends AbstractVelbus
             return Optional.ofNullable(deviceValueLink);
         }
 
-        public void setDeviceValueLink(String deviceValueLink) {
+        public VelbusAgentLink setDeviceValueLink(String deviceValueLink) {
             this.deviceValueLink = deviceValueLink;
+            return this;
         }
 
         public Optional<Integer> getDeviceAddress() {
             return Optional.ofNullable(deviceAddress);
         }
 
-        public void setDeviceAddress(Integer deviceAddress) {
+        public VelbusAgentLink setDeviceAddress(Integer deviceAddress) {
             this.deviceAddress = deviceAddress;
+            return this;
         }
     }
 

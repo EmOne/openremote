@@ -29,7 +29,7 @@ import java.util.Optional;
 
 import static org.openremote.agent.protocol.http.HttpClientAgent.VALUE_HTTP_METHOD;
 
-public abstract class AbstractHttpServerAgent<T extends AbstractHttpServerAgent<T, U, V>, U extends AbstractHttpServerProtocol<U, T, V>, V extends AgentLink> extends Agent<T, U, V> {
+public abstract class AbstractHttpServerAgent<T extends AbstractHttpServerAgent<T, U, V>, U extends AbstractHttpServerProtocol<U, T, V>, V extends AgentLink<?>> extends Agent<T, U, V> {
 
     public static final AttributeDescriptor<String> DEPLOYMENT_PATH = new AttributeDescriptor<>("deploymentPath", ValueType.STRING);
 

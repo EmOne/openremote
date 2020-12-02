@@ -39,8 +39,10 @@ import org.openremote.model.value.impl.ColourRGBW;
 
 import javax.validation.constraints.*;
 import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.Map;
 
 public final class ValueType {
 
@@ -50,7 +52,18 @@ public final class ValueType {
     public static class DoubleMap extends HashMap<String, Double> {}
     public static class BooleanMap extends HashMap<String, Double> {}
 
-    public static class MultivaluedStringMap extends MultivaluedHashMap<String, String> {}
+    public static class MultivaluedStringMap extends MultivaluedHashMap<String, String> {
+        public MultivaluedStringMap() {
+        }
+
+        public MultivaluedStringMap(MultivaluedMap<? extends String, ? extends String> map) {
+            super(map);
+        }
+
+        public MultivaluedStringMap(Map<? extends String, ? extends String> map) {
+            super(map);
+        }
+    }
 
     public static final ValueDescriptor<Boolean> BOOLEAN = new ValueDescriptor<>("Boolean", Boolean.class);
 
@@ -85,18 +98,6 @@ public final class ValueType {
 
     @DecimalMin("0.0")
     public static final ValueDescriptor<Double> POSITIVE_NUMBER = new ValueDescriptor<>("Positive number", Double.class);
-
-    @Min(0)
-    @Max(100)
-    public static final ValueDescriptor<Integer> PERCENTAGE_INTEGER_0_100 = new ValueDescriptor<>("Percentage 0-100", Integer.class,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
-    );
-
-    @DecimalMin("0.0")
-    @DecimalMax("1.0")
-    public static final ValueDescriptor<Double> PERCENTAGE_NUMBER_0_1 = new ValueDescriptor<>("Percentage 0-1", Double.class,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
-    );
 
     @Min(0)
     @Max(255)
@@ -159,6 +160,24 @@ public final class ValueType {
     public static final ValueDescriptor<OAuthGrant> OAUTH_GRANT = new ValueDescriptor<>("OAuth Grant", OAuthGrant.class);
 
     public static final ValueDescriptor<UsernamePassword> USERNAME_AND_PASSWORD = new ValueDescriptor<>("Username and password", UsernamePassword.class);
+
+    /*
+       WARNING VALUE TYPES THAT REFERENCE META ITEM TYPES MUST BE DECLARED AT THE END
+       HERE TO AVOID NPE ISSUES DURING CYCLIC CLASS INITIALISATION
+    */
+
+    @Min(0)
+    @Max(100)
+    public static final ValueDescriptor<Integer> PERCENTAGE_INTEGER_0_100 = new ValueDescriptor<>("Percentage 0-100", Integer.class,
+        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
+    );
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public static final ValueDescriptor<Double> PERCENTAGE_NUMBER_0_1 = new ValueDescriptor<>("Percentage 0-1", Double.class,
+        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
+    );
+
 
     protected ValueType() {
     }

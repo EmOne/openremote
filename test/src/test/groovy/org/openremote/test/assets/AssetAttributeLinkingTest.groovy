@@ -37,18 +37,18 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         when: "assets are created"
         def asset1 = new ThingAsset("Asset 1")
         asset1.setRealm(Constants.MASTER_REALM)
-        asset1.getAttributes().addOrReplace(
-            new Attribute<>("button", ValueType.STRING, "RELEASED"),
-            new Attribute<>("array", ValueType.JSON_ARRAY, null)
+        asset1.addOrReplaceAttributes(
+            new Attribute<>("button", STRING, "RELEASED"),
+            new Attribute<>("array", JSON_ARRAY, null)
         )
         asset1 = assetStorageService.merge(asset1)
 
         def asset2 = new ThingAsset("Asset 2")
             .setRealm(Constants.MASTER_REALM)
-            .getAttributes().addOrReplace(
-            new Attribute<>("lightOnOff", ValueType.BOOLEAN, false),
-            new Attribute<>("counter", ValueType.NUMBER, 0d),
-            new Attribute<>("item2Prop1", ValueType.BOOLEAN, null)
+            .addOrReplaceAttributes(
+            new Attribute<>("lightOnOff", BOOLEAN, false),
+            new Attribute<>("counter", NUMBER, 0d),
+            new Attribute<>("item2Prop1", BOOLEAN, null)
         )
         asset2 = assetStorageService.merge(asset2)
 
@@ -73,8 +73,8 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
             new JsonPathFilter("\$[1].prop1", true, false)
         ] as ValueFilter[])
 
-        asset1.getAttribute("button").get().addMeta(new MetaItem<>(MetaItemType.ATTRIBUTE_LINKS, [attributeLinkOnOff, attributeLinkCounter] as AttributeLink[]))
-        asset1.getAttribute("array").get().addMeta(new MetaItem<>(MetaItemType.ATTRIBUTE_LINKS, [attributeLinkProp] as AttributeLink[]))
+        asset1.getAttribute("button").get().addMeta(new MetaItem<>(ATTRIBUTE_LINKS, [attributeLinkOnOff, attributeLinkCounter] as AttributeLink[]))
+        asset1.getAttribute("array").get().addMeta(new MetaItem<>(ATTRIBUTE_LINKS, [attributeLinkProp] as AttributeLink[]))
         asset1 = assetStorageService.merge(asset1)
 
         and: "the button is pressed for a short period"
@@ -133,7 +133,7 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         when: "the counter is reset"
         def attr = asset2.getAttribute("counter").get()
         attr.setValue(0.0)
-        asset2.getAttributes().addOrReplace(attr)
+        asset2.addOrReplaceAttributes(attr)
         asset2 = assetStorageService.merge(asset2)
 
         and: "A button press event occurs without a release event"
@@ -166,7 +166,7 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         converterLoop.put("TRUE", "PRESSED")
         converterLoop.put("FALSE", "PRESSED")
         def attributeLinkLoop = Values.JSON.createObjectNode()
-        attributeLinkLoop.put("attributeRef", new AttributeRef(asset1.id, "button").toArrayValue())
+        attributeLinkLoop.put("attributeRef", new AttributeRef(asset1.id, "button"))
         attributeLinkLoop.put("converter", converterLoop)
         asset2.getAttribute("lightOnOff").get().addMeta(new MetaItem<>(AssetMeta.ATTRIBUTE_LINK, attributeLinkLoop))
         asset2 = assetStorageService.merge(asset2)

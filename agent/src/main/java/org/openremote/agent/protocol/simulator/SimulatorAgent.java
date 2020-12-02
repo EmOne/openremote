@@ -32,7 +32,7 @@ import java.util.Optional;
 
 public class SimulatorAgent extends Agent<SimulatorAgent, SimulatorProtocol, SimulatorAgent.SimulatorAgentLink> {
 
-    public static class SimulatorAgentLink extends AgentLink {
+    public static class SimulatorAgentLink extends AgentLink<SimulatorAgentLink> {
 
         @JsonPropertyDescription("Used to store 24h dataset of values that should be replayed (i.e. written to the" +
             " linked attribute) in a continuous loop.")

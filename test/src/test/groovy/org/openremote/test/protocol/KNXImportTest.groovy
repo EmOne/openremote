@@ -101,7 +101,7 @@ class KNXImportTest extends Specification implements ManagerContainerTrait {
                     !TextUtil.isNullOrEmpty(it.asset.getName()) &&
                     !it.asset.attributes().isEmpty() &&
                     it.asset.getAttributes().stream().allMatch({attr ->
-                        attr.getMetaValue(MetaItemType.AGENT_LINK).map({agentLink -> agentLink.id == knxAgent.id})
+                        attr.getMetaValue(AGENT_LINK).map({agentLink -> agentLink.id == knxAgent.id})
                             .orElse(false)
                     })
     
@@ -116,12 +116,12 @@ class KNXImportTest extends Specification implements ManagerContainerTrait {
         assert attribute != null
         def metaItem = attribute.getMetaItem(KNXProtocol.META_KNX_STATUS_GA).get()
         assert metaItem != null
-        assert metaItem.getValueAsString().get() == "5/0/4"
+        assert metaItem.getValue().get() == "5/0/4"
         def metaItem2 = attribute.getMetaItem(KNXProtocol.META_KNX_ACTION_GA).get()
         metaItem2 != null
-        metaItem2.getValueAsString().get() == "5/0/0"
+        metaItem2.getValue().get() == "5/0/0"
         def metaItem3 = attribute.getMetaItem(KNXProtocol.META_KNX_DPT).get()
         metaItem3 != null
-        metaItem3.getValueAsString().get() == "9.001"
+        metaItem3.getValue().get() == "9.001"
     }
 }

@@ -28,10 +28,10 @@ rules.add()
                 .attributeName("cameraCountIn"))
                 .map(
                 {
-                    new Tuple(it.id, it.valueAsNumber.orElse(0) - facts.matchFirstAssetState(new AssetQuery()
+                    new Tuple(it.id, it.value.matchFirstAssetState(new AssetQuery()
                             .names(new StringPredicate(AssetQuery.Match.BEGIN, "Camera"))
                             .attributeName("cameraCountOut"))
-                            .map({ it.valueAsNumber.orElse(0) }).orElse(0))
+                            .map({ it.value.orElse(0))
                 })
                 .filter(
                 {
@@ -66,16 +66,16 @@ rules.add()
                 .attributeName("cameraCountTotalAlert"))
                 .filter(
                 {
-                    !it.valueAsBoolean.orElse(false) &&
+                    !it.value.orElse(false) &&
                     facts.matchFirstAssetState(new AssetQuery()
                             .ids(it.id)
                             .attributeName("cameraCountTotal"))
-                            .map({ it.valueAsNumber.orElse(-1) })
+                            .map({ it.value.orElse(-1) })
                             .orElse(-1) >
                             facts.matchFirstAssetState(new AssetQuery()
                                     .ids(it.id)
                                     .attributeName("cameraCountTotalAlertLevel"))
-                                    .map({ it.valueAsNumber.orElse(-1) })
+                                    .map({ it.value.orElse(-1) })
                                     .orElse(-1)
                 })
                 .map({ it.id })

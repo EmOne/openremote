@@ -22,10 +22,7 @@ package org.openremote.test.model
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.container.Container
 import org.openremote.model.attribute.AttributeValidationFailure
-import org.openremote.model.ValueHolder
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.MetaItemType
-import org.openremote.model.asset.agent.ProtocolConfiguration
 import org.openremote.model.attribute.AttributeValidationResult
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.value.Values
@@ -38,27 +35,27 @@ class SerialisationTest extends Specification {
         Attribute attribute = new Attribute<>("testAttribute")
         ProtocolConfiguration.initProtocolConfiguration(attribute, SimulatorProtocol.PROTOCOL_NAME)
         attribute.addMeta(
-            new MetaItem<>(MetaItemType.READ_ONLY, true),
-            new MetaItem<>(MetaItemType.LABEL, "Test Attribute")
+            new MetaItem<>(READ_ONLY, true),
+            new MetaItem<>(LABEL, "Test Attribute")
         )
 
-        String str = Container.JSON.writeValueAsString(attribute)
+        String str = Values.asJSON(attribute)
         attribute = Container.JSON.readValue(str, Attribute.class)
 
         expect:
         attribute.getName().isPresent()
         attribute.getName().get().equals("testAttribute")
-        attribute.getValueAsString().isPresent()
-        attribute.getValueAsString().get().equals(SimulatorProtocol.PROTOCOL_NAME)
-        attribute.getMetaItem(MetaItemType.PROTOCOL_CONFIGURATION).isPresent()
-        attribute.getMetaItem(MetaItemType.PROTOCOL_CONFIGURATION).get().getValueAsBoolean().isPresent()
-        attribute.getMetaItem(MetaItemType.PROTOCOL_CONFIGURATION).flatMap{it.value}.orElse(false)
-        attribute.getMetaItem(MetaItemType.READ_ONLY).isPresent()
-        attribute.getMetaItem(MetaItemType.READ_ONLY).get().getValueAsBoolean().isPresent()
-        attribute.getMetaItem(MetaItemType.READ_ONLY).flatMap{it.value}.orElse(false)
-        attribute.getMetaItem(MetaItemType.LABEL).isPresent()
-        attribute.getMetaItem(MetaItemType.LABEL).get().getValueAsString().isPresent()
-        attribute.getMetaItem(MetaItemType.LABEL).get().getValueAsString().get().equals("Test Attribute")
+        attribute.getValue().isPresent()
+        attribute.getValue().get().equals(SimulatorProtocol.PROTOCOL_NAME)
+        attribute.getMetaItem(PROTOCOL_CONFIGURATION).isPresent()
+        attribute.getMetaItem(PROTOCOL_CONFIGURATION).get().getValueAsBoolean().isPresent()
+        attribute.getMetaItem(PROTOCOL_CONFIGURATION).flatMap{it.value}.orElse(false)
+        attribute.getMetaItem(READ_ONLY).isPresent()
+        attribute.getMetaItem(READ_ONLY).get().getValueAsBoolean().isPresent()
+        attribute.getMetaItem(READ_ONLY).flatMap{it.value}.orElse(false)
+        attribute.getMetaItem(LABEL).isPresent()
+        attribute.getMetaItem(LABEL).get().getValue().isPresent()
+        attribute.getMetaItem(LABEL).get().getValue().get().equals("Test Attribute")
     }
 
     def "Serialize/Deserialize AttributeValidationResult"() {
@@ -74,7 +71,7 @@ class SerialisationTest extends Specification {
             ]
         )
 
-        String str = Container.JSON.writeValueAsString(result)
+        String str = Values.asJSON(result)
         result = Container.JSON.readValue(str, AttributeValidationResult.class)
 
         expect:

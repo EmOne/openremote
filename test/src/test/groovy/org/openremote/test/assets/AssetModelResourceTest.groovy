@@ -20,30 +20,12 @@
 package org.openremote.test.assets
 
 import org.openremote.model.asset.AssetModelResource
-import org.openremote.model.attribute.AttributeType
-import org.openremote.model.attribute.AttributeValueType
-import org.openremote.model.attribute.MetaItemType
 import org.openremote.model.value.ValueType
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
 import spock.lang.Specification
 
 import static org.openremote.model.Constants.MASTER_REALM
-import static org.openremote.model.asset.AssetType.AGENT
-import static org.openremote.model.asset.AssetType.AREA
-import static org.openremote.model.asset.AssetType.BUILDING
-import static org.openremote.model.asset.AssetType.LIGHT_CONTROLLER
-import static org.openremote.model.asset.AssetType.PEOPLE_COUNTER
-import static org.openremote.model.asset.AssetType.CITY
-import static org.openremote.model.asset.AssetType.CONSOLE
-import static org.openremote.model.asset.AssetType.ENVIRONMENT_SENSOR
-import static org.openremote.model.asset.AssetType.FLOOR
-import static org.openremote.model.asset.AssetType.LIGHT
-import static org.openremote.model.asset.AssetType.MICROPHONE
-import static org.openremote.model.asset.AssetType.RESIDENCE
-import static org.openremote.model.asset.AssetType.ROOM
-import static org.openremote.model.asset.AssetType.SOUND_EVENT
-import static org.openremote.model.asset.AssetType.THING
 
 class AssetModelResourceTest extends Specification implements ManagerContainerTrait {
 
@@ -62,7 +44,7 @@ class AssetModelResourceTest extends Specification implements ManagerContainerTr
 
         then: "the default asset types should be present"
         assetDescriptors.size() == AssetType.values().length
-        assetDescriptors.any{it.name == BUILDING.name && it.attributeDescriptors.length == 5 && it.attributeDescriptors.find {it.attributeName == AttributeType.SURFACE_AREA.attributeName}.valueType.valueType == ValueType.NUMBER}
+        assetDescriptors.any{it.name == BUILDING.name && it.attributeDescriptors.length == 5 && it.attributeDescriptors.find {it.attributeName == AttributeType.SURFACE_AREA.attributeName}.valueType.valueType == NUMBER}
         assetDescriptors.any{it.name == CITY.name}
         assetDescriptors.any{it.name == AREA.name}
         assetDescriptors.any{it.name == FLOOR.name}

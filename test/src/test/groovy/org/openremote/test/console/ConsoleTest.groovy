@@ -1,6 +1,6 @@
 package org.openremote.test.console
 
-
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.firebase.messaging.Message
 import org.openremote.container.util.UniqueIdentifierGenerator
 import org.openremote.manager.asset.AssetStorageService
@@ -16,7 +16,6 @@ import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.AssetResource
 import org.openremote.model.attribute.AttributeRef
-import org.openremote.model.console.ConsoleConfiguration
 import org.openremote.model.console.ConsoleProvider
 import org.openremote.model.console.ConsoleRegistration
 import org.openremote.model.console.ConsoleResource
@@ -30,7 +29,6 @@ import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.RulesResource
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TenantRuleset
-import org.openremote.model.value.ObjectValue
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
@@ -45,8 +43,6 @@ import static org.openremote.manager.setup.builtin.ManagerTestSetup.SMART_BUILDI
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.asset.AssetResource.Util.WRITE_ATTRIBUTE_HTTP_METHOD
 import static org.openremote.model.asset.AssetResource.Util.getWriteAttributeUrl
-import static org.openremote.model.attribute.AttributeType.LOCATION
-import static org.openremote.model.attribute.MetaItemType.RULE_STATE
 import static org.openremote.model.rules.RulesetStatus.DEPLOYED
 import static org.openremote.model.util.TextUtil.isNullOrEmpty
 import static org.openremote.model.value.Values.parse
@@ -150,12 +146,12 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
                                 true,
                                 true,
                                 false,
-                                (ObjectValue) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
+                            (ObjectNode)parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
                         ))
                     }
                 },
                 "",
-                ["manager"] as String)
+                ["manager"] as String[])
         def returnedConsoleRegistration = authenticatedConsoleResource.register(null, consoleRegistration)
         def consoleId = returnedConsoleRegistration.getId()
         def console = assetStorageService.find(consoleId, true)

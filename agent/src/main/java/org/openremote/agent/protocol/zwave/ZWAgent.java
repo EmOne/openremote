@@ -29,7 +29,7 @@ import java.util.Optional;
 
 public class ZWAgent extends Agent<ZWAgent, ZWProtocol, ZWAgent.ZWAgentLink> {
 
-    public static class ZWAgentLink extends AgentLink {
+    public static class ZWAgentLink extends AgentLink<ZWAgentLink> {
 
         protected Integer deviceNodeId;
         protected Integer deviceEndpoint;

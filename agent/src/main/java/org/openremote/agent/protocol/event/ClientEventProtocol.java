@@ -47,7 +47,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * creation of a Keycloak client that allows client secret 'authentication' for machines therefore this protocol
  * requires the Keycloak identity provider.
  */
-public class ClientEventProtocol extends AbstractProtocol<ClientEventAgent, AgentLink> {
+public class ClientEventProtocol extends AbstractProtocol<ClientEventAgent, AgentLink.Default> {
 
     public static final String PROTOCOL_DISPLAY_NAME = "Client Event";
     public static final String CLIENT_ID_PREFIX = "ClientEventProtocol-";
@@ -87,17 +87,17 @@ public class ClientEventProtocol extends AbstractProtocol<ClientEventAgent, Agen
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) throws RuntimeException {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) throws RuntimeException {
         // Nothing to do here
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, AgentLink.Default agentLink) {
         // Nothing to do here
     }
 
     @Override
-    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected void doLinkedAttributeWrite(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
         // Nothing to do here
     }
 

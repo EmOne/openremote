@@ -37,7 +37,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * An agent is a special sub type of {@link Asset} that is associated with a {@link Protocol} and is responsible
  * for providing an instance of the associated {@link Protocol} when requested via {@link #getProtocolInstance}.
  */
-public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink> extends Asset<T> {
+public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink<?>> extends Asset<T> {
 
     @ModelDescriptor
     public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("agentDisabled", ValueType.BOOLEAN);
@@ -143,7 +143,7 @@ public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V e
      */
     @SuppressWarnings("unchecked")
     public V getAgentLink(Attribute<?> attribute) {
-        AgentLink agentLink = attribute.getMetaValue(AGENT_LINK).orElseThrow(() -> new IllegalStateException("Failed to get AgentLink despite attribute being linked to an agent"));
+        AgentLink<?> agentLink = attribute.getMetaValue(AGENT_LINK).orElseThrow(() -> new IllegalStateException("Failed to getAgentLink<?>despite attribute being linked to an agent"));
         return (V) agentLink;
     }
 

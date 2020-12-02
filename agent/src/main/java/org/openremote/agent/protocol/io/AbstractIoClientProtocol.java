@@ -51,7 +51,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 /**
  * This is an abstract {@link Protocol} for protocols that require an {@link IoClient}.
  */
-public abstract class AbstractIoClientProtocol<T extends AbstractIoClientProtocol<T, U, V, W, X>, U extends IoAgent<U, T, X>, V, W extends IoClient<V>, X extends AgentLink> extends AbstractProtocol<U, X> {
+public abstract class AbstractIoClientProtocol<T extends AbstractIoClientProtocol<T, U, V, W, X>, U extends IoAgent<U, T, X>, V, W extends IoClient<V>, X extends AgentLink<?>> extends AbstractProtocol<U, X> {
 
     /**
      * Supplies a set of encoders/decoders that convert from/to {@link String} to/from {@link ByteBuf} based on the generic protocol {@link Attribute}s

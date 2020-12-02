@@ -71,7 +71,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * and safely modify internal, protocol-specific shared state. However, if a protocol implementation schedules
  * an asynchronous task, this task must obtain the lock to call any protocol operations.
  */
-public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends AgentLink> implements Protocol<T> {
+public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends AgentLink<?>> implements Protocol<T> {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, AbstractProtocol.class);
     protected final Map<AttributeRef, Attribute<?>> linkedAttributes = new HashMap<>();

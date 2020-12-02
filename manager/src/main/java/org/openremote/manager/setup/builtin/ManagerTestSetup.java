@@ -64,7 +64,6 @@ public class ManagerTestSetup extends AbstractManagerSetup {
     public static GeoJSONPoint AREA_1_LOCATION = new GeoJSONPoint(5.478478, 51.439272);
     public static GeoJSONPoint AREA_2_LOCATION = new GeoJSONPoint(5.473829, 51.438744);
     public static GeoJSONPoint AREA_3_LOCATION = new GeoJSONPoint(5.487478, 51.446979);
-    public static final String agentProtocolConfigName = "simulator123";
     public static final String thingLightToggleAttributeName = "light1Toggle";
     public static final Scene[] DEMO_APARTMENT_SCENES = new Scene[] {
             new Scene("morningScene", "Morning scene", "MORNING", "0 0 7 ? *", false, 21d),
