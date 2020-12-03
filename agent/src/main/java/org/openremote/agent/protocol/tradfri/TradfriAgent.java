@@ -26,8 +26,10 @@ import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink.Default> {
 
     public static final AgentDescriptor<TradfriAgent, TradfriProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
@@ -38,6 +40,13 @@ public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink
      * The security code for the IKEA TRÅDFRI gateway.
      */
     public static final AttributeDescriptor<String> SECURITY_CODE = new AttributeDescriptor<>("securityCode", ValueType.STRING);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    TradfriAgent() {
+        this(null);
+    }
 
     public TradfriAgent(String name) {
         super(name, DESCRIPTOR);

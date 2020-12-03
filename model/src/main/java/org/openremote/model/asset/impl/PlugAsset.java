@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class PlugAsset extends Asset<PlugAsset> {
 
     public static final AttributeDescriptor<Boolean> ON_OFF = new AttributeDescriptor<>("onOff", ValueType.BOOLEAN,
@@ -36,6 +38,13 @@ public class PlugAsset extends Asset<PlugAsset> {
     );
 
     public static final AssetDescriptor<PlugAsset> DESCRIPTOR = new AssetDescriptor<>("plug", "e6688a", PlugAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    PlugAsset() {
+        this(null);
+    }
 
     protected PlugAsset(String name, AssetDescriptor<? extends PlugAsset> descriptor) {
         super(name, descriptor);

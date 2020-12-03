@@ -23,12 +23,21 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
+import javax.persistence.Entity;
+
+@Entity
 public class TcpClientAgent extends IoAgent<TcpClientAgent, TcpClientProtocol, AgentLink.Default> {
 
     public static final AgentDescriptor<TcpClientAgent, TcpClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
         TcpClientAgent.class, TcpClientProtocol.class, AgentLink.Default.class
     );
 
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    TcpClientAgent() {
+        this(null);
+    }
 
     public TcpClientAgent(String name) {
         super(name, DESCRIPTOR);

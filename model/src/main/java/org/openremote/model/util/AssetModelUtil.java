@@ -28,10 +28,14 @@ import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.*;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
+import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 
+import javax.persistence.Entity;
 import javax.validation.ConstraintViolation;
 import javax.validation.constraints.NotNull;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -45,20 +49,20 @@ import static java.lang.reflect.Modifier.isStatic;
 import static org.openremote.model.syslog.SyslogCategory.MODEL_AND_VALUES;
 
 /**
- * Utility class for retrieving asset model descriptors; the {@link StandardModelProvider} will discover descriptors
- * using reflection on the {@link Asset} classes loaded at runtime (see {@link StandardModelProvider} for details).
+ * Utility class for retrieving asset model descriptors
  * <p>
  * Custom descriptors can be added by simply adding new {@link Asset}/{@link Agent} sub types and following the discovery
  * rules described in {@link StandardModelProvider}; alternatively a custom {@link AssetModelProvider} implementation
  * can be created and discovered with the {@link ServiceLoader} or manually added to this class via
- * {@link #getModelProviders()}.
+ * {@link #getModelProviders()} collection.
  */
 public class AssetModelUtil {
 
     /**
-     * Built in model provider that dynamically extracts descriptors at runtime as follows:
+     * Built in model provider that dynamically extracts descriptors at runtime using reflection and any registered
+     * {@link AssetModelProvider}s as follows:
      * <h2>{@link AssetDescriptor}s/{@link AgentDescriptor}s</h2>
-     * The {@link Asset} class and classes that extend it are searched for public static fields of type {@link
+     * All concrete subtypes of the {@link Asset} class and classes that extend it are searched for public static fields of type {@link
      * AssetDescriptor} or {@link AgentDescriptor} for {@link Agent}s.
      * <p>
      * For a given {@link Asset}/{@link Agent} class only one {@link AssetDescriptor}/{@link AgentDescriptor} field
@@ -78,18 +82,28 @@ public class AssetModelUtil {
     public static class StandardModelProvider implements AssetModelProvider {
 
         protected static Logger LOG = SyslogCategory.getLogger(MODEL_AND_VALUES, StandardModelProvider.class);
-        // Search all classes if this is slow then can look to require a fixed namespace prefix for assets
-        protected Reflections reflections = new Reflections(new ConfigurationBuilder()
-            .setScanners(
-                new SubTypesScanner(true)
-            ));
+        protected Set<Class<? extends Asset<?>>> assetClasses;
 
-        protected Set<Class<? extends Asset>> assetClasses;
-
-        protected Set<Class<? extends Asset>> getAssetClasses() {
+        @SuppressWarnings("unchecked")
+        protected Set<Class<? extends Asset<?>>> getAssetClasses() {
             if (assetClasses == null) {
-                LOG.info("Scanning classpath for Asset<?> classes");
-                assetClasses = reflections.getSubTypesOf(Asset.class);
+
+                // Search for concrete asset classes in the org.openremote package if this is slow then can look to
+                // require a fixed package name - assets in different packages will need to be registered using an
+                // AssetModelProvider
+                Reflections reflections = new Reflections(new ConfigurationBuilder()
+                    .setUrls(ClasspathHelper.forPackage("org.openremote"))
+                    .setScanners(
+                        new SubTypesScanner(true)
+                    ));
+
+                LOG.info("Scanning classpath for concrete Asset classes");
+
+                assetClasses = reflections.getSubTypesOf(Asset.class).stream()
+                    .filter(clazz -> !Modifier.isAbstract(clazz.getModifiers()))
+                    .map(assetClass -> (Class<? extends Asset<?>>)assetClass)
+                    .collect(Collectors.toSet());
+
                 LOG.info("Found asset class count = " + assetClasses.size());
             }
             return assetClasses;
@@ -103,20 +117,24 @@ public class AssetModelUtil {
                 AssetDescriptor<?>[] assetDescriptors = getDescriptorFields(assetClass, AssetDescriptor.class, false);
 
                 if (assetDescriptors.length > 1) {
-                    LOG.severe("Multiple asset descriptors found in asset class: " + assetClass.getName());
-                    throw new IllegalStateException("Multiple asset descriptors found in asset class: " + assetClass.getName());
+                    String msg = "Multiple asset descriptors found in asset class: " + assetClass.getName();
+                    LOG.severe(msg);
+                    throw new IllegalStateException(msg);
                 }
 
                 if (assetDescriptors.length == 0) {
-                    return null;
+                    String msg = "No asset/agent descriptor found in asset class: " + assetClass.getName();
+                    LOG.severe(msg);
+                    throw new IllegalStateException(msg);
                 }
 
                 if (Agent.class.isAssignableFrom(assetClass) && !(assetDescriptors[0] instanceof AgentDescriptor)) {
-                    LOG.severe("Asset descriptor found instead of Agent descriptor on agent class: " + assetClass.getName());
-                    throw new IllegalStateException("Asset descriptor found instead of Agent descriptor on agent class: " + assetClass.getName());
+                    String msg = "Asset descriptor found instead of Agent descriptor on agent class: " + assetClass.getName();
+                    LOG.severe(msg);
+                    throw new IllegalStateException(msg);
                 }
 
-                LOG.info("Found asset descriptor in asset class '" + assetDescriptors[0].getClass().getSimpleName() + "': " + assetDescriptors[0]);
+                LOG.info("Found asset descriptor in asset class '" + assetClass.getSimpleName() + "': " + assetDescriptors[0].getName());
                 return assetDescriptors[0];
             }).toArray(AssetDescriptor[]::new);
         }
@@ -188,31 +206,35 @@ public class AssetModelUtil {
     protected static boolean initialised;
 
     static {
-        // Find all service loader registered model providers
+        // Find all service loader registered asset model providers
         ServiceLoader.load(AssetModelProvider.class).forEach(assetModelProviders::add);
     }
 
     protected AssetModelUtil() {
     }
 
-    // TODO: Implement ability to restrict which asset types are allowed to be added to a given parent type
-    public static AssetDescriptor<?>[] getAssetDescriptors(String parentId) {
+    protected static AssetDescriptor<?>[] getAssetDescriptors() {
         if (!initialised) {
             initialise();
         }
         return assetDescriptors;
     }
 
+    // TODO: Implement ability to restrict which asset types are allowed to be added to a given parent type
+    public static AssetDescriptor<?>[] getAssetDescriptors(String parentId) {
+        return getAssetDescriptors();
+    }
+
     @SuppressWarnings("unchecked")
     public static <T extends Asset<?>> Optional<AssetDescriptor<T>> getAssetDescriptor(Class<T> assetType) {
-        return Arrays.stream(assetDescriptors)
+        return Arrays.stream(getAssetDescriptors())
             .filter(assetDescriptor -> assetDescriptor.getType() == assetType)
             .map(assetDescriptor -> (AssetDescriptor<T>)assetDescriptor)
             .findFirst();
     }
 
     public static Optional<AssetDescriptor<?>> getAssetDescriptor(String assetType) {
-        return Arrays.stream(assetDescriptors)
+        return Arrays.stream(getAssetDescriptors())
             .filter(assetDescriptor -> assetDescriptor.getName().equals(assetType))
             .findFirst();
     }
@@ -257,6 +279,7 @@ public class AssetModelUtil {
             initialiseOrThrow();
         } catch (IllegalStateException e) {
             LOG.log(Level.SEVERE, "Failed to initialise the asset model", e);
+            throw e;
         }
     }
 

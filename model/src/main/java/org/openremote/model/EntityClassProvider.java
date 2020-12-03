@@ -17,30 +17,16 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.model.asset.impl;
+package org.openremote.model;
 
-import org.openremote.model.asset.Asset;
-import org.openremote.model.asset.AssetDescriptor;
+import java.util.List;
 
-import javax.persistence.Entity;
+/**
+ * Interface for providing a list of entity class names to be registered for JPA, this can be used for registering custom
+ * custom {@link org.openremote.model.asset.Asset} types etc. Instances should be registered using the standard
+ * {@link java.util.ServiceLoader} mechanism.
+ */
+public interface EntityClassProvider {
 
-@Entity
-public class RoomAsset extends Asset<RoomAsset> {
-
-    public static final AssetDescriptor<RoomAsset> DESCRIPTOR = new AssetDescriptor<>("door", "2eaaa2", RoomAsset.class);
-
-    /**
-     * For use by hydrators (i.e. JPA/Jackson)
-     */
-    RoomAsset() {
-        this(null);
-    }
-
-    protected RoomAsset(String name, AssetDescriptor<? extends RoomAsset> descriptor) {
-        super(name, descriptor);
-    }
-
-    public RoomAsset(String name) {
-        super(name, DESCRIPTOR);
-    }
+    List<Class<?>> getEntityClasses();
 }

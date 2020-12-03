@@ -27,10 +27,12 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.util.Optional;
 
+@Entity
 public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink> {
 
     public static class KNXAgentLink extends AgentLink<KNXAgentLink> {
@@ -90,6 +92,13 @@ public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink
     public static final AgentDescriptor<KNXAgent, KNXProtocol, KNXAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         KNXAgent.class, KNXProtocol.class, KNXAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    KNXAgent() {
+        this(null);
+    }
 
     public KNXAgent(String name) {
         super(name, DESCRIPTOR);

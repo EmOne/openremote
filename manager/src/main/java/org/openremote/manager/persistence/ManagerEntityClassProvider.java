@@ -17,30 +17,19 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.model.asset.impl;
+package org.openremote.manager.persistence;
 
-import org.openremote.model.asset.Asset;
-import org.openremote.model.asset.AssetDescriptor;
+import org.openremote.manager.security.UserConfiguration;
+import org.openremote.model.EntityClassProvider;
 
-import javax.persistence.Entity;
+import java.util.Arrays;
+import java.util.List;
 
-@Entity
-public class RoomAsset extends Asset<RoomAsset> {
-
-    public static final AssetDescriptor<RoomAsset> DESCRIPTOR = new AssetDescriptor<>("door", "2eaaa2", RoomAsset.class);
-
-    /**
-     * For use by hydrators (i.e. JPA/Jackson)
-     */
-    RoomAsset() {
-        this(null);
-    }
-
-    protected RoomAsset(String name, AssetDescriptor<? extends RoomAsset> descriptor) {
-        super(name, descriptor);
-    }
-
-    public RoomAsset(String name) {
-        super(name, DESCRIPTOR);
+public class ManagerEntityClassProvider implements EntityClassProvider {
+    @Override
+    public List<Class<?>> getEntityClasses() {
+        return Arrays.asList(
+            UserConfiguration.class
+        );
     }
 }

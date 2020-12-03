@@ -22,11 +22,21 @@ package org.openremote.test.protocol.velbus;
 import org.openremote.agent.protocol.velbus.VelbusAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 
+import javax.persistence.Entity;
+
+@Entity
 public class MockVelbusAgent extends VelbusAgent<MockVelbusAgent, MockVelbusProtocol> {
 
     public static final AgentDescriptor<MockVelbusAgent, MockVelbusProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         MockVelbusAgent.class, MockVelbusProtocol.class, VelbusAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    MockVelbusAgent() {
+        this(null);
+    }
 
     public MockVelbusAgent(String name) {
         super(name, DESCRIPTOR);

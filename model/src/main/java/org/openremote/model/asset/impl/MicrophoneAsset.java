@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class MicrophoneAsset extends Asset<MicrophoneAsset> {
 
     public static final AttributeDescriptor<Double> SOUND_LEVEL = new AttributeDescriptor<>("soundLevel", ValueType.POSITIVE_NUMBER,
@@ -36,6 +38,13 @@ public class MicrophoneAsset extends Asset<MicrophoneAsset> {
     );
 
     public static final AssetDescriptor<MicrophoneAsset> DESCRIPTOR = new AssetDescriptor<>("microphone", "47A5FF", MicrophoneAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    MicrophoneAsset() {
+        this(null);
+    }
 
     protected MicrophoneAsset(String name, AssetDescriptor<? extends MicrophoneAsset> descriptor) {
         super(name, descriptor);

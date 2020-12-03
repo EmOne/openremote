@@ -28,8 +28,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ClientEventAgent extends Agent<ClientEventAgent, ClientEventProtocol, AgentLink.Default> {
 
     public static final ValueDescriptor<ClientRole> VALUE_CLIENT_ROLE = new ValueDescriptor<>("Client role", ClientRole.class);
@@ -40,6 +42,14 @@ public class ClientEventAgent extends Agent<ClientEventAgent, ClientEventProtoco
     public static final AgentDescriptor<ClientEventAgent, ClientEventProtocol, AgentLink.Default> DESCRIPTOR =new AgentDescriptor<>(
         ClientEventAgent.class, ClientEventProtocol.class, AgentLink.Default.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ClientEventAgent() {
+        this(null);
+    }
+
 
     public ClientEventAgent(String name) {
         super(name, DESCRIPTOR);

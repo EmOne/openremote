@@ -21,11 +21,21 @@ package org.openremote.agent.protocol.velbus;
 
 import org.openremote.model.asset.agent.AgentDescriptor;
 
+import javax.persistence.Entity;
+
+@Entity
 public class VelbusSerialAgent extends VelbusAgent<VelbusSerialAgent, VelbusSerialProtocol> {
 
     public static final AgentDescriptor<VelbusSerialAgent, VelbusSerialProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         VelbusSerialAgent.class, VelbusSerialProtocol.class, VelbusAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    VelbusSerialAgent() {
+        this(null);
+    }
 
     public VelbusSerialAgent(String name) {
         super(name, DESCRIPTOR);

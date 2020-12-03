@@ -19,16 +19,56 @@
  */
 package org.openremote.test.model
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.container.Container
+import org.openremote.model.Constants
+import org.openremote.model.asset.Asset
+import org.openremote.model.asset.agent.AgentLink
+import org.openremote.model.asset.impl.LightAsset
 import org.openremote.model.attribute.AttributeValidationFailure
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.AttributeValidationResult
 import org.openremote.model.attribute.MetaItem
+import org.openremote.model.value.MetaItemType
+import org.openremote.model.value.SubStringValueFilter
+import org.openremote.model.value.ValueFilter
 import org.openremote.model.value.Values
+import org.openremote.model.value.impl.ColourRGB
 import spock.lang.Specification
 
 class SerialisationTest extends Specification {
+
+    def "Serialize/Deserialize Asset"() {
+        given: "An asset"
+        def asset = new LightAsset("Test light")
+            .setRealm(Constants.MASTER_REALM)
+            .setTemperature(100I)
+            .setColourRGB(new ColourRGB(50, 100, 200))
+        asset.getAttribute(LightAsset.COLOUR_RGB).ifPresent({
+            it.addOrReplaceMeta(
+                new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink.Default("agent_id")
+                    .setValueFilters(
+                        [new SubStringValueFilter(0,10)] as ValueFilter[]
+                    )
+                )
+            )
+        })
+
+        when: "the asset is serialised using default object mapper"
+        def assetStr = Values.asJSON(asset).orElse(null)
+
+        then: "the string should be valid JSON"
+        def assetObjectNode = Values.parse(assetStr, ObjectNode.class).get()
+        assetObjectNode.get("name").asText() == "Test light"
+
+        when: "the asset is deserialized"
+        def asset2 = Values.parse(assetStr, Asset.class).orElse(null)
+
+        then: "it should match the original"
+        asset.getName() == asset2.getName()
+        asset2.getType() == asset.getType()
+    }
 
     def "Serialize/Deserialize Attribute"() {
         given:

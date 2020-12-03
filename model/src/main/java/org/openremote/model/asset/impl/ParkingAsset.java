@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ParkingAsset extends Asset<ParkingAsset> {
 
     public static final AttributeDescriptor<Integer> SPACES_TOTAL = new AttributeDescriptor<>("spacesTotal", ValueType.POSITIVE_INTEGER);
@@ -43,6 +45,13 @@ public class ParkingAsset extends Asset<ParkingAsset> {
     );
 
     public static final AssetDescriptor<ParkingAsset> DESCRIPTOR = new AssetDescriptor<>("parking", "0260ae", ParkingAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ParkingAsset() {
+        this(null);
+    }
 
     protected ParkingAsset(String name, AssetDescriptor<? extends ParkingAsset> descriptor) {
         super(name, descriptor);

@@ -21,12 +21,22 @@ package org.openremote.agent.protocol.velbus;
 
 import org.openremote.model.asset.agent.AgentDescriptor;
 
+import javax.persistence.Entity;
+
+@Entity
 public class VelbusTcpAgent extends VelbusAgent<VelbusTcpAgent, VelbusTcpProtocol> {
 
     public static final AgentDescriptor<VelbusTcpAgent, VelbusTcpProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         VelbusTcpAgent.class, VelbusTcpProtocol.class, VelbusAgentLink.class
     );
-    
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    VelbusTcpAgent() {
+        this(null);
+    }
+
     public VelbusTcpAgent(String name) {
         super(name, DESCRIPTOR);
     }

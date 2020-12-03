@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class WeatherAsset extends Asset<WeatherAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
@@ -67,6 +69,13 @@ public class WeatherAsset extends Asset<WeatherAsset> {
     );
 
     public static final AssetDescriptor<WeatherAsset> DESCRIPTOR = new AssetDescriptor<>("weather-partly-cloudy", "49B0D8", WeatherAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    WeatherAsset() {
+        this(null);
+    }
 
     protected WeatherAsset(String name, AssetDescriptor<? extends WeatherAsset> descriptor) {
         super(name, descriptor);

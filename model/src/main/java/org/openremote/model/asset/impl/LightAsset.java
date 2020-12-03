@@ -19,6 +19,7 @@
  */
 package org.openremote.model.asset.impl;
 
+import javafx.scene.effect.Light;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
@@ -31,8 +32,10 @@ import org.openremote.model.value.impl.ColourRGBA;
 import org.openremote.model.value.impl.ColourRGBAW;
 import org.openremote.model.value.impl.ColourRGBW;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class LightAsset extends Asset<LightAsset> {
 
     public static final AttributeDescriptor<Boolean> ON_OFF = new AttributeDescriptor<>("onOff", ValueType.BOOLEAN,
@@ -50,6 +53,13 @@ public class LightAsset extends Asset<LightAsset> {
 
     public static final AssetDescriptor<LightAsset> DESCRIPTOR = new AssetDescriptor<>("lightbulb", "e6688a", LightAsset.class);
 
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    LightAsset() {
+        this(null);
+    }
+
     protected LightAsset(String name, AssetDescriptor<? extends LightAsset> descriptor) {
         super(name, descriptor);
     }
@@ -62,27 +72,69 @@ public class LightAsset extends Asset<LightAsset> {
         return getAttributes().getValue(ON_OFF);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setOnOff(Boolean value) {
+        getAttributes().getOrCreate(ON_OFF).setValue(value);
+        return (T)this;
+    }
+
     public Optional<Integer> getBrightness() {
         return getAttributes().getValue(BRIGHTNESS);
     }
 
-    public Optional<ColourRGB> getColorRGB() {
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setBrightness(Integer value) {
+        getAttributes().getOrCreate(BRIGHTNESS).setValue(value);
+        return (T)this;
+    }
+
+    public Optional<ColourRGB> getColourRGB() {
         return getAttributes().getValue(COLOUR_RGB);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setColourRGB(ColourRGB value) {
+        getAttributes().getOrCreate(COLOUR_RGB).setValue(value);
+        return (T)this;
     }
 
     public Optional<ColourRGBA> getColorRGBA() {
         return getAttributes().getValue(COLOUR_RGBA);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setColourRGBA(ColourRGBA value) {
+        getAttributes().getOrCreate(COLOUR_RGBA).setValue(value);
+        return (T)this;
+    }
+
     public Optional<ColourRGBW> getColorRGBW() {
         return getAttributes().getValue(COLOUR_RGBW);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setColourRGBW(ColourRGBW value) {
+        getAttributes().getOrCreate(COLOUR_RGBW).setValue(value);
+        return (T)this;
     }
 
     public Optional<ColourRGBAW> getColorRGBAW() {
         return getAttributes().getValue(COLOUR_RGBAW);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setColourRGBAW(ColourRGBAW value) {
+        getAttributes().getOrCreate(COLOUR_RGB).setValue(value);
+        return (T)this;
+    }
+
     public Optional<Integer> getTemperature() {
         return getAttributes().getValue(TEMPERATURE);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends LightAsset> T setTemperature(Integer value) {
+        getAttributes().getOrCreate(TEMPERATURE).setValue(value);
+        return (T)this;
     }
 }

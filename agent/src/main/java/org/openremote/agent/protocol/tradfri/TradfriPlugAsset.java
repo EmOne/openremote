@@ -8,13 +8,22 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.asset.impl.PlugAsset;
 import org.openremote.model.attribute.AttributeEvent;
 
+import javax.persistence.Entity;
 import java.util.function.Consumer;
 
+@Entity
 public class TradfriPlugAsset extends PlugAsset implements TradfriAsset {
 
     public static final AssetDescriptor<TradfriPlugAsset> DESCRIPTOR = new AssetDescriptor<>(
         "plug", "e6688a", TradfriPlugAsset.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    TradfriPlugAsset() {
+        this(null);
+    }
 
     public TradfriPlugAsset(String name) {
         this(name, DESCRIPTOR);

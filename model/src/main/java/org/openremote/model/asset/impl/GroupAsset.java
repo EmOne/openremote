@@ -25,17 +25,26 @@ import org.openremote.model.attribute.Attribute;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
 /**
  * An asset for grouping other assets together; if the {@link #CHILD_ASSET_TYPE} {@link Attribute} is specified then
  * all children must be of the specified type.
  */
+@Entity
 public class GroupAsset extends Asset<GroupAsset> {
 
     public static final AttributeDescriptor<String> CHILD_ASSET_TYPE = new AttributeDescriptor<>("childAssetType", ValueType.STRING);
     public static final String t = GroupAsset.class.getSimpleName();
     public static final AssetDescriptor<GroupAsset> DESCRIPTOR = new AssetDescriptor<>("folder", "B3B3B3", GroupAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    GroupAsset() {
+        super(null, DESCRIPTOR);
+    }
 
     protected GroupAsset(String name, AssetDescriptor<? extends GroupAsset> descriptor, String childAssetType) {
         super(name, descriptor);

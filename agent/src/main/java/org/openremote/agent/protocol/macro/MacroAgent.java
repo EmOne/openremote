@@ -27,9 +27,11 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import javax.validation.constraints.Min;
 import java.util.Optional;
 
+@Entity
 public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.MacroAgentLink> {
 
     public static final class MacroAgentLink extends AgentLink<MacroAgentLink> {
@@ -62,6 +64,13 @@ public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.Macr
     public static final AgentDescriptor<MacroAgent, MacroProtocol, MacroAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         MacroAgent.class, MacroProtocol.class, MacroAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    MacroAgent() {
+        this(null);
+    }
 
     public MacroAgent(String name) {
         super(name, DESCRIPTOR);

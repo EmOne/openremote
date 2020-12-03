@@ -7,13 +7,22 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.asset.impl.LightAsset;
 import org.openremote.model.attribute.AttributeEvent;
 
+import javax.persistence.Entity;
 import java.util.function.Consumer;
 
+@Entity
 public class TradfriLightAsset extends LightAsset implements TradfriAsset {
 
     public static final AssetDescriptor<TradfriLightAsset> DESCRIPTOR = new AssetDescriptor<>(
         "lightbulb", "e6688a", TradfriLightAsset.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    TradfriLightAsset() {
+        this(null);
+    }
 
     public TradfriLightAsset(String name) {
         this(name, DESCRIPTOR);

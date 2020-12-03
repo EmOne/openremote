@@ -23,14 +23,23 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 
 import javax.persistence.DiscriminatorValue;
+import javax.persistence.Entity;
 
 /**
  * Generic asset i.e. "Thing"
  */
 @DiscriminatorValue("non null")
+@Entity
 public class ThingAsset extends Asset<ThingAsset> {
 
     public static final AssetDescriptor<ThingAsset> DESCRIPTOR = new AssetDescriptor<>("cube-outline", null, ThingAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ThingAsset() {
+        this(null);
+    }
 
     protected ThingAsset(String name, AssetDescriptor<? extends ThingAsset> descriptor) {
         super(name, descriptor);

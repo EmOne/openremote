@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, WebsocketClientProtocol, WebsocketClientAgent.WebsocketClientAgentLink> {
 
     public static class WebsocketClientAgentLink extends AgentLink<WebsocketClientAgentLink> {
@@ -77,6 +79,13 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
     public static final AgentDescriptor<WebsocketClientAgent, WebsocketClientProtocol, WebsocketClientAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         WebsocketClientAgent.class, WebsocketClientProtocol.class, WebsocketClientAgentLink.class, null
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    WebsocketClientAgent() {
+        this(null);
+    }
 
     public WebsocketClientAgent(String name) {
         super(name, DESCRIPTOR);

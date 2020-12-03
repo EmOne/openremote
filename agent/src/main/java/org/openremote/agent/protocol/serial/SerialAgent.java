@@ -23,11 +23,21 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
+import javax.persistence.Entity;
+
+@Entity
 public class SerialAgent extends IoAgent<SerialAgent, SerialClientProtocol, AgentLink.Default> {
 
     public static final AgentDescriptor<SerialAgent, SerialClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
         SerialAgent.class, SerialClientProtocol.class, AgentLink.Default.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    SerialAgent() {
+        this(null);
+    }
 
     public SerialAgent(String name) {
         super(name, DESCRIPTOR);

@@ -49,8 +49,9 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
 
     public static class NamedListSerializer extends StdSerializer<NamedList<?>> {
 
-        public NamedListSerializer(Class<NamedList<?>> t) {
-            super(t);
+        @SuppressWarnings("unchecked")
+        public NamedListSerializer() {
+            super((Class<NamedList<?>>)(Class)NamedList.class);
         }
 
         @Override
@@ -84,7 +85,6 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         @Override
         public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
             JavaType wrapperType = property.getType();
-            JavaType valueType = wrapperType.containedType(0);
             return new NamedListDeserializer(wrapperType);
         }
 
@@ -97,7 +97,7 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
                 throw new InvalidFormatException(jp, "Expected an object but got type: " + node.getNodeType(), node, NamedList.class);
             }
 
-            JavaType innerType = getValueType().containedType(0);
+            JavaType innerType = getValueType().findSuperType(NamedList.class).containedType(0);
             NamedList list = new NamedList<>();
             ObjectNode namedListObj = (ObjectNode) node;
 

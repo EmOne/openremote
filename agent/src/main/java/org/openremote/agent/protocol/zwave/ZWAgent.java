@@ -25,8 +25,10 @@ import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ZWAgent extends Agent<ZWAgent, ZWProtocol, ZWAgent.ZWAgentLink> {
 
     public static class ZWAgentLink extends AgentLink<ZWAgentLink> {
@@ -58,6 +60,13 @@ public class ZWAgent extends Agent<ZWAgent, ZWProtocol, ZWAgent.ZWAgentLink> {
     public static AgentDescriptor<ZWAgent, ZWProtocol, ZWAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         ZWAgent.class, ZWProtocol.class, ZWAgentLink.class, null
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ZWAgent() {
+        this(null);
+    }
 
     public ZWAgent(String name) {
         super(name, DESCRIPTOR);

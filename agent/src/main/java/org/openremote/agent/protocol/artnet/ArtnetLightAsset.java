@@ -7,6 +7,7 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
+import javax.persistence.Transient;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,8 +24,16 @@ public class ArtnetLightAsset extends LightAsset {
         "lightbulb", "e6688a", ArtnetLightAsset.class
     );
 
+    @Transient
     @JsonIgnore
     private Map<String, Integer> receivedValues;
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ArtnetLightAsset() {
+        this(null);
+    }
 
     public ArtnetLightAsset(String name) {
         this(name, DESCRIPTOR);

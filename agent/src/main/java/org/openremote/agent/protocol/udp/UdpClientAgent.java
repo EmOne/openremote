@@ -23,11 +23,21 @@ import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
+import javax.persistence.Entity;
+
+@Entity
 public class UdpClientAgent extends IoAgent<UdpClientAgent, UdpClientProtocol, AgentLink.Default> {
 
     public static final AgentDescriptor<UdpClientAgent, UdpClientProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
         UdpClientAgent.class, UdpClientProtocol.class, AgentLink.Default.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    UdpClientAgent() {
+        this(null);
+    }
 
     public UdpClientAgent(String name) {
         super(name, DESCRIPTOR);

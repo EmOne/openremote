@@ -25,8 +25,10 @@ import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class GatewayAsset extends Asset<GatewayAsset> {
 
     public static final AttributeDescriptor<String> CLIENT_ID = new AttributeDescriptor<>("clientId", ValueType.STRING);
@@ -35,6 +37,13 @@ public class GatewayAsset extends Asset<GatewayAsset> {
     public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("disabled", ValueType.BOOLEAN);
 
     public static final AssetDescriptor<GatewayAsset> DESCRIPTOR = new AssetDescriptor<>("router-wireless", null, GatewayAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    GatewayAsset() {
+        this(null);
+    }
 
     protected GatewayAsset(String name, AssetDescriptor<? extends GatewayAsset> descriptor) {
         super(name, descriptor);

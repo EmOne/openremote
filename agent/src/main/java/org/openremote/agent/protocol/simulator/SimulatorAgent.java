@@ -28,8 +28,10 @@ import org.openremote.model.simulator.SimulatorReplayDatapoint;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class SimulatorAgent extends Agent<SimulatorAgent, SimulatorProtocol, SimulatorAgent.SimulatorAgentLink> {
 
     public static class SimulatorAgentLink extends AgentLink<SimulatorAgentLink> {
@@ -55,6 +57,13 @@ public class SimulatorAgent extends Agent<SimulatorAgent, SimulatorProtocol, Sim
     public static final AgentDescriptor<SimulatorAgent, SimulatorProtocol, SimulatorAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         SimulatorAgent.class, SimulatorProtocol.class, SimulatorAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    SimulatorAgent() {
+        this(null);
+    }
 
     public SimulatorAgent(String name) {
         super(name, DESCRIPTOR);

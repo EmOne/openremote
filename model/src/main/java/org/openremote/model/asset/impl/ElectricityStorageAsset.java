@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ElectricityStorageAsset extends Asset<ElectricityStorageAsset> {
 
     public static final AttributeDescriptor<String> STATUS = new AttributeDescriptor<>("status", ValueType.STRING,
@@ -83,6 +85,13 @@ public class ElectricityStorageAsset extends Asset<ElectricityStorageAsset> {
     );
 
     public static final AssetDescriptor<ElectricityStorageAsset> DESCRIPTOR = new AssetDescriptor<>("battery-charging", "1B7C89", ElectricityStorageAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ElectricityStorageAsset() {
+        this(null);
+    }
 
     protected ElectricityStorageAsset(String name, AssetDescriptor<? extends ElectricityStorageAsset> descriptor) {
         super(name, descriptor);

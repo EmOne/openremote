@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class EnvironmentSensorAsset extends Asset<EnvironmentSensorAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
@@ -64,6 +66,13 @@ public class EnvironmentSensorAsset extends Asset<EnvironmentSensorAsset> {
     );
 
     public static final AssetDescriptor<EnvironmentSensorAsset> DESCRIPTOR = new AssetDescriptor<>("periodic-table-co2", "f18546", EnvironmentSensorAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    EnvironmentSensorAsset() {
+        this(null);
+    }
 
     protected EnvironmentSensorAsset(String name, AssetDescriptor<? extends EnvironmentSensorAsset> descriptor) {
         super(name, descriptor);

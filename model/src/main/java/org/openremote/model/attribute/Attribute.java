@@ -19,6 +19,8 @@
  */
 package org.openremote.model.attribute;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.AttributeDescriptor;
@@ -37,6 +39,7 @@ import java.util.stream.Stream;
 public class Attribute<T> extends AbstractNameValueHolder<T> {
 
     protected MetaList meta;
+    @JsonIgnore
     protected long timestamp;
 
     protected Attribute() {
@@ -154,6 +157,11 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
             timestamp = -1*System.currentTimeMillis();
         }
         setTimestamp(timestamp);
+    }
+
+    @JsonProperty("timestamp")
+    protected Long getTimestampInternal() {
+        return getTimestamp().orElse(null);
     }
 
     public Optional<Long> getTimestamp() {

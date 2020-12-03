@@ -36,6 +36,13 @@ public class BuildingAsset extends CityAsset {
 
     public static final AssetDescriptor<BuildingAsset> DESCRIPTOR = new AssetDescriptor<>("office-building", "4b5966", BuildingAsset.class);
 
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    BuildingAsset() {
+        this(null);
+    }
+
     protected BuildingAsset(String name, AssetDescriptor<? extends BuildingAsset> descriptor) {
         super(name, descriptor);
     }

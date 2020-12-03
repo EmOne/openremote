@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class GroundwaterSensorAsset extends Asset<GroundwaterSensorAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
@@ -40,6 +42,13 @@ public class GroundwaterSensorAsset extends Asset<GroundwaterSensorAsset> {
     );
 
     public static final AssetDescriptor<GroundwaterSensorAsset> DESCRIPTOR = new AssetDescriptor<>("water-outline", "95d0df", GroundwaterSensorAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    GroundwaterSensorAsset() {
+        this(null);
+    }
 
     protected GroundwaterSensorAsset(String name, AssetDescriptor<? extends GroundwaterSensorAsset> descriptor) {
         super(name, descriptor);

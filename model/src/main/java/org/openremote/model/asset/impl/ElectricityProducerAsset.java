@@ -28,8 +28,10 @@ import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
 
     public enum PanelOrientation {
@@ -64,6 +66,13 @@ public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
 
     protected ElectricityProducerAsset(String name, AssetDescriptor<? extends ElectricityProducerAsset> descriptor) {
         super(name, descriptor);
+    }
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ElectricityProducerAsset() {
+        this(null);
     }
 
     public ElectricityProducerAsset(String name) {

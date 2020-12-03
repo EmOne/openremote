@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class TimerAgent extends Agent<TimerAgent, TimerProtocol, TimerAgent.TimerAgentLink> {
 
     public static class TimerAgentLink extends AgentLink<TimerAgentLink> {
@@ -60,6 +62,13 @@ public class TimerAgent extends Agent<TimerAgent, TimerProtocol, TimerAgent.Time
     public static final AgentDescriptor<TimerAgent, TimerProtocol, TimerAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         TimerAgent.class, TimerProtocol.class, TimerAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    TimerAgent() {
+        this(null);
+    }
 
     public TimerAgent(String name) {
         super(name, DESCRIPTOR);

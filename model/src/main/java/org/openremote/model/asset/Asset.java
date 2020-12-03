@@ -20,6 +20,7 @@
 package org.openremote.model.asset;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import org.hibernate.annotations.Check;
 import org.hibernate.annotations.Formula;
 import org.openremote.model.Constants;
@@ -28,6 +29,7 @@ import org.openremote.model.asset.impl.ThingAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeList;
 import org.openremote.model.geo.GeoJSONPoint;
+import org.openremote.model.jackson.AssetTypeIdResolver;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
@@ -213,7 +215,8 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name="TYPE", discriminatorType=STRING)
 @Check(constraints = "ID != PARENT_ID")
-@JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = Asset.class)
+@JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = ThingAsset.class)
+@JsonTypeIdResolver(AssetTypeIdResolver.class)
 public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     /*

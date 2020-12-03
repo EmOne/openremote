@@ -22,13 +22,13 @@ package org.openremote.agent.protocol.controller;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, ControllerAgent.ControllerAgentLink> {
 
     public static class ControllerAgentLink extends AgentLink<ControllerAgentLink> {
@@ -95,6 +95,13 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
     public static final AgentDescriptor<ControllerAgent, ControllerProtocol, ControllerAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         ControllerAgent.class, ControllerProtocol.class, ControllerAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ControllerAgent() {
+        this(null);
+    }
 
     public ControllerAgent(String name) {
         super(name, DESCRIPTOR);

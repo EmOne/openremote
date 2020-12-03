@@ -27,8 +27,10 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, HttpClientAgent.HttpClientAgentLink> {
 
     public static class HttpClientAgentLink extends AgentLink<HttpClientAgentLink> {
@@ -130,6 +132,14 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
     public static final AgentDescriptor<HttpClientAgent, HttpClientProtocol, HttpClientAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         HttpClientAgent.class, HttpClientProtocol.class, HttpClientAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    HttpClientAgent() {
+        this(null);
+    }
+
 
     public HttpClientAgent(String name) {
         super(name, DESCRIPTOR);

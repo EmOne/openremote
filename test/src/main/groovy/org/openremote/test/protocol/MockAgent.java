@@ -25,8 +25,10 @@ import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class MockAgent extends Agent<MockAgent, MockProtocol, MockAgent.MockAgentLink> {
 
     public static class MockAgentLink extends AgentLink<MockAgentLink> {
@@ -53,6 +55,13 @@ public class MockAgent extends Agent<MockAgent, MockProtocol, MockAgent.MockAgen
     public static final AgentDescriptor<MockAgent, MockProtocol, MockAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         MockAgent.class, MockProtocol.class, MockAgentLink.class
     );
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    MockAgent() {
+        this(null);
+    }
 
     public MockAgent(String name) {
         super(name, DESCRIPTOR);

@@ -24,8 +24,10 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class PeopleCounterAsset extends Asset<PeopleCounterAsset> {
 
     public static final AttributeDescriptor<Integer> COUNT_IN = new AttributeDescriptor<>("countIn", ValueType.POSITIVE_INTEGER);
@@ -36,6 +38,13 @@ public class PeopleCounterAsset extends Asset<PeopleCounterAsset> {
     public static final AttributeDescriptor<Double> COUNT_GROWTH_PER_MINUTE = new AttributeDescriptor<>("countGrowthMinute", ValueType.NUMBER);
 
     public static final AssetDescriptor<PeopleCounterAsset> DESCRIPTOR = new AssetDescriptor<>("account-multiple", "4b5966", PeopleCounterAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    PeopleCounterAsset() {
+        this(null);
+    }
 
     protected <T extends PeopleCounterAsset> PeopleCounterAsset(String name, AssetDescriptor<? extends PeopleCounterAsset> descriptor) {
         super(name, descriptor);

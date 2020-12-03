@@ -27,12 +27,20 @@ import org.openremote.model.value.ValueType;
 import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class CityAsset extends Asset<CityAsset> {
 
     public static final AttributeDescriptor<String> CITY = new AttributeDescriptor<>("city", ValueType.STRING);
     public static final AttributeDescriptor<String> COUNTRY = new AttributeDescriptor<>("country", ValueType.STRING);
 
     public static final AssetDescriptor<CityAsset> DESCRIPTOR = new AssetDescriptor<>("city", null, CityAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    CityAsset() {
+        this(null);
+    }
 
     protected CityAsset(String name, AssetDescriptor<? extends CityAsset> descriptor) {
         super(name, descriptor);

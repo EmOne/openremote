@@ -29,6 +29,7 @@ import javax.persistence.Persistence;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
@@ -56,7 +57,7 @@ public class SchemaExporter {
 
                 @Override
                 public void start(org.openremote.model.Container container) throws Exception {
-                    Map<String, Object> createSchemaProperties = new HashMap<>(persistenceUnitProperties);
+                    Properties createSchemaProperties = new Properties(persistenceUnitProperties);
                     createSchemaProperties.put(
                         "javax.persistence.schema-generation.scripts.action",
                         "create"

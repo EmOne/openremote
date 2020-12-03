@@ -27,8 +27,10 @@ import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
+import javax.persistence.Entity;
 import java.util.Optional;
 
+@Entity
 public class ConsoleAsset extends Asset<ConsoleAsset> {
 
     public static final AttributeDescriptor<String> CONSOLE_NAME = new AttributeDescriptor<>("consoleName", ValueType.STRING);
@@ -37,6 +39,13 @@ public class ConsoleAsset extends Asset<ConsoleAsset> {
     public static final AttributeDescriptor<ConsoleProviders> CONSOLE_PROVIDERS = new AttributeDescriptor<>("consoleProviders", ValueType.CONSOLE_PROVIDERS);
 
     public static final AssetDescriptor<ConsoleAsset> DESCRIPTOR = new AssetDescriptor<>("monitor-cellphone", null, ConsoleAsset.class);
+
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    ConsoleAsset() {
+        this(null);
+    }
 
     protected ConsoleAsset(String name, AssetDescriptor<? extends ConsoleAsset> descriptor) {
         super(name, descriptor);
