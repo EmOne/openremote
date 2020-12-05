@@ -55,6 +55,12 @@ class SerialisationTest extends Specification {
             )
         })
 
+        expect: "the attributes to match the set values"
+        asset.getTemperature().orElse(null) == 100I
+        asset.getColourRGB().map{it.getRed()}.orElse(null) == 50I
+        asset.getColourRGB().map{it.getGreen()}.orElse(null) == 100I
+        asset.getColourRGB().map{it.getBlue()}.orElse(null) == 200I
+
         when: "the asset is serialised using default object mapper"
         def assetStr = Values.asJSON(asset).orElse(null)
 
@@ -63,11 +69,15 @@ class SerialisationTest extends Specification {
         assetObjectNode.get("name").asText() == "Test light"
 
         when: "the asset is deserialized"
-        def asset2 = Values.parse(assetStr, Asset.class).orElse(null)
+        def asset2 = Values.parse(assetStr, LightAsset.class).orElse(null)
 
         then: "it should match the original"
         asset.getName() == asset2.getName()
         asset2.getType() == asset.getType()
+        asset2.getTemperature().orElse(null) == asset.getTemperature().orElse(null)
+        asset2.getColourRGB().map{it.getRed()}.orElse(null) == asset.getColourRGB().map{it.getRed()}.orElse(null)
+        asset2.getColourRGB().map{it.getGreen()}.orElse(null) == asset.getColourRGB().map{it.getGreen()}.orElse(null)
+        asset2.getColourRGB().map{it.getBlue()}.orElse(null) == asset.getColourRGB().map{it.getBlue()}.orElse(null)
     }
 
     def "Serialize/Deserialize Attribute"() {

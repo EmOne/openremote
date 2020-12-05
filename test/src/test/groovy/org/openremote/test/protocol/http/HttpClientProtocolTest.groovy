@@ -34,7 +34,6 @@ import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 
 import org.openremote.model.Constants
-import org.openremote.model.asset.Asset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.attribute.AttributeEvent
@@ -43,13 +42,11 @@ import org.openremote.model.attribute.MetaItem
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.model.value.RegexValueFilter
 import org.openremote.model.value.ValueFilter
-import org.openremote.model.value.ValueType
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
-import sun.net.www.http.HttpClient
 
 import javax.ws.rs.HttpMethod
 import javax.ws.rs.client.ClientRequestContext
@@ -437,7 +434,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             .setParent(agent)
             .addOrReplaceAttributes(
                 // attribute that sends requests to the server using PUT with dynamic body and custom header to override parent
-                new Attribute<>("putRequestWithHeaders", JSON_OBJECT)
+                new Attribute<>("putRequestWithHeaders", OBJECT_MAP)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent.id)
                             .setPath("put_request_with_headers")

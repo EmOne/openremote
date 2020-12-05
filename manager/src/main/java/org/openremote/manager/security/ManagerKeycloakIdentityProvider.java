@@ -159,7 +159,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     public User createUser(String realm, User user, String password) {
         RealmResource realmResource = getRealms().realm(realm);
         Response response = realmResource.users().create(
-                convert(UserRepresentation.class, user)
+                convert(user, UserRepresentation.class)
             );
         response.close();
         if (!response.getStatusInfo().equals(Response.Status.CREATED)) {
@@ -202,7 +202,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     public void resetPassword(String realm, String userId, Credential credential) {
         getRealms()
             .realm(realm).users().get(userId).resetPassword(
-            convert(CredentialRepresentation.class, credential)
+            convert(credential, CredentialRepresentation.class)
         );
     }
 
@@ -296,7 +296,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     @Override
     public Tenant getTenant(String realm) {
         RealmRepresentation realmRepresentation = getRealms().realm(realm).toRepresentation();
-        return convert(Tenant.class, realmRepresentation);
+        return convert(realmRepresentation, Tenant.class);
     }
 
     @Override
@@ -334,7 +334,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     public Tenant createTenant(Tenant tenant) {
         LOG.fine("Create tenant: " + tenant);
         RealmsResource realmsResource = getRealms();
-        RealmRepresentation realmRepresentation = convert(RealmRepresentation.class, tenant);
+        RealmRepresentation realmRepresentation = convert(tenant, RealmRepresentation.class);
         realmsResource.create(realmRepresentation);
         RealmResource realmResource = realmsResource.realm(tenant.getRealm());
 
@@ -344,7 +344,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
         realmResource.update(realmRepresentation);
         createOpenRemoteClientApplication(realmRepresentation.getRealm());
         publishModification(PersistenceEvent.Cause.CREATE, tenant);
-        return convert(Tenant.class, realmRepresentation);
+        return convert(realmRepresentation, Tenant.class);
     }
 
     @Override
@@ -415,7 +415,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
             return null;
         }
         UserRepresentation user = getRealms().realm(realm).clients().get(client.getId()).getServiceAccountUser();
-        return user != null ? convert(User.class, user) : null;
+        return user != null ? convert(user, User.class) : null;
     }
 
     /**
@@ -612,7 +612,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     }
 
     public static User convertUser(String realm, UserRepresentation userRepresentation) {
-        User user = convert(User.class, userRepresentation);
+        User user = convert(userRepresentation, User.class);
         user.setRealm(realm);
         return user;
     }

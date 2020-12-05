@@ -19,8 +19,6 @@
  */
 package org.openremote.container.persistence;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.vladmihalcea.hibernate.type.util.ObjectMapperWrapper;
 import org.hibernate.internal.util.SerializationHelper;
 import org.openremote.model.value.Values;
@@ -46,7 +44,7 @@ public class CustomObjectMapperJsonSerializer extends com.vladmihalcea.hibernate
 
         // Bug in default implementation means it cannot cope with subclasses of parameterized types that don't have type params
         if (object instanceof Collection && object.getClass().getTypeParameters().length == 0) {
-            Object firstElement = findFirstNonNullElement((Collection<?>) object);
+            Object firstElement = Values.findFirstNonNullElement((Collection<?>) object);
 
             if (firstElement != null && !(firstElement instanceof Serializable)) {
                 return objectMapperWrapper.fromBytes(objectMapperWrapper.toBytes(object), (Class<T>)object.getClass());
@@ -56,7 +54,7 @@ public class CustomObjectMapperJsonSerializer extends com.vladmihalcea.hibernate
         }
 
         if (object instanceof Map && object.getClass().getTypeParameters().length == 0) {
-            Map.Entry<?,?> firstEntry = this.findFirstNonNullEntry((Map<?,?>) object);
+            Map.Entry<?,?> firstEntry = Values.findFirstNonNullEntry((Map<?,?>) object);
             if (firstEntry != null) {
                 Object key = firstEntry.getKey();
                 Object value = firstEntry.getValue();
@@ -75,23 +73,5 @@ public class CustomObjectMapperJsonSerializer extends com.vladmihalcea.hibernate
         }
 
         return super.clone(object);
-    }
-
-    protected Object findFirstNonNullElement(Collection<?> collection) {
-        for (java.lang.Object element : collection) {
-            if (element != null) {
-                return element;
-            }
-        }
-        return null;
-    }
-
-    protected Map.Entry<?,?> findFirstNonNullEntry(Map<?, ?> map) {
-        for (Map.Entry entry : map.entrySet()) {
-            if (entry.getKey() != null && entry.getValue() != null) {
-                return entry;
-            }
-        }
-        return null;
     }
 }

@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.node.*;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.TextUtil;
 
 import java.lang.reflect.Array;
@@ -93,7 +94,8 @@ public class Values {
         }
         try {
             return Optional.of(JSON.readValue(jsonString, JSON.constructType(type)));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to parse JSON", e);
         }
         return Optional.empty();
     }
@@ -265,6 +267,10 @@ public class Values {
         return (T[]) Array.newInstance(clazz, size);
     }
 
+    public static ValueType.ObjectMap createObjectMap() {
+        return new ValueType.ObjectMap();
+    }
+
     /**
      * @param o A timestamp string as 'HH:mm:ss' or 'HH:mm'.
      * @return Epoch time or 0 if there is a problem parsing the timestamp string.
@@ -376,12 +382,11 @@ public class Values {
         return newCollection;
     }
 
-    public static <T> T convert(Class<T> targetType, Object object) {
+    public static <T> T convert(Object object, Class<T> targetType) {
         if (object == null) {
             return null;
         }
-        Map<String, Object> props = JSON.convertValue(object, Map.class);
-        return JSON.convertValue(props, targetType);
+        return JSON.convertValue(object, targetType);
     }
 
     public static boolean isArray(Class<?> clazz) {
@@ -471,5 +476,27 @@ public class Values {
             LOG.log(Level.WARNING, "Failed to clone object of type: " + object.getClass(), e);
             return null;
         }
+    }
+
+    public static <T> TypeReference<Attribute<T>> getRef(Class<T> clazz) {
+        return new TypeReference<Attribute<T>>() {};
+    }
+
+    public static Object findFirstNonNullElement(Collection<?> collection) {
+        for (java.lang.Object element : collection) {
+            if (element != null) {
+                return element;
+            }
+        }
+        return null;
+    }
+
+    public static Map.Entry<?,?> findFirstNonNullEntry(Map<?, ?> map) {
+        for (Map.Entry entry : map.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                return entry;
+            }
+        }
+        return null;
     }
 }

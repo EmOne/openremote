@@ -41,12 +41,14 @@ import javax.validation.constraints.*;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
 public final class ValueType {
 
     /* SOME CUSTOM TYPES TO AVOID GENERIC TYPE SO THESE CAN BE CONSUMED IN VALUE DESCRIPTORS */
+    public static class ObjectMap extends HashMap<String, Object> {}
     public static class StringMap extends HashMap<String, String> {}
     public static class IntegerMap extends HashMap<String, Integer> {}
     public static class DoubleMap extends HashMap<String, Double> {}
@@ -71,7 +73,9 @@ public final class ValueType {
 
     public static final ValueDescriptor<Integer> INTEGER = new ValueDescriptor<>("Integer", Integer.class);
 
-    public static final ValueDescriptor<Long> BIG_INTEGER = new ValueDescriptor<>("Big integer", Long.class);
+    public static final ValueDescriptor<Long> LONG = new ValueDescriptor<>("Long", Long.class);
+
+    public static final ValueDescriptor<BigInteger> BIG_INTEGER = new ValueDescriptor<>("Big integer", BigInteger.class);
 
     public static final ValueDescriptor<IntegerMap> INTEGER_MAP = new ValueDescriptor<>("Integer map", IntegerMap.class);
 
@@ -87,11 +91,9 @@ public final class ValueType {
 
     public static final ValueDescriptor<MultivaluedStringMap> MULTIVALUED_STRING_MAP = new ValueDescriptor<>("Multivalued string map", MultivaluedStringMap.class);
 
-    public static final ValueDescriptor<ArrayNode> JSON_ARRAY = new ValueDescriptor<>("Custom array", ArrayNode.class);
+    public static final ValueDescriptor<ObjectMap> OBJECT_MAP = new ValueDescriptor<>("Object map", ObjectMap.class);
 
-    public static final ValueDescriptor<ObjectNode> JSON_OBJECT = new ValueDescriptor<>("Custom object", ObjectNode.class);
-
-    public static final ValueDescriptor<JsonNode> JSON = new ValueDescriptor<>("Anything", JsonNode.class);
+    public static final ValueDescriptor<Object> OBJECT = new ValueDescriptor<>("Object", Object.class);
 
     @Min(0)
     public static final ValueDescriptor<Integer> POSITIVE_INTEGER = new ValueDescriptor<>("Positive integer", Integer.class);
@@ -102,6 +104,8 @@ public final class ValueType {
     @Min(0)
     @Max(255)
     public static final ValueDescriptor<Integer> INT_BYTE = new ValueDescriptor<>("Integer (byte)", Integer.class);
+
+    public static final ValueDescriptor<Byte> BYTE = new ValueDescriptor<>("Byte", Byte.class);
 
     public static final ValueDescriptor<Integer> TIMESTAMP = new ValueDescriptor<>("Timestamp", Integer.class);
 

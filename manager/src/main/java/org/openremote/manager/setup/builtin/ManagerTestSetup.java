@@ -141,7 +141,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         lobby.setParent(groundFloor);
         lobby.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, SMART_OFFICE_LOCATION),
-            new Attribute<>("lobbyLocations", ValueType.JSON_ARRAY)
+            new Attribute<>("lobbyLocations", OBJECT.asArray())
         );
         lobby = assetStorageService.merge(lobby);
         lobbyId = lobby.getId();
@@ -383,8 +383,8 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         RoomAsset apartment2Livingroom = new RoomAsset("Living Room 2");
         apartment2Livingroom.setParent(apartment2);
 
-        ObjectNode objectNode = Values.JSON.createObjectNode();
-        objectNode.put("cactus", 0.8);
+        ObjectMap objectMap = Values.createObjectMap();
+        objectMap.put("cactus", 0.8);
 
         apartment2Livingroom.getAttributes().addOrReplace(
                 new Attribute<>(Asset.LOCATION, new GeoJSONPoint(5.454109, 51.446631)),
@@ -428,7 +428,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 new MetaItem<>(LABEL, "Lightswitch Trigger Times"),
                                 new MetaItem<>(RULE_STATE, true)
                         ),
-                new Attribute<>("plantsWaterLevels", JSON_OBJECT, objectNode)
+                new Attribute<>("plantsWaterLevels", OBJECT_MAP, objectMap)
                         .addMeta(
                                 new MetaItem<>(LABEL, "Water levels of the plants"),
                                 new MetaItem<>(RULE_STATE, true)

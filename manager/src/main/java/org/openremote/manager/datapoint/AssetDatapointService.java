@@ -23,7 +23,6 @@ import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.filter.AttributePredicate;
 import org.openremote.model.query.filter.NameValuePredicate;
 import org.openremote.model.util.Pair;
-import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.Values;
 import org.postgresql.util.PGInterval;
@@ -38,7 +37,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -322,7 +320,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                             try (ResultSet rs = st.executeQuery()) {
                                 List<ValueDatapoint<?>> result = new ArrayList<>();
                                 while (rs.next()) {
-                                    Object value = rs.getObject(2) != null ? Values.convert(attributeType, rs.getString(2)) : null;
+                                    Object value = rs.getObject(2) != null ? Values.convert(rs.getString(2), attributeType) : null;
                                     result.add(new ValueDatapoint<>(rs.getTimestamp(1).getTime(), value));
                                 }
                                 return result.toArray(new ValueDatapoint[0]);

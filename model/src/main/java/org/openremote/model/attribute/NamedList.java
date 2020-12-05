@@ -182,6 +182,11 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         return super.addAll(index, c);
     }
 
+
+    protected boolean addAllSilent(Collection<? extends T> c) {
+        return super.addAll(c);
+    }
+
     @Override
     public void replaceAll(UnaryOperator<T> operator) {
         super.replaceAll(operator);

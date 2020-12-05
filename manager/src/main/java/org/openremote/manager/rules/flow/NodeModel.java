@@ -137,7 +137,7 @@ public enum NodeModel {
     }),
             info -> {
                 try {
-                    return Values.convert(Double.class, info.getInternals()[0].getValue());
+                    return Values.convert(info.getInternals()[0].getValue(), Double.class);
                 } catch (IllegalArgumentException e) {
                     RulesEngine.RULES_LOG.warning("Number node returned invalid value");
                     return 0f;
@@ -338,7 +338,7 @@ public enum NodeModel {
     }),
             info -> {
                 try {
-                    boolean condition = Values.convert(Boolean.class, info.getValueFromInput(0));
+                    boolean condition = Values.convert(info.getValueFromInput(0), Boolean.class);
 
                     Number a = (Number) info.getValueFromInput(1);
                     Number b = (Number) info.getValueFromInput(2);
@@ -372,9 +372,9 @@ public enum NodeModel {
     }),
             info -> {
                 try {
-                    Object joiner = Values.convert(String.class, info.getInternals()[0].getValue());
-                    Object a = Values.convert(String.class, info.getValueFromInput(0));
-                    Object b = Values.convert(String.class, info.getValueFromInput(1));
+                    Object joiner = Values.convert(info.getInternals()[0].getValue(), String.class);
+                    Object a = Values.convert(info.getValueFromInput(0), String.class);
+                    Object b = Values.convert(info.getValueFromInput(1), String.class);
 
                     joiner = joiner == null ? "" : joiner;
                     return "" + a + joiner + b;
@@ -392,9 +392,9 @@ public enum NodeModel {
             new NodeSocket("output", NodeDataType.STRING),
     }),
             info -> {
-                boolean condition = Values.convert(Boolean.class, info.getValueFromInput(0));
-                String a = Values.convert(String.class, info.getValueFromInput(1));
-                String b = Values.convert(String.class, info.getValueFromInput(2));
+                boolean condition = Values.convert(info.getValueFromInput(0), Boolean.class);
+                String a = Values.convert(info.getValueFromInput(1), String.class);
+                String b = Values.convert(info.getValueFromInput(2), String.class);
                 return condition ? a : b;
             }),
 

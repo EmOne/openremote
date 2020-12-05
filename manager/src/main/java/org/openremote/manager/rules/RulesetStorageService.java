@@ -290,7 +290,7 @@ public class RulesetStorageService implements ContainerService {
         ruleset.setLastModified(rs.getTimestamp("LAST_MODIFIED"));
         ruleset.setCreatedOn(rs.getTimestamp("CREATED_ON"));
         if (rs.getString("META") != null) {
-            ruleset.setMeta(Values.convert(MetaList.class, rs.getString("META")));
+            ruleset.setMeta(Values.convert(rs.getString("META"), MetaList.class));
         }
         if (query.fullyPopulate) {
             ruleset.setRules(rs.getString("RULES"));

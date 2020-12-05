@@ -164,7 +164,7 @@ public class TypeMapper {
         } else if (translator instanceof DPTXlator8BitUnsigned && Values.isNumber(value.getClass())) {
             ((DPTXlator8BitUnsigned) translator).setValue(Values.getIntegerCoerced(value).orElse(0));
         } else if (translator instanceof DPTXlatorRGB) {
-            ColourRGB colorRGB = Values.convert(ColourRGB.class, value);
+            ColourRGB colorRGB = Values.convert(value, ColourRGB.class);
             if (colorRGB != null) {
                 ((DPTXlatorRGB) translator).setValue(colorRGB.getRed(), colorRGB.getGreen(), colorRGB.getBlue());
             }

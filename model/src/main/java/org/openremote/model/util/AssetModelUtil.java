@@ -28,14 +28,15 @@ import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.*;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
-import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 
-import javax.persistence.Entity;
 import javax.validation.ConstraintViolation;
 import javax.validation.constraints.NotNull;
+import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -264,6 +265,57 @@ public class AssetModelUtil {
         }
 
         return valueDescriptors;
+    }
+
+    // TODO: Implement value descriptor lookup
+    public static Optional<ValueDescriptor<?>> getValueDescriptor(String name) {
+        if (TextUtil.isNullOrEmpty(name)) return Optional.empty();
+        boolean isArray = name.endsWith("[]");
+        String val = isArray ? name.substring(0, name.length() - 2) : name;
+        return Optional.empty();
+    }
+
+    public static ValueDescriptor<?> getValueDescriptor(Object value) {
+        if (value == null) {
+            return ValueType.OBJECT;
+        }
+
+        Class<?> valueClass = value.getClass();
+        boolean isArray = valueClass.isArray();
+        valueClass = isArray ? valueClass.getComponentType() : valueClass;
+        ValueDescriptor<?> valueDescriptor = ValueType.OBJECT;
+
+        if (valueClass == Boolean.class) valueDescriptor = ValueType.BOOLEAN;
+        else if (valueClass == String.class) valueDescriptor = ValueType.STRING;
+        else if (valueClass == Integer.class) valueDescriptor = ValueType.INTEGER;
+        else if (valueClass == Long.class) valueDescriptor = ValueType.LONG;
+        else if (valueClass == Double.class || valueClass == Float.class) valueDescriptor = ValueType.NUMBER;
+        else if (valueClass == BigInteger.class) valueDescriptor = ValueType.BIG_INTEGER;
+        else if (valueClass == BigDecimal.class) valueDescriptor = ValueType.BIG_NUMBER;
+        else if (valueClass == Byte.class) valueDescriptor = ValueType.BYTE;
+        else if (Map.class.isAssignableFrom(valueClass)) {
+            Object firstElem = Values.findFirstNonNullEntry((Map<?,?>)value);
+
+            if (firstElem == null) valueDescriptor = ValueType.OBJECT_MAP;
+            else {
+                boolean elemIsArray = firstElem.getClass().isArray();
+                Class<?> elemClass = elemIsArray ? firstElem.getClass() : firstElem.getClass().getComponentType();
+                if (elemIsArray) {
+                    valueDescriptor = elemClass == String.class ? ValueType.MULTIVALUED_STRING_MAP : ValueType.OBJECT_MAP;
+                } else {
+                    if (elemClass == String.class)
+                        valueDescriptor = ValueType.STRING_MAP;
+                    else if (elemClass == Double.class || elemClass == Float.class)
+                        valueDescriptor = ValueType.NUMBER_MAP;
+                    else if (elemClass == Integer.class)
+                        valueDescriptor = ValueType.STRING_MAP;
+                    else if (elemClass == Boolean.class)
+                        valueDescriptor = ValueType.BOOLEAN_MAP;
+                }
+            }
+        }
+
+        return isArray ? valueDescriptor.asArray() : valueDescriptor;
     }
 
     public static void refresh() {

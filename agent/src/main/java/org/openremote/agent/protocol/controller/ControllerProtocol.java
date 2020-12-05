@@ -377,7 +377,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
                 LOG.info("### New sensors status received");
                 LOG.finer("### Polling request body response : " + responseBodyAsString);
 
-                ArrayNode statusArray = Values.convert(ArrayNode.class, responseBodyAsString);
+                ArrayNode statusArray = Values.convert(responseBodyAsString, ArrayNode.class);
 
                 if (statusArray == null) {
                     LOG.warning("### Polling response is not a JSON array or empty: " + responseBodyAsString);
@@ -414,7 +414,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
     private void updateAttributeValue(AttributeRef attributeRef, String value) {
         LOG.finest("### Updating attribute " + attributeRef + " with value " + value);
         ValueDescriptor<?> valueType = this.linkedAttributes.get(attributeRef).getValueType();
-        Object valueObj = Values.convert(valueType.getType(), value);
+        Object valueObj = Values.convert(value, valueType.getType());
         this.updateLinkedAttribute(new AttributeState(attributeRef, valueObj));
     }
 

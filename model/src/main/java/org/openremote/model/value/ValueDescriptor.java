@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.attribute.MetaList;
+import org.openremote.model.util.AssetModelUtil;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,6 +54,17 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
         @Override
         public String convert(ValueDescriptor<?> value) {
             return value instanceof ValueArrayDescriptor ? value.getName() + "[]" : value.getName();
+        }
+    }
+
+    /**
+     * This class handles deserialising value type names to {@link ValueDescriptor}s
+     */
+    public static class StringValueDescriptorConverter extends StdConverter<String, ValueDescriptor<?>> {
+
+        @Override
+        public ValueDescriptor<?> convert(String value) {
+            return AssetModelUtil.getValueDescriptor(value).orElse(ValueType.OBJECT);
         }
     }
 
@@ -118,7 +130,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
     public ValueArrayDescriptor<T[]> asArray() {
         try {
             Class<T[]> arrayClass = (Class<T[]>) Values.getArrayClass(type);
-            return new ValueArrayDescriptor<>(name, arrayClass, meta);
+            return new ValueArrayDescriptor<>(name + "[]", arrayClass, meta);
         } catch (ClassNotFoundException ignored) {
             // Can't happen as we have the source class already
         }

@@ -888,16 +888,16 @@ public class JsonRulesBuilder extends RulesBuilder {
                     } else {
 
                         // Convert value to JSON Node to easily manipulate it
-                        value = isArray ? Values.convert(ArrayNode.class, value) : Values.convert(ObjectNode.class, value);
+                        value = isArray ? Values.convert(value, ArrayNode.class) : Values.convert(value, ObjectNode.class);
 
                         switch (attributeUpdateAction.updateAction) {
                             case ADD:
                                 if (isArray) {
                                     value = value == null ? Values.JSON.createArrayNode() : value;
-                                    ((ArrayNode)value).add(Values.convert(JsonNode.class, attributeUpdateAction.value));
+                                    ((ArrayNode)value).add(Values.convert(attributeUpdateAction.value, JsonNode.class));
                                 } else {
                                     value = value == null ? Values.JSON.createObjectNode() : value;
-                                    ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(JsonNode.class, attributeUpdateAction.value));
+                                    ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
                                 }
                                 break;
                             case ADD_OR_REPLACE:
@@ -907,14 +907,14 @@ public class JsonRulesBuilder extends RulesBuilder {
                                     ArrayNode arrayValue = (ArrayNode) value;
 
                                     if (attributeUpdateAction.index != null && arrayValue.size() >= attributeUpdateAction.index) {
-                                        arrayValue.set(attributeUpdateAction.index, Values.convert(JsonNode.class, attributeUpdateAction.value));
+                                        arrayValue.set(attributeUpdateAction.index, Values.convert(attributeUpdateAction.value, JsonNode.class));
                                     } else {
-                                        arrayValue.add(Values.convert(JsonNode.class, attributeUpdateAction.value));
+                                        arrayValue.add(Values.convert(attributeUpdateAction.value, JsonNode.class));
                                     }
                                 } else {
                                     value = value == null ? Values.JSON.createObjectNode() : value;
                                     if (!TextUtil.isNullOrEmpty(attributeUpdateAction.key)) {
-                                        ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(JsonNode.class, attributeUpdateAction.value));
+                                        ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
                                     } else {
                                         log(Level.WARNING, "JSON Rule: Rule action missing required 'key': " + Values.asJSON(attributeUpdateAction));
                                     }
@@ -981,7 +981,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("</td><td>");
                 sb.append(assetState.getAttributeName());
                 sb.append("</td><td>");
-                sb.append(assetState.getValue().map(v -> Values.convert(String.class, v)).orElse(""));
+                sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
                 sb.append("</td></tr>");
             }));
             sb.append("</table>");
@@ -994,7 +994,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("\t\t");
                 sb.append(assetState.getAttributeName());
                 sb.append("\t\t");
-                sb.append(assetState.getValue().map(v -> Values.convert(String.class, v)).orElse(""));
+                sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
             }));
         }
 

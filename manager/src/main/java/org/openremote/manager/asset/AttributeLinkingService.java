@@ -164,7 +164,7 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
 
                 // Do basic value conversion
                 if (!attribute.getValueType().getType().isAssignableFrom(value[0].getClass())) {
-                    Object val = Values.convert(attribute.getValueType().getType(), value[0]);
+                    Object val = Values.convert(value[0], attribute.getValueType().getType());
 
                     if (val == null) {
                         LOG.warning("Failed to convert value: " + value[0].getClass() + " -> " + attribute.getValueType().getType());

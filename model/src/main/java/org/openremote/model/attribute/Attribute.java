@@ -21,13 +21,21 @@ package org.openremote.model.attribute;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.deser.std.TokenBufferDeserializer;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.openremote.model.util.AssetModelUtil;
-import org.openremote.model.value.AbstractNameValueHolder;
-import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.ValueDescriptor;
+import org.openremote.model.value.*;
 
 import javax.validation.constraints.NotNull;
+import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -36,7 +44,83 @@ import java.util.stream.Stream;
 /**
  * Stores a named value with associated {@link MetaItem}s.
  */
+@JsonDeserialize(using = Attribute.AttributeDeserializer.class)
 public class Attribute<T> extends AbstractNameValueHolder<T> {
+
+    public static class AttributeDeserializer extends StdDeserializer<Attribute<?>> {
+
+        protected AttributeDeserializer() {
+            super(Attribute.class);
+        }
+
+        @Override
+        public Attribute<?> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+
+            // Need to find the type field to know how to deserialise the value
+            TokenBuffer tokenBuffer = TokenBuffer.asCopyOfValue(jp);
+            JsonParser jp2 = tokenBuffer.asParser();
+            JsonParser jp3 = tokenBuffer.asParser();
+            String attributeValueType = null;
+
+            while (jp2.nextToken() != JsonToken.END_OBJECT) {
+                if (jp2.currentName().equals("type")) {
+                    jp2.nextToken();
+                    attributeValueType = jp2.getValueAsString();
+                    break;
+                }
+            }
+
+            if (attributeValueType == null) {
+                throw new JsonParseException(jp, "Failed to extract attribute type information");
+            }
+
+            // Get inner attribute type or fallback to primitive/JSON type
+            Optional<ValueDescriptor<?>> valueDescriptor = AssetModelUtil.getValueDescriptor(attributeValueType);
+            Attribute attribute = new Attribute<>();
+
+            while (jp3.nextToken() != JsonToken.END_OBJECT) {
+                if (jp3.currentToken() == JsonToken.FIELD_NAME) {
+                    String propName = jp3.currentName();
+                    JsonToken token = jp3.nextToken();
+                    if (token == JsonToken.VALUE_NULL) {
+                        continue;
+                    }
+                    switch (propName) {
+                        case "meta":
+                            attribute.meta = jp3.readValueAs(MetaList.class);
+                            break;
+                        case "name":
+                            attribute.name = jp3.readValueAs(String.class);
+                            break;
+                        case "timestamp":
+                            attribute.timestamp = jp3.readValueAs(Long.class);
+                            break;
+                        case "value":
+                            @SuppressWarnings("unchecked")
+                            Class valueType = valueDescriptor.map(ValueDescriptor::getType).orElseGet(() -> {
+                                if (jp3.currentToken() == JsonToken.START_ARRAY) {
+                                    return (Class)Object[].class;
+                                }
+                                return (Class) Object.class;
+                            });
+                            attribute.value = jp3.readValueAs(valueType);
+                            break;
+                    }
+                }
+            }
+
+            // Get the value descriptor from the value if it isn't known
+            attribute.type = valueDescriptor.orElseGet(() -> {
+                if (attribute.value == null) {
+                    return ValueType.OBJECT;
+                }
+                Object value = attribute.value;
+                return AssetModelUtil.getValueDescriptor(value);
+            });
+
+            return (Attribute<?>) attribute;
+        }
+    }
 
     protected MetaList meta;
     @JsonIgnore
@@ -159,14 +243,16 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
         setTimestamp(timestamp);
     }
 
+    @JsonIgnore
+    public Optional<Long> getTimestamp() {
+        return hasExplicitTimestamp() ? Optional.of(Math.abs(timestamp)) : Optional.empty();
+    }
+
     @JsonProperty("timestamp")
     protected Long getTimestampInternal() {
         return getTimestamp().orElse(null);
     }
 
-    public Optional<Long> getTimestamp() {
-        return hasExplicitTimestamp() ? Optional.of(Math.abs(timestamp)) : Optional.empty();
-    }
 
     public boolean hasExplicitTimestamp() {
         return timestamp > 0;

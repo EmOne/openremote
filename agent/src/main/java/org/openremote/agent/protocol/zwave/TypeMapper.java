@@ -45,7 +45,7 @@ public class TypeMapper {
         typeMap.put(ChannelType.NUMBER, ValueType.NUMBER);
         typeMap.put(ChannelType.STRING, ValueType.STRING);
         typeMap.put(ChannelType.BOOLEAN, ValueType.BOOLEAN);
-        typeMap.put(ChannelType.ARRAY, ValueType.JSON_ARRAY);
+        typeMap.put(ChannelType.ARRAY, ValueType.OBJECT.asArray());
 
         // COMMAND_CLASS_SENSOR_MULTILEVEL
 
@@ -228,7 +228,7 @@ public class TypeMapper {
                     valueType = ValueType.STRING;
                     break;
                 case ARRAY:
-                    valueType = ValueType.JSON_ARRAY;
+                    valueType = ValueType.OBJECT.asArray();
                     break;
             }
         }
