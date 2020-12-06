@@ -33,6 +33,7 @@ import java.util.*;
  * {@link #getMetaFailures()} returns a map of meta item validation failures along with optional failure message
  * parameter for each failure; the key represents the meta item index that has failed.
  */
+@Deprecated
 public class AttributeValidationResult {
 
     @JsonProperty

@@ -21,15 +21,14 @@ package org.openremote.model.attribute;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.MetaItemDescriptor;
+import org.openremote.model.value.ValueDescriptor;
+import org.openremote.model.value.ValueType;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,17 +42,13 @@ public class MetaList extends NamedList<MetaItem<?>> {
      * Deserialise a {@link MetaList} that is represented as a JSON object where each key is the name of a
      * {@link MetaItemDescriptor}
      */
-    public static class MetaObjectDeserializer extends StdDeserializer<MetaList> implements ContextualDeserializer {
+    public static class MetaObjectDeserializer extends StdDeserializer<MetaList> {
 
         public MetaObjectDeserializer() {
-            super(AttributeList.class);
+            super(MetaList.class);
         }
 
-        @Override
-        public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
-            return new MetaObjectDeserializer();
-        }
-
+        @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public MetaList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
             if (!jp.isExpectedStartObjectToken()) {
@@ -66,18 +61,27 @@ public class MetaList extends NamedList<MetaItem<?>> {
                 if(jp.currentToken() == JsonToken.FIELD_NAME) {
                     String metaItemName = jp.getCurrentName();
                     jp.nextToken();
-                    MetaItem<?> metaItem = jp.readValueAs(MetaItem.class);
-//                    ObjectNode attributeNode = jp.readValueAsTree();
-//                    attributeNode.put("name", attributeName);
-//                    Attribute<?> attribute = Values.JSON.convertValue(attributeNode, Attribute.class);
-//                    String valueType = attributeNode.get("type").asText();
-//                    // Get inner attribute type or fallback to primitive/JSON type
-//                    Class<?> innerType = AssetModelUtil.getValueDescriptor(valueType).orElseGet(() -> {
-//                        // Look at the value itself otherwise fallback to JsonNode
-//                        JsonNode valueNode = attributeNode.get("value");
-//                        return AssetModelUtil.getValueDescriptorByNode(valueNode);
-//                    }).getType();
-//                    Attribute<?> attribute = Values.JSON.convertValue(attributeNode, ctxt.getTypeFactory().constructParametricType(Attribute.class, innerType));
+
+                    MetaItem metaItem = new MetaItem<>();
+                    metaItem.setNameInternal(metaItemName);
+
+                    // Find the meta descriptor for this meta item as this will give us value type also; fallback to
+                    // OBJECT type meta item to allow deserialization of meta that doesn't exist in the current asset model
+                    Optional<ValueDescriptor<?>> valueDescriptor = AssetModelUtil.getMetaItemDescriptor(metaItemName)
+                        .map(MetaItemDescriptor::getValueType);
+
+                    Class valueType = valueDescriptor.map(ValueDescriptor::getType).orElseGet(() -> (Class) Object.class);
+                    metaItem.setValue(jp.readValueAs(valueType));
+
+                    // Get the value descriptor from the value if it isn't known
+                    metaItem.setTypeInternal(valueDescriptor.orElseGet(() -> {
+                        if (!metaItem.getValue().isPresent()) {
+                            return ValueType.OBJECT;
+                        }
+                        Object value = metaItem.getValue().orElse(null);
+                        return AssetModelUtil.getValueDescriptorForValue(value);
+                    }));
+
                     list.add(metaItem);
                 }
             }

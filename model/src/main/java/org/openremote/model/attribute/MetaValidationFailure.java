@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-@JsonTypeName("meta")
+@Deprecated
 public class MetaValidationFailure extends AttributeValidationFailure {
 
     protected String metaItem;

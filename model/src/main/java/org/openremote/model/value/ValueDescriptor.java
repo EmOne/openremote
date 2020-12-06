@@ -20,6 +20,7 @@
 package org.openremote.model.value;
 
 import com.fasterxml.jackson.databind.util.StdConverter;
+import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.attribute.MetaList;
@@ -31,8 +32,18 @@ import java.util.Objects;
 
 /**
  * A simple wrapper around a {@link Class} that describes a value that can be used by {@link Attribute}s and
- * {@link MetaItem}s; it also conveniently stores {@link MetaItem}s that will be added to new {@link Attribute}
- * instances that use the {@link ValueDescriptor} (useful for adding units information etc.).
+ * {@link MetaItem}s; it also conveniently stores {@link MetaItem}s that should be added to new {@link Attribute}
+ * instances that use the {@link ValueDescriptor} (useful for adding default units information etc.).
+ * <p>
+ * The {@link ValueDescriptor} applies to the {@link Asset} type it is associated with and all subtypes of this type (i.e. a
+ * {@link ValueDescriptor} associated with the base {@link Asset} type will be available to all {@link  Asset} types (e.g.
+ * {@link ValueType#NUMBER} can be applied to any {@link org.openremote.model.asset.Asset}'s {@link Attribute} and/or
+ * {@link MetaItemDescriptor}).
+ * <p>
+ * {@link ValueDescriptor}s for arrays don't need to be explicitly defined but can be obtained at the point of comsumpution
+ * by simply calling {@link ValueDescriptor#asArray}.
+ * <p>
+ * {@link ValueDescriptor#getName} must be globally unique within the context of the manager it is registered with.
  */
 public class ValueDescriptor<T> implements NameHolder, MetaHolder {
 
@@ -109,18 +120,18 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return Objects.hashCode(name);
     }
 
     /**
-     * Only interested in type equality as this is the critical part of a {@link ValueDescriptor}
+     * Value descriptor names are unique identifiers so can use this for equality purposes
      */
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
+        if (obj == null || !(ValueDescriptor.class.isAssignableFrom(obj.getClass()))) return false;
         ValueDescriptor<?> that = (ValueDescriptor<?>)obj;
-        return Objects.equals(type, that.type);
+        return Objects.equals(name, that.name);
     }
 
     /**

@@ -1,6 +1,17 @@
 package org.openremote.test.assets
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.openremote.model.Constants
+import org.openremote.model.asset.agent.AgentLink
+import org.openremote.model.asset.impl.LightAsset
 import org.openremote.model.attribute.Attribute
+import org.openremote.model.attribute.MetaItem
+import org.openremote.model.value.MetaItemType
+import org.openremote.model.value.SubStringValueFilter
+import org.openremote.model.value.ValueFilter
+import org.openremote.model.value.ValueType
+import org.openremote.model.value.Values
+import org.openremote.model.value.impl.ColourRGB
 import spock.lang.Specification
 
 import java.util.stream.Collectors
@@ -10,6 +21,59 @@ import static org.openremote.model.value.ValueType.*
 
 // TODO: Define new asset model tests (setValue - equality checking etc.)
 class AssetModelTest extends Specification {
+
+    def "Descriptors"() {
+
+    }
+
+    def "Serialize/Deserialize Asset"() {
+        given: "An asset"
+        def asset = new LightAsset("Test light")
+            .setRealm(Constants.MASTER_REALM)
+            .setTemperature(100I)
+            .setColourRGB(new ColourRGB(50, 100, 200))
+            .addAttributes(
+                new Attribute<>("testAttribute", BIG_NUMBER, 100.5, System.currentTimeMillis())
+            )
+
+        asset.getAttribute(LightAsset.COLOUR_RGB).ifPresent({
+            it.addOrReplaceMeta(
+                new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink.Default("agent_id")
+                    .setValueFilters(
+                        [new SubStringValueFilter(0,10)] as ValueFilter[]
+                    )
+                )
+            )
+        })
+
+        expect: "the attributes to match the set values"
+        asset.getTemperature().orElse(null) == 100I
+        asset.getColourRGB().map{it.getRed()}.orElse(null) == 50I
+        asset.getColourRGB().map{it.getGreen()}.orElse(null) == 100I
+        asset.getColourRGB().map{it.getBlue()}.orElse(null) == 200I
+
+        when: "the asset is serialised using default object mapper"
+        def assetStr = Values.asJSON(asset).orElse(null)
+
+        then: "the string should be valid JSON"
+        def assetObjectNode = Values.parse(assetStr, ObjectNode.class).get()
+        assetObjectNode.get("name").asText() == "Test light"
+        assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).get("id").asText() == "agent_id"
+        assetObjectNode.get("attributes").get("colourRGB").get("timestamp") == null
+        assetObjectNode.get("attributes").get("testAttribute").get("value").decimalValue() == 100.5
+        assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).isObject()
+
+        when: "the asset is deserialized"
+        def asset2 = Values.parse(assetStr, LightAsset.class).orElse(null)
+
+        then: "it should match the original"
+        asset.getName() == asset2.getName()
+        asset2.getType() == asset.getType()
+        asset2.getTemperature().orElse(null) == asset.getTemperature().orElse(null)
+        asset2.getColourRGB().map{it.getRed()}.orElse(null) == asset.getColourRGB().map{it.getRed()}.orElse(null)
+        asset2.getColourRGB().map{it.getGreen()}.orElse(null) == asset.getColourRGB().map{it.getGreen()}.orElse(null)
+        asset2.getColourRGB().map{it.getBlue()}.orElse(null) == asset.getColourRGB().map{it.getBlue()}.orElse(null)
+    }
 
     def "Comparing asset attributes"() {
 

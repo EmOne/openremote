@@ -44,7 +44,6 @@ import java.util.function.UnaryOperator;
  * a JSON object where the name becomes the key.
  */
 @JsonSerialize(using = NamedList.NamedListSerializer.class)
-@JsonDeserialize(using = NamedList.NamedListDeserializer.class)
 public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T> {
 
     public static class NamedListSerializer extends StdSerializer<NamedList<?>> {
@@ -181,7 +180,6 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         c.forEach(item -> throwIfHas(this, item.getName()));
         return super.addAll(index, c);
     }
-
 
     protected boolean addAllSilent(Collection<? extends T> c) {
         return super.addAll(c);

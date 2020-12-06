@@ -39,46 +39,7 @@ import spock.lang.Specification
 
 class SerialisationTest extends Specification {
 
-    def "Serialize/Deserialize Asset"() {
-        given: "An asset"
-        def asset = new LightAsset("Test light")
-            .setRealm(Constants.MASTER_REALM)
-            .setTemperature(100I)
-            .setColourRGB(new ColourRGB(50, 100, 200))
-        asset.getAttribute(LightAsset.COLOUR_RGB).ifPresent({
-            it.addOrReplaceMeta(
-                new MetaItem<>(MetaItemType.AGENT_LINK, new AgentLink.Default("agent_id")
-                    .setValueFilters(
-                        [new SubStringValueFilter(0,10)] as ValueFilter[]
-                    )
-                )
-            )
-        })
 
-        expect: "the attributes to match the set values"
-        asset.getTemperature().orElse(null) == 100I
-        asset.getColourRGB().map{it.getRed()}.orElse(null) == 50I
-        asset.getColourRGB().map{it.getGreen()}.orElse(null) == 100I
-        asset.getColourRGB().map{it.getBlue()}.orElse(null) == 200I
-
-        when: "the asset is serialised using default object mapper"
-        def assetStr = Values.asJSON(asset).orElse(null)
-
-        then: "the string should be valid JSON"
-        def assetObjectNode = Values.parse(assetStr, ObjectNode.class).get()
-        assetObjectNode.get("name").asText() == "Test light"
-
-        when: "the asset is deserialized"
-        def asset2 = Values.parse(assetStr, LightAsset.class).orElse(null)
-
-        then: "it should match the original"
-        asset.getName() == asset2.getName()
-        asset2.getType() == asset.getType()
-        asset2.getTemperature().orElse(null) == asset.getTemperature().orElse(null)
-        asset2.getColourRGB().map{it.getRed()}.orElse(null) == asset.getColourRGB().map{it.getRed()}.orElse(null)
-        asset2.getColourRGB().map{it.getGreen()}.orElse(null) == asset.getColourRGB().map{it.getGreen()}.orElse(null)
-        asset2.getColourRGB().map{it.getBlue()}.orElse(null) == asset.getColourRGB().map{it.getBlue()}.orElse(null)
-    }
 
     def "Serialize/Deserialize Attribute"() {
         given:

@@ -26,7 +26,6 @@ import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.auth.UsernamePassword;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
-import org.openremote.model.value.ModelDescriptor;
 import org.openremote.model.value.ValueType;
 
 import java.util.Optional;
@@ -39,10 +38,8 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  */
 public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink<?>> extends Asset<T> {
 
-    @ModelDescriptor
     public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("agentDisabled", ValueType.BOOLEAN);
 
-    @ModelDescriptor
     public static final AttributeDescriptor<ConnectionStatus> STATUS = new AttributeDescriptor<>("agentStatus", ValueType.CONNECTION_STATUS,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );

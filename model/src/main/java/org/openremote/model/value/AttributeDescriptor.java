@@ -19,6 +19,7 @@
  */
 package org.openremote.model.value;
 
+import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.attribute.MetaList;
@@ -27,15 +28,23 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Describes an {@link Attribute} in terms of what the value type will be and also optionally provides default
- * {@link MetaItem}s that will be added to new instances of the {@link Attribute}.
+ * Describes an {@link Attribute} that can be added to an {@link Asset}; the {@link #getName()} must match the {@link
+ * Attribute#getName()}, it also indicates what the {@link ValueDescriptor} is for the {@link Attribute} and optionally
+ * provides default {@link MetaItem}s that should be added to new instances of the {@link Attribute}. The {@link
+ * AttributeDescriptor} applies to the {@link Asset} type it is associated with and all subtypes of this type (i.e. an
+ * {@link AttributeDescriptor} associated with the base {@link Asset} type will apply to all {@link Asset} types (e.g.
+ * {@link Asset#LOCATION})
+ * <p>
+ * {@link AttributeDescriptor#getName} must be unique within the {@link Asset} type hierarchy to which they are
+ * associated e.g. an {@link AttributeDescriptor} with the name 'location' cannot be added to any {@link Asset} type as
+ * it is already associated with the {@link Asset} class itself see {@link Asset#LOCATION})
  */
 public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T> implements MetaHolder {
 
     protected MetaList meta;
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
-        this(name, valueDescriptor, (MetaList)null);
+        this(name, valueDescriptor, (MetaList) null);
     }
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaItem<?>... meta) {
@@ -43,7 +52,7 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     }
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, Collection<MetaItem<?>> meta) {
-        this(name, valueDescriptor, meta instanceof MetaList ? (MetaList)meta : new MetaList(meta));
+        this(name, valueDescriptor, meta instanceof MetaList ? (MetaList) meta : new MetaList(meta));
     }
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaList meta) {

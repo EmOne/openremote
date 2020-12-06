@@ -20,6 +20,7 @@
 package org.openremote.model.asset;
 
 import org.hibernate.annotations.Formula;
+import org.openremote.model.AssetModelProvider;
 import org.openremote.model.value.MetaItemType;
 
 import javax.persistence.*;

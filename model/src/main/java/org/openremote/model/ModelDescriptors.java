@@ -1,5 +1,5 @@
 /*
- * Copyright 2017, OpenRemote Inc.
+ * Copyright 2020, OpenRemote Inc.
  *
  * See the CONTRIBUTORS.txt file in the distribution for a
  * full listing of individual contributors.
@@ -17,24 +17,15 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.model.asset;
+package org.openremote.model;
 
-import org.openremote.model.util.AssetModelUtil;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.ValueDescriptor;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.util.ServiceLoader;
-
-/**
- * Provides model descriptors that are processed by {@link AssetModelUtil}; implementations can be discovered
- * using the standard {@link ServiceLoader} mechanism or can be manually registered by adding an instance to the
- * {@link AssetModelUtil#getModelProviders()}.
- */
-public interface AssetModelProvider {
-
-    AssetDescriptor<?>[] getAssetDescriptors();
-
-    MetaItemDescriptor<?>[] getMetaItemDescriptors();
-
-    ValueDescriptor<?>[] getValueDescriptors();
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ModelDescriptors {
+    ModelDescriptor[] value();
 }

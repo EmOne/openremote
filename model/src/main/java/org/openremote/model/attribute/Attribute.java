@@ -28,8 +28,6 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.deser.std.TokenBufferDeserializer;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.*;
@@ -53,6 +51,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
             super(Attribute.class);
         }
 
+        @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public Attribute<?> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
 
@@ -97,12 +96,8 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
                             break;
                         case "value":
                             @SuppressWarnings("unchecked")
-                            Class valueType = valueDescriptor.map(ValueDescriptor::getType).orElseGet(() -> {
-                                if (jp3.currentToken() == JsonToken.START_ARRAY) {
-                                    return (Class)Object[].class;
-                                }
-                                return (Class) Object.class;
-                            });
+                            Class valueType = valueDescriptor.map(ValueDescriptor::getType)
+                                .orElseGet(() -> (Class) Object.class);
                             attribute.value = jp3.readValueAs(valueType);
                             break;
                     }
@@ -115,7 +110,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
                     return ValueType.OBJECT;
                 }
                 Object value = attribute.value;
-                return AssetModelUtil.getValueDescriptor(value);
+                return AssetModelUtil.getValueDescriptorForValue(value);
             });
 
             return (Attribute<?>) attribute;
@@ -126,8 +121,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
     @JsonIgnore
     protected long timestamp;
 
-    protected Attribute() {
-    }
+    Attribute() {}
 
     public Attribute(AttributeDescriptor<T> attributeDescriptor) {
         this(attributeDescriptor, null);
@@ -164,6 +158,11 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
     public Attribute(String name, ValueDescriptor<T> valueDescriptor, T value, long timestamp) {
         this(name, valueDescriptor, value);
         setTimestamp(timestamp);
+    }
+
+    // For JPA/Hydrators
+    void setNameInternal(String name) {
+        this.name = name;
     }
 
     public MetaList getMeta() {

@@ -19,21 +19,40 @@
  */
 package org.openremote.model.attribute;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
+import java.io.IOException;
 import java.util.Objects;
 
 /**
  * A named value whose name must match the name of a {@link MetaItemDescriptor} and whose value must match the value type of
  * the {@link MetaItemDescriptor}.
  */
+@JsonSerialize(using = MetaItem.MetaItemSerializer.class)
 public class MetaItem<T> extends AbstractNameValueHolder<T> {
 
-    protected MetaItem() {
+    /**
+     * Serialise the meta item as just the value
+     */
+    public static class MetaItemSerializer extends StdSerializer<MetaItem> {
+
+        protected MetaItemSerializer() {
+            super(MetaItem.class);
+        }
+
+        @Override
+        public void serialize(MetaItem value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            gen.writeObject(value.value);
+        }
     }
+
+    MetaItem() {}
 
     @SuppressWarnings("unchecked")
     public MetaItem(MetaItemDescriptor<T> metaDescriptor) {
@@ -45,11 +64,13 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
         super(metaDescriptor.getName(), metaDescriptor.getValueType(), value);
     }
 
-    // Don't serialise type info for meta items as the name is the meta descriptor name
-    @JsonIgnore
-    @Override
-    public ValueDescriptor<T> getValueType() {
-        return super.getValueType();
+    // For JPA/Hydrators
+    void setNameInternal(String name) {
+        this.name = name;
+    }
+
+    void setTypeInternal(ValueDescriptor<T> type) {
+        this.type = type;
     }
 
     @Override

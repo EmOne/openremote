@@ -8,7 +8,6 @@ import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.Asset
-import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.impl.BuildingAsset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.calendar.CalendarEvent

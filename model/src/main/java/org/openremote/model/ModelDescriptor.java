@@ -17,21 +17,34 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.model.value;
+package org.openremote.model;
 
+import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.MetaItemDescriptor;
+import org.openremote.model.value.ValueDescriptor;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
- * To be used on {@link AssetDescriptor}s, {@link AttributeDescriptor}s, {@link MetaItemDescriptor}s and
- * {@link ValueDescriptor}s that should be discovered by the {@link AssetModelUtil.StandardModelProvider}.
+ * To be used on {@link Asset} classes to include another class in descriptor scans (only used when {@link
+ * AssetModelProvider#useAutoScan} is true), otherwise the descriptors must be explicitly specified in the appropriate
+ * {@link AssetModelProvider} descriptor getter methods.
  */
-@Target({ElementType.FIELD})
+@Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
+@Repeatable(ModelDescriptors.class)
 public @interface ModelDescriptor {
+
+    /**
+     * The {@link Asset} type to which discovered descriptors should be associated (can be abstract or concrete).
+     */
+    Class<? extends Asset<?>> assetType();
+
+    /**
+     * Class that should be scanned for public static fields for descriptors.
+     */
+    Class<?> provider();
 }

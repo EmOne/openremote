@@ -21,23 +21,18 @@ package org.openremote.model.attribute;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
-import org.openremote.model.value.Values;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.*;
-import java.util.logging.Level;
-
-import static org.openremote.model.util.AssetModelUtil.LOG;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 @JsonDeserialize(using = AttributeList.AttributeObjectDeserializer.class)
 public class AttributeList extends NamedList<Attribute<?>> {
@@ -46,26 +41,10 @@ public class AttributeList extends NamedList<Attribute<?>> {
      * Deserialise an {@link AttributeList} that is represented as a JSON object where each key is the {@link Attribute}
      * name
      */
-    public static class AttributeObjectDeserializer extends StdDeserializer<AttributeList> implements ContextualDeserializer {
-
-        protected static Field nameField;
-
-        static {
-            try {
-                nameField = AbstractNameValueHolder.class.getDeclaredField("name");
-                nameField.setAccessible(true);
-            } catch (NoSuchFieldException e) {
-                LOG.log(Level.WARNING, "Failed to get attribute name field, this should not happen", e);
-            }
-        }
+    public static class AttributeObjectDeserializer extends StdDeserializer<AttributeList> {
 
         public AttributeObjectDeserializer() {
             super(AttributeList.class);
-        }
-
-        @Override
-        public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
-            return new AttributeObjectDeserializer();
         }
 
         @Override
@@ -81,25 +60,7 @@ public class AttributeList extends NamedList<Attribute<?>> {
                     String attributeName = jp.getCurrentName();
                     jp.nextToken();
                     Attribute<?> attribute = jp.readValueAs(Attribute.class);
-
-                    if (nameField != null) {
-                        try {
-                            nameField.set(attribute, attributeName);
-                        } catch (IllegalAccessException e) {
-                            LOG.log(Level.WARNING, "Failed to set attribute name during deserialization", e);
-                        }
-                    }
-//                    ObjectNode attributeNode = jp.readValueAsTree();
-//                    attributeNode.put("name", attributeName);
-//                    Attribute<?> attribute = Values.JSON.convertValue(attributeNode, Attribute.class);
-//                    String valueType = attributeNode.get("type").asText();
-//                    // Get inner attribute type or fallback to primitive/JSON type
-//                    Class<?> innerType = AssetModelUtil.getValueDescriptor(valueType).orElseGet(() -> {
-//                        // Look at the value itself otherwise fallback to JsonNode
-//                        JsonNode valueNode = attributeNode.get("value");
-//                        return AssetModelUtil.getValueDescriptorByNode(valueNode);
-//                    }).getType();
-//                    Attribute<?> attribute = Values.JSON.convertValue(attributeNode, ctxt.getTypeFactory().constructParametricType(Attribute.class, innerType));
+                    attribute.setNameInternal(attributeName);
                     list.add(attribute);
                 }
             }
