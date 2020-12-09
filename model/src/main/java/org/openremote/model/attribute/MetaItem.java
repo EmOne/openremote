@@ -79,18 +79,6 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof MetaItem)) {
-            return false;
-        }
-
-        MetaItem<?> metaItem = (MetaItem<?>) o;
-        return Objects.equals(getName(), metaItem.getName())
-            && Objects.equals(getValue(), metaItem.getValue());
-    }
-
-    @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name='" + name + '\'' +

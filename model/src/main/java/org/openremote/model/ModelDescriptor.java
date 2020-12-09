@@ -41,7 +41,7 @@ public @interface ModelDescriptor {
     /**
      * The {@link Asset} type to which discovered descriptors should be associated (can be abstract or concrete).
      */
-    Class<? extends Asset<?>> assetType();
+    Class<? extends Asset> assetType();
 
     /**
      * Class that should be scanned for public static fields for descriptors.

@@ -234,7 +234,7 @@ public class MapService implements ContainerService {
             if (!defaultOptions.has("center")) {
                 ArrayNode center = metadata.getCenter().deepCopy();
                 center.remove(2);
-                defaultOptions.put("center", center);
+                defaultOptions.set("center", center);
             }
             if (!defaultOptions.has("zoom")) {
                 defaultOptions.put("zoom", metadata.getCenter().get(2).asDouble(13d));
@@ -242,7 +242,7 @@ public class MapService implements ContainerService {
         }
 
         if (!defaultOptions.has("bounds") && metadata.getBounds() != null) {
-            defaultOptions.put("bounds", metadata.getBounds());
+            defaultOptions.set("bounds", metadata.getBounds());
         }
     }
 

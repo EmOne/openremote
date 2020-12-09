@@ -28,7 +28,6 @@ import javax.persistence.Entity;
 import java.util.Optional;
 
 @Entity
-@DiscriminatorValue("Building")
 public class BuildingAsset extends CityAsset {
 
     public static final AttributeDescriptor<String> STREET = new AttributeDescriptor<>("street", ValueType.STRING);

@@ -165,7 +165,7 @@ public abstract class Ruleset {
     protected Long id;
 
     @Version
-    @Column(name = "OBJ_VERSION", nullable = false)
+    @Column(name = "VERSION", nullable = false)
     protected long version;
 
     @Temporal(TemporalType.TIMESTAMP)

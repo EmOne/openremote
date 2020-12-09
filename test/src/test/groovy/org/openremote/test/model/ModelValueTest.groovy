@@ -106,8 +106,8 @@ class ModelValueTest extends Specification {
         sampleArray1.set(2, "A0")
 
         expect: "Array equality comparisons to be correct"
-        Values.JSON.createArrayNode() == Values.JSON.createArrayNode()
-        Values.JSON.createArrayNode().hashCode() == Values.JSON.createArrayNode().hashCode()
+        Values.createObjectList() == Values.createObjectList()
+        Values.createObjectList().hashCode() == Values.createObjectList().hashCode()
 
         sampleArray1 == sampleArray1
         sampleArray1.hashCode() == sampleArray1.hashCode()

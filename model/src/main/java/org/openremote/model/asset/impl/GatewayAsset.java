@@ -32,7 +32,7 @@ import java.util.Optional;
 public class GatewayAsset extends Asset<GatewayAsset> {
 
     public static final AttributeDescriptor<String> CLIENT_ID = new AttributeDescriptor<>("clientId", ValueType.STRING);
-    public static final AttributeDescriptor<String> CLIENT_SECRET = new AttributeDescriptor<>("clientId", ValueType.UUID);
+    public static final AttributeDescriptor<String> CLIENT_SECRET = new AttributeDescriptor<>("clientSecret", ValueType.UUID);
     public static final AttributeDescriptor<ConnectionStatus> STATUS = new AttributeDescriptor<>("gatewayStatus", ValueType.CONNECTION_STATUS);
     public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("disabled", ValueType.BOOLEAN);
 

@@ -37,6 +37,9 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
 
         protected WebsocketSubscription[] websocketSubscriptions;
 
+        // For Hydrators
+        protected WebsocketClientAgentLink() {}
+
         public WebsocketClientAgentLink(String id) {
             super(id);
         }

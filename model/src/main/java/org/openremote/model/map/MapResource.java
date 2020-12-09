@@ -21,6 +21,7 @@ package org.openremote.model.map;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.http.RequestParams;
+
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
@@ -29,18 +30,20 @@ public interface MapResource {
 
     /**
      * Returns style used to initialise Mapbox GL
+     * @return
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-ObjectNode getSettings(@BeanParam RequestParams requestParams);
+    ObjectNode getSettings(@BeanParam RequestParams requestParams);
 
     /**
      * Returns tileJSON object used to initialise Mapbox JS
+     * @return
      */
     @GET
     @Path("js")
     @Produces(MediaType.APPLICATION_JSON)
-ObjectNode getSettingsJs(@BeanParam RequestParams requestParams);
+    ObjectNode getSettingsJs(@BeanParam RequestParams requestParams);
 
     /**
      * Gets vector tile data for Mapbox GL

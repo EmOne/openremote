@@ -897,7 +897,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                                     ((ArrayNode)value).add(Values.convert(attributeUpdateAction.value, JsonNode.class));
                                 } else {
                                     value = value == null ? Values.JSON.createObjectNode() : value;
-                                    ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                    ((ObjectNode) value).set(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
                                 }
                                 break;
                             case ADD_OR_REPLACE:
@@ -914,7 +914,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                                 } else {
                                     value = value == null ? Values.JSON.createObjectNode() : value;
                                     if (!TextUtil.isNullOrEmpty(attributeUpdateAction.key)) {
-                                        ((ObjectNode) value).put(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                        ((ObjectNode) value).set(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
                                     } else {
                                         log(Level.WARNING, "JSON Rule: Rule action missing required 'key': " + Values.asJSON(attributeUpdateAction));
                                     }

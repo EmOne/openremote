@@ -23,6 +23,9 @@ import org.openremote.agent.protocol.http.AbstractHttpServerAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
+import javax.persistence.Entity;
+
+@Entity
 public class HttpServerTestAgent extends AbstractHttpServerAgent<HttpServerTestAgent, TestHttpServerProtocol, AgentLink.Default> {
 
     public static final AgentDescriptor<HttpServerTestAgent, TestHttpServerProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(

@@ -166,7 +166,7 @@ public class RulesetStorageService implements ContainerService {
     }
 
     protected <T extends Ruleset> void appendSelectString(StringBuilder sb, Class<T> rulesetType, RulesetQuery query) {
-        sb.append("SELECT R.ID, R.OBJ_VERSION, R.RULES_LANG, R.ENABLED, R.LAST_MODIFIED, R.CREATED_ON, R.NAME, R.META");
+        sb.append("SELECT R.ID, R.VERSION, R.RULES_LANG, R.ENABLED, R.LAST_MODIFIED, R.CREATED_ON, R.NAME, R.META");
 
         if (query.fullyPopulate) {
             sb.append(", R.RULES");
@@ -284,7 +284,7 @@ public class RulesetStorageService implements ContainerService {
 
         ruleset.setName(rs.getString("NAME"));
         ruleset.setId(rs.getLong("ID"));
-        ruleset.setVersion(rs.getLong("OBJ_VERSION"));
+        ruleset.setVersion(rs.getLong("VERSION"));
         ruleset.setLang(Ruleset.Lang.valueOf(rs.getString("RULES_LANG")));
         ruleset.setEnabled(rs.getBoolean("ENABLED"));
         ruleset.setLastModified(rs.getTimestamp("LAST_MODIFIED"));

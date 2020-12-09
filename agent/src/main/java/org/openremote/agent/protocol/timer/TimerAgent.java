@@ -37,6 +37,9 @@ public class TimerAgent extends Agent<TimerAgent, TimerProtocol, TimerAgent.Time
 
         protected TimerValue timerValue;
 
+        // For Hydrators
+        protected TimerAgentLink() {}
+
         public TimerAgentLink(String id) {
             super(id);
         }

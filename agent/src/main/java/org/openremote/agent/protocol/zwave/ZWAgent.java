@@ -37,6 +37,9 @@ public class ZWAgent extends Agent<ZWAgent, ZWProtocol, ZWAgent.ZWAgentLink> {
         protected Integer deviceEndpoint;
         protected String deviceValue;
 
+        // For Hydrators
+        protected ZWAgentLink() {}
+
         public ZWAgentLink(String id, Integer deviceNodeId, Integer deviceEndpoint, String deviceValue) {
             super(id);
             this.deviceNodeId = deviceNodeId;

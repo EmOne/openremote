@@ -25,8 +25,6 @@ import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.dialect.PostgreSQL95Dialect;
 import org.openremote.container.concurrent.ContainerThreadFactory;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 public interface Database {
@@ -66,7 +64,6 @@ public interface Database {
                 hikariConfig.setThreadFactory(new ContainerThreadFactory("Database Connections"));
                 hikariConfig.setDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
                 hikariConfig.addDataSourceProperty("url", connectionUrl);
-                hikariConfig.addDataSourceProperty("currentSchema", "persistence");
                 hikariConfig.setUsername(username);
                 hikariConfig.setPassword(password);
                 hikariConfig.setConnectionTimeout(connectionTimeoutSeconds * 1000);

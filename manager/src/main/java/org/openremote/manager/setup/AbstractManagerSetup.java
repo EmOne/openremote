@@ -65,6 +65,7 @@ public abstract class AbstractManagerSetup implements Setup {
     final protected AssetPredictedDatapointService assetPredictedDatapointService;
     final protected RulesetStorageService rulesetStorageService;
     final protected SetupService setupService;
+    final protected MetaItem<?>[] EMPTY_META = new MetaItem<?>[0];
 
     public AbstractManagerSetup(Container container) {
         this.executorService = container.getService(ManagerExecutorService.class);
@@ -152,8 +153,7 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(LABEL, "Motion sensor"),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(RULE_STATE, true),
-                    new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null),
+                    new MetaItem<>(STORE_DATA_POINTS)),
             new Attribute<>("presenceDetected", BOOLEAN)
                 .addMeta(
                     new MetaItem<>(LABEL, "Presence detected"),
@@ -176,6 +176,12 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(RULE_STATE, true)
                 )
         );
+
+        if (shouldBeLinked) {
+            room.getAttribute("motionSensor").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     protected void addDemoApartmentRoomCO2Sensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
@@ -191,8 +197,13 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
                     new MetaItem<>(FORMAT, "%4d ppm"),
                     new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null)
-        );
+                ));
+
+        if (shouldBeLinked) {
+            room.getAttribute("co2Level").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     protected void addDemoApartmentRoomHumiditySensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
@@ -208,8 +219,13 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
                     new MetaItem<>(FORMAT, "%3d %%"),
                     new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null)
-        );
+                ));
+
+        if (shouldBeLinked) {
+            room.getAttribute("humidity").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     protected void addDemoApartmentRoomThermometer(RoomAsset room,
@@ -225,8 +241,13 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
                     new MetaItem<>(FORMAT, "%0.1f° C"),
                     new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null)
-        );
+                ));
+
+        if (shouldBeLinked) {
+            room.getAttribute("currentTemperature").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     protected void addDemoApartmentTemperatureControl(RoomAsset room,
@@ -243,8 +264,13 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS),
                     new MetaItem<>(FORMAT, "%0f° C"),
                     new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null)
-        );
+                ));
+
+        if (shouldBeLinked) {
+            room.getAttribute("targetTemperature").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     protected void addDemoApartmentSmartSwitch(RoomAsset room,
@@ -267,40 +293,53 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
                     new MetaItem<>(RULE_STATE, true),
                     new MetaItem<>(RULE_EVENT, true),
-                    new MetaItem<>(RULE_EVENT_EXPIRES, "48h")
-                ).addMeta(shouldBeLinked ? agentLinker.apply(0) : null),
+                    new MetaItem<>(RULE_EVENT_EXPIRES, "48h")),
             // Time
             new Attribute<>("smartSwitchBeginEnd" + switchName, TIMESTAMP)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch begin/end cycle " + switchName),
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                    new MetaItem<>(RULE_STATE, true)
-                ).addMeta(shouldBeLinked ? agentLinker.apply(1) : null),
+                    new MetaItem<>(RULE_STATE, true)),
             // StartTime
             new Attribute<>("smartSwitchStartTime" + switchName, TIMESTAMP)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator earliest start time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(UNIT_TYPE, "SECONDS"),
-                    new MetaItem<>(RULE_STATE, true)
-                ).addMeta(shouldBeLinked ? agentLinker.apply(2) : null),
+                    new MetaItem<>(RULE_STATE, true)),
             // StopTime
             new Attribute<>("smartSwitchStopTime" + switchName, TIMESTAMP)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator latest stop time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(UNIT_TYPE, "SECONDS"),
-                    new MetaItem<>(RULE_STATE, true)
-                ).addMeta(shouldBeLinked ? agentLinker.apply(3) : null),
+                    new MetaItem<>(RULE_STATE, true)),
             // Enabled
             new Attribute<>("smartSwitchEnabled" + switchName, NUMBER)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator enabled " + switchName),
                     new MetaItem<>(READ_ONLY, true),
-                    new MetaItem<>(RULE_STATE, true)
-                ).addMeta(shouldBeLinked ? agentLinker.apply(4) : null)
+                    new MetaItem<>(RULE_STATE, true))
         );
+
+        if (shouldBeLinked) {
+            room.getAttribute("smartSwitchBeginEnd").ifPresent(attr -> attr.addMeta(
+                agentLinker.apply(0))
+            );
+            room.getAttribute("smartSwitchBeginEnd").ifPresent(attr -> attr.addMeta(
+                agentLinker.apply(1))
+            );
+            room.getAttribute("smartSwitchStartTime").ifPresent(attr -> attr.addMeta(
+                agentLinker.apply(2))
+            );
+            room.getAttribute("smartSwitchStopTime").ifPresent(attr -> attr.addMeta(
+                agentLinker.apply(3))
+            );
+            room.getAttribute("smartSwitchEnabled").ifPresent(attr -> attr.addMeta(
+                agentLinker.apply(4))
+            );
+        }
     }
 
     protected void addDemoApartmentVentilation(BuildingAsset apartment,
@@ -314,8 +353,7 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
                     new MetaItem<>(FORMAT, "%d"),
-                    new MetaItem<>(STORE_DATA_POINTS)
-                ).addMeta(shouldBeLinked ? new MetaItem<>(AGENT_LINK, agentLinker.get()) : null),
+                    new MetaItem<>(STORE_DATA_POINTS)),
             new Attribute<>("ventilationAuto", BOOLEAN)
                 .addMeta(
                     new MetaItem<>(LABEL, "Ventilation auto"),
@@ -324,6 +362,12 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true)
                 )
         );
+
+        if (shouldBeLinked) {
+            apartment.getAttribute("ventilationLevel").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+        }
     }
 
     public static class Scene {

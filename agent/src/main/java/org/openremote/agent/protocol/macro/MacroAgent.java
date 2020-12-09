@@ -39,6 +39,9 @@ public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.Macr
         @Min(0)
         protected Integer actionIndex;
 
+        // For Hydrators
+        protected MacroAgentLink() {}
+
         public MacroAgentLink(String id) {
             super(id);
         }

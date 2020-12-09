@@ -46,6 +46,9 @@ public abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends Abstrac
         @NotNull
         protected Integer deviceAddress;
 
+        // For Hydrators
+        protected VelbusAgentLink() {}
+
         @JsonCreator
         public VelbusAgentLink(@JsonProperty("id") String id, @JsonProperty("deviceAddress") Integer deviceAddress, @JsonProperty("deviceValueLink") String deviceValueLink) {
             super(id);

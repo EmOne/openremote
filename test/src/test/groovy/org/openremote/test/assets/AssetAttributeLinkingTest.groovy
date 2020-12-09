@@ -57,13 +57,13 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         assert asset2.id != null
 
         when: "attributes from one asset is linked to attributes on the other"
-        def converterOnOff = Values.JSON.createObjectNode()
+        def converterOnOff = Values.createObjectMap()
         converterOnOff.put("PRESSED", "@TOGGLE")
         converterOnOff.put("RELEASED", "@IGNORE")
         converterOnOff.put("LONG_PRESSED", "@IGNORE")
         def attributeLinkOnOff = new AttributeLink(new AttributeRef(asset2.id, "lightOnOff"), converterOnOff, null)
 
-        def converterCounter = Values.JSON.createObjectNode()
+        def converterCounter = Values.createObjectMap()
         converterCounter.put("PRESSED", "@INCREMENT")
         converterCounter.put("RELEASED", "@DECREMENT")
         converterCounter.put("LONG_PRESSED", "@IGNORE")
@@ -162,10 +162,10 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
 
         /* TODO Test has timing issues, fails in line 182 when run from CLI gradle clean build, works in IDE!
         when: "the linked attribute is linked back to the source attribute (to create circular reference)"
-        def converterLoop = Values.JSON.createObjectNode()
+        def converterLoop = Values.createObjectMap()
         converterLoop.put("TRUE", "PRESSED")
         converterLoop.put("FALSE", "PRESSED")
-        def attributeLinkLoop = Values.JSON.createObjectNode()
+        def attributeLinkLoop = Values.createObjectMap()
         attributeLinkLoop.put("attributeRef", new AttributeRef(asset1.id, "button"))
         attributeLinkLoop.put("converter", converterLoop)
         asset2.getAttribute("lightOnOff").get().addMeta(new MetaItem<>(AssetMeta.ATTRIBUTE_LINK, attributeLinkLoop))

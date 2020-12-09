@@ -210,6 +210,26 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * }</pre></blockquote>
  */
 // @formatter:on
+@SqlResultSetMapping(
+    name = "AssetMapping",
+    entities = @EntityResult(
+        entityClass = Asset.class,
+        discriminatorColumn = "type",
+        fields = {
+            @FieldResult(name = "id", column = "id"),
+            @FieldResult(name = "type", column = "type"),
+            @FieldResult(name = "version", column = "version"),
+            @FieldResult(name = "accessPublicRead", column = "access_public_read"),
+            @FieldResult(name = "attributes", column = "attributes"),
+            @FieldResult(name = "createdOn", column = "created_on"),
+            @FieldResult(name = "parentId", column = "parent_id"),
+            @FieldResult(name = "realm", column = "realm"),
+            @FieldResult(name = "path", column = "path"),
+            @FieldResult(name = "name", column = "name")}),
+    columns = {
+        @ColumnResult(name = "parent_name", type = String.class),
+        @ColumnResult(name = "parent_type", type = String.class)
+    })
 @Entity
 @Table(name = "ASSET")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -217,6 +237,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @Check(constraints = "ID != PARENT_ID")
 @JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = ThingAsset.class)
 @JsonTypeIdResolver(AssetTypeIdResolver.class)
+@SuppressWarnings("unchecked")
 public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     /*
@@ -274,7 +295,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     protected String parentType;
 
     // The following are expensive to query, so if they are null, they might not have been loaded
-
     @Formula("get_asset_tree_path(ID)")
     @org.hibernate.annotations.Type(type = Constants.PERSISTENCE_STRING_ARRAY_TYPE)
     protected String[] path;
@@ -286,7 +306,12 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    Asset() {
+    protected Asset() {
+    }
+
+    //A.id as ID, A.name as NAME, A.accessPublicRead as ACCESS_PUBLIC_READ, A.createdOn AS CREATED_ON, A.type AS ASSET_TYPE, A.parentId AS PARENT_ID, A.realm AS REALM, A.version as VERSION, P.name as PARENT_NAME, P.type as PARENT_TYPE, A.name as TENANT_NAME, get_asset_tree_path(A.id) as PATH, A.attributes as ATTRIBUTES
+    protected Asset(String id) {
+        this.id = id;
     }
 
     protected Asset(String name, AssetDescriptor<? extends T> descriptor) {
@@ -298,7 +323,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return id;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setId(String id) {
         this.id = id;
         return (T) this;
@@ -308,7 +333,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return version;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setVersion(long version) {
         this.version = version;
         return (T)this;
@@ -318,7 +343,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return createdOn;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setCreatedOn(Date createdOn) {
         this.createdOn = createdOn;
         return (T)this;
@@ -328,7 +353,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return name;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setName(String name) throws IllegalArgumentException {
         this.name = name;
         return (T)this;
@@ -342,13 +367,13 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return accessPublicRead;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setAccessPublicRead(boolean accessPublicRead) {
         this.accessPublicRead = accessPublicRead;
         return (T)this;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setParent(Asset<?> parent) {
         if (parent == null) {
             parentId = null;
@@ -366,7 +391,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return parentId;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setParentId(String parentId) {
         this.parentId = parentId;
         return (T)this;
@@ -377,12 +402,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
      */
     public String getParentName() {
         return parentName;
-    }
-
-    @SuppressWarnings("unchecked")
-    public T setParentName(String parentName) {
-        this.parentName = parentName;
-        return (T)this;
     }
 
     /**
@@ -396,7 +415,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return realm;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setRealm(String realm) {
         this.realm = realm;
         return (T)this;
@@ -412,7 +431,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return path;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setPath(String[] path) {
         this.path = path;
         return (T)this;
@@ -448,7 +467,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return attributes;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setAttributes(AttributeList attributes) {
         if (attributes == null) {
             attributes = new AttributeList();
@@ -461,7 +480,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return setAttributes(Arrays.asList(attributes));
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setAttributes(Collection<Attribute<?>> attributes) {
         this.attributes = new AttributeList(attributes);
         return (T)this;
@@ -475,7 +494,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().get(attributeName);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public <U> Optional<Attribute<U>> getAttribute(String attributeName, Class<U> valueType) {
         return getAttributes().get(attributeName).map(attribute -> {
             if (attribute.getValueType().getType() == valueType) {
@@ -494,13 +513,13 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().has(attributeName);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T addAttributes(Attribute<?>...attributes) {
         getAttributes().addAll(attributes);
         return (T)this;
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T addOrReplaceAttributes(Attribute<?>...attributes) {
         getAttributes().addOrReplace(attributes);
         return (T)this;
@@ -540,7 +559,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(LOCATION);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setLocation(GeoJSONPoint location) {
         getAttributes().addOrReplace(new Attribute<>(LOCATION, location));
         return (T)this;
@@ -550,7 +569,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(TAGS);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setTags(String[] tags) {
         getAttributes().getOrCreate(TAGS).setValue(tags);
         return (T)this;
@@ -560,7 +579,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(EMAIL);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setEmail(String email) {
         getAttributes().getOrCreate(EMAIL).setValue(email);
         return (T)this;
@@ -570,7 +589,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(NOTES);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setNotes(String notes) {
         getAttributes().getOrCreate(NOTES).setValue(notes);
         return (T)this;
@@ -580,7 +599,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(MANUFACTURER);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setManufacturer(String manufacturer) {
         getAttributes().getOrCreate(MANUFACTURER).setValue(manufacturer);
         return (T)this;
@@ -590,7 +609,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(MODEL);
     }
 
-    @SuppressWarnings("unchecked")
+    
     public T setModel(String model) {
         getAttributes().getOrCreate(MODEL).setValue(model);
         return (T)this;

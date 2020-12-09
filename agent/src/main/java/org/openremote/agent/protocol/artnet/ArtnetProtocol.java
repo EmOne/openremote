@@ -196,7 +196,7 @@ public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, Art
 //
 //            String jsonString;
 //            jsonString = new String(fileData);
-//            ObjectNode lightsObjectNode = Values.convert(ObjectNode.class, jsonString);
+//            ObjectMap lightsObjectNode = Values.convert(ObjectNode.class, jsonString);
 //            List<ArtnetLight> newLights = parseArtnetLightsFromImport(lightsObjectNode);
 //            syncLightsToMemory(newLights);
 //            assetConsumer.accept(syncLightsToAssets(newLights, protocolConfiguration));

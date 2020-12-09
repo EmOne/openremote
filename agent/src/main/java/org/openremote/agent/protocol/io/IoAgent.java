@@ -27,6 +27,8 @@ import java.util.Optional;
 
 public abstract class IoAgent<T extends IoAgent<T, U, V>, U extends AbstractIoClientProtocol<U, T, ?, ?, V>, V extends AgentLink<?>> extends Agent<T, U, V> {
 
+    protected IoAgent() {}
+
     protected IoAgent(String name, AgentDescriptor<T, U, V> descriptor) {
         super(name, descriptor);
     }

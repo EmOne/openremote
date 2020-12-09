@@ -2,6 +2,7 @@ package org.openremote.model.apps;
 
 import javax.persistence.*;
 
+import java.io.Serializable;
 import java.util.List;
 
 import static org.openremote.model.Constants.PERSISTENCE_JSON_VALUE_TYPE;
@@ -11,9 +12,9 @@ import static org.openremote.model.Constants.PERSISTENCE_SEQUENCE_ID_GENERATOR;
 @Table(name = "CONSOLE_APP_CONFIG")
 public class ConsoleAppConfig {
 
-    public static class AppLink {
-        String displayText;
-        String pageLink;
+    public static class AppLink implements Serializable {
+        protected String displayText;
+        protected String pageLink;
 
         public AppLink(String displayText, String pageLink) {
             this.displayText = displayText;

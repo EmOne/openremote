@@ -35,6 +35,9 @@ public class MockAgent extends Agent<MockAgent, MockProtocol, MockAgent.MockAgen
 
         protected String requiredValue;
 
+        // For Hydrators
+        protected MockAgentLink() {}
+
         protected MockAgentLink(String id) {
             super(id);
         }

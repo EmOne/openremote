@@ -22,7 +22,6 @@ package org.openremote.agent.protocol.http;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.impl.ElectricityChargerAsset;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
@@ -43,6 +42,9 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
         protected HttpMethod method;
         protected String contentType;
         protected String pollingAttribute;
+
+        // For Hydrators
+        protected HttpClientAgentLink() {}
 
         public HttpClientAgentLink(String id) {
             super(id);

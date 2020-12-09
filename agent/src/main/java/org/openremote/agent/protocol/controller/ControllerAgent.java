@@ -39,6 +39,9 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
         protected String commandName;
         protected ValueType.MultivaluedStringMap commandsMap;
 
+        // For Hydrators
+        protected ControllerAgentLink() {}
+
         public ControllerAgentLink(String id, String deviceName) {
             super(id);
             this.deviceName = deviceName;

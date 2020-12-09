@@ -19,6 +19,8 @@
  */
 package org.openremote.model.value.impl;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.util.Objects;
@@ -28,7 +30,8 @@ public class ColourRGBA extends ColourRGB {
 
     protected int amber;
 
-    public ColourRGBA(int red, int green, int blue, int amber) {
+    @JsonCreator
+    public ColourRGBA(@JsonProperty("red") int red, @JsonProperty("green") int green, @JsonProperty("blue") int blue, @JsonProperty("amber") int amber) {
         super(red, green, blue);
         this.amber = amber;
     }

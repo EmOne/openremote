@@ -162,4 +162,12 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
     public ValueDescriptor<T> addOrReplaceMeta(MetaList meta) {
         return addOrReplaceMeta((Collection<MetaItem<?>>)meta);
     }
+
+    @Override
+    public String toString() {
+        return ValueDescriptor.class.getSimpleName() + "{" +
+            "name='" + name + '\'' +
+            ", type=" + type +
+            '}';
+    }
 }

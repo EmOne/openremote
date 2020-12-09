@@ -26,6 +26,7 @@ import org.openremote.model.attribute.MetaList;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 
 /**
  * Describes an {@link Attribute} that can be added to an {@link Asset}; the {@link #getName()} must match the {@link
@@ -63,5 +64,29 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     @Override
     public Collection<MetaItem<?>> getMeta() {
         return meta;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name);
+    }
+
+    /**
+     * Attribute descriptor names are unique identifiers so can use this for equality purposes
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        AttributeDescriptor<?> that = (AttributeDescriptor<?>)obj;
+        return Objects.equals(name, that.name);
+    }
+
+    @Override
+    public String toString() {
+        return AttributeDescriptor.class.getSimpleName() + "{" +
+            "name='" + name + '\'' +
+            ", valueDescriptor=" + valueDescriptor +
+            '}';
     }
 }

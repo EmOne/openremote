@@ -84,7 +84,7 @@ public class SystemHealthStatusProvider implements HealthStatusProvider, Contain
             rootObj.put("freeSpaceMB", root.getFreeSpace() / (1024F*1024F));
             String name = root.getAbsolutePath();
             name = name.replace("/","").replace("\\", "").replace(":", "");
-            rootsObj.put(name, rootObj);
+            rootsObj.set(name, rootObj);
         }
 
         objectValue.set("filesystem", rootsObj);

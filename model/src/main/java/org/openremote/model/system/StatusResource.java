@@ -32,10 +32,10 @@ public interface StatusResource {
     @Path("health")
     @GET
     @Produces(APPLICATION_JSON)
-ObjectNode getHealthStatus();
+    ObjectNode getHealthStatus();
 
     @Path("info")
     @GET
     @Produces(APPLICATION_JSON)
-ObjectNode getInfo();
+    ObjectNode getInfo();
 }

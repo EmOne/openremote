@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.openremote.manager.datapoint.AssetDatapointService.DATA_POINTS_MAX_AGE_DAYS_DEFAULT;
+import static org.openremote.model.Constants.MASTER_REALM;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
 
@@ -230,6 +231,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
 
         // The "Apartment 1" is the demo apartment with complex scenes
         BuildingAsset apartment1 = createDemoApartment(smartBuilding, "Apartment 1", new GeoJSONPoint(5.454233, 51.446800));
+        apartment1.setParent(smartBuilding);
         apartment1 = assetStorageService.merge(apartment1);
         apartment1Id = apartment1.getId();
 

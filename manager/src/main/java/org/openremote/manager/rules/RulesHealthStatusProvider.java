@@ -25,6 +25,7 @@ import org.openremote.model.ContainerService;
 import org.openremote.model.rules.AssetRuleset;
 import org.openremote.model.rules.TenantRuleset;
 import org.openremote.model.system.HealthStatusProvider;
+import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
 
 public class RulesHealthStatusProvider implements HealthStatusProvider, ContainerService {
@@ -80,7 +81,7 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
             }
         }
 
-        ObjectNode tenantEngines = Values.JSON.createObjectNode();
+        ValueType.ObjectMap tenantEngines = Values.createObjectMap();
 
         for (RulesEngine<TenantRuleset> tenantEngine : rulesService.tenantEngines.values()) {
             if (!tenantEngine.isRunning()) {
@@ -93,7 +94,7 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
             tenantEngines.put(tenantEngine.getId().getRealm().orElse(""), getEngineHealthStatus(tenantEngine));
         }
 
-        ObjectNode assetEngines = Values.JSON.createObjectNode();
+        ValueType.ObjectMap assetEngines = Values.createObjectMap();
 
         for (RulesEngine<AssetRuleset> assetEngine : rulesService.assetEngines.values()) {
             if (!assetEngine.isRunning()) {
@@ -107,7 +108,7 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
             assetEngines.put(assetEngine.getId().getAssetId().orElse(""), getEngineHealthStatus(assetEngine));
         }
 
-        ObjectNode objectValue = Values.JSON.createObjectNode();
+        ValueType.ObjectMap objectValue = Values.createObjectMap();
         objectValue.put("totalEngines", totalEngines);
         objectValue.put("stoppedEngines", stoppedEngines);
         objectValue.put("errorEngines", errorEngines);
@@ -119,23 +120,23 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
         return objectValue;
     }
 
-    protected ObjectNode getEngineHealthStatus(RulesEngine<?> rulesEngine) {
+    protected ValueType.ObjectMap getEngineHealthStatus(RulesEngine<?> rulesEngine) {
         boolean isError = rulesEngine.isError();
         int totalDeployments = rulesEngine.deployments.size();
         int executionErrorDeployments = rulesEngine.getExecutionErrorDeploymentCount();
         int compilationErrorDeployments = rulesEngine.getExecutionErrorDeploymentCount();
-        ObjectNode val = Values.JSON.createObjectNode();
+        ValueType.ObjectMap val = Values.createObjectMap();
         val.put("isRunning", rulesEngine.isRunning());
         val.put("isError", isError);
         val.put("totalDeployments", totalDeployments);
         val.put("executionErrorDeployments", executionErrorDeployments);
         val.put("compilationErrorDeployments", compilationErrorDeployments);
 
-        ObjectNode deployments = Values.JSON.createObjectNode();
+        ValueType.ObjectMap deployments = Values.createObjectMap();
 
         for (Object obj : rulesEngine.deployments.values()) {
             RulesetDeployment deployment = (RulesetDeployment)obj;
-            ObjectNode dVal = Values.JSON.createObjectNode();
+            ValueType.ObjectMap dVal = Values.createObjectMap();
             dVal.put("name", deployment.getName());
             dVal.put("status", deployment.getStatus().name());
             dVal.put("error", deployment.getError() != null ? deployment.getError().getMessage() : null);

@@ -23,8 +23,6 @@ import org.apache.camel.builder.RouteBuilder;
 import org.hibernate.Session;
 import org.hibernate.jdbc.AbstractReturningWork;
 import org.openremote.agent.protocol.ProtocolClientEventService;
-import org.openremote.model.Container;
-import org.openremote.model.ContainerService;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.container.persistence.PersistenceService;
@@ -37,12 +35,19 @@ import org.openremote.manager.gateway.GatewayService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebService;
 import org.openremote.model.Constants;
-import org.openremote.model.asset.impl.ThingAsset;
-import org.openremote.model.attribute.*;
+import org.openremote.model.Container;
+import org.openremote.model.ContainerService;
 import org.openremote.model.asset.*;
 import org.openremote.model.asset.impl.GroupAsset;
+import org.openremote.model.attribute.Attribute;
+import org.openremote.model.attribute.AttributeEvent;
+import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.event.TriggeredEventSubscription;
-import org.openremote.model.event.shared.*;
+import org.openremote.model.event.shared.AssetInfo;
+import org.openremote.model.event.shared.EventRequestResponseWrapper;
+import org.openremote.model.event.shared.EventSubscription;
+import org.openremote.model.event.shared.SharedEvent;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.LogicGroup;
 import org.openremote.model.query.filter.*;
@@ -59,8 +64,11 @@ import javax.persistence.NoResultException;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.validation.ConstraintViolation;
-import java.sql.*;
-import java.util.Date;
+import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -71,12 +79,11 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.joining;
 import static org.apache.camel.builder.PredicateBuilder.or;
 import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_TOPIC;
 import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
-import static org.openremote.manager.event.ClientEventService.*;
-import static org.openremote.manager.rules.AssetQueryPredicate.asPredicate;
+import static org.openremote.manager.event.ClientEventService.CLIENT_EVENT_TOPIC;
+import static org.openremote.manager.event.ClientEventService.HEADER_REQUEST_RESPONSE_MESSAGE_ID;
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes;
 import static org.openremote.model.query.AssetQuery.*;
 import static org.openremote.model.query.AssetQuery.Access.PRIVATE;
@@ -125,6 +132,20 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
     private static final Logger LOG = Logger.getLogger(AssetStorageService.class.getName());
     public static final int PRIORITY = MED_PRIORITY;
+    protected static final Field assetParentNameField;
+    protected static final Field assetParentTypeField;
+
+    static {
+        try {
+            assetParentNameField = Asset.class.getDeclaredField("parentName");
+            assetParentNameField.setAccessible(true);
+            assetParentTypeField = Asset.class.getDeclaredField("parentType");
+            assetParentTypeField.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            LOG.log(Level.SEVERE, "Failed to find Asset parentName and/or parentType fields in the Asset class", e);
+            throw new IllegalStateException();
+        }
+    }
 
     public static <T extends SharedEvent & AssetInfo> EventSubscriptionAuthorizer assetInfoAuthorizer(ManagerIdentityService identityService, AssetStorageService assetStorageService) {
 
@@ -659,6 +680,12 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             }
 
             // Validate realm
+            if (asset.getRealm() == null) {
+                String msg = "Asset realm must be set : asset=" + asset;
+                LOG.info(msg);
+                throw new IllegalStateException(msg);
+            }
+
             if (!identityService.getIdentityProvider().tenantExists(asset.getRealm())) {
                 String msg = "Asset realm not found or is inactive: asset=" + asset;
                 LOG.info(msg);
@@ -823,7 +850,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             persistenceService.doTransaction(em -> {
                 LOG.fine("Removing: " + String.join(", ", ids));
                 List<Asset<?>> assets = em
-                    .createQuery("select a from Asset a where not exists(select child.id from Asset child where child.parentId = a.id and not child.id in :ids) and a.id in :ids", Asset.class)
+                    .createQuery("select a from Asset a where not exists(select child.id from Asset child where child.PARENT_ID = a.id and not child.id in :ids) and a.id in :ids", Asset.class)
                     .setParameter("ids", ids)
                     .getResultList().stream().map(asset -> (Asset<?>) asset).collect(Collectors.toList());
 
@@ -1042,37 +1069,28 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             throw new IllegalArgumentException("Asset query contains a calendar event predicate which requires the attribute values and types to be included in the select (as calendar event predicate is applied post DB query)");
         }
 
-        TypedQuery<Asset> jpql = em.createQuery(querySql.querySql, Asset.class);
+        // Use a SqlResultSetMapping to allow auto hydration with retrieval of transient data as well
+        //Query jpql = em.createNativeQuery("select a.id, a.version, a.TYPE, a.realm, a.name, a.access_public_read as access, a.attributes, a.created_on, a.parent_id, 'test' as parent_name, null as parent_type, get_asset_tree_path(a.id) as path from Asset a where a.id in (?)", "AssetMapping");
+        Query jpql = em.createNativeQuery(querySql.querySql, "AssetMapping");
         querySql.apply(jpql);
-        return (List<Asset<?>>)(List)jpql.getResultList();
 
-//        return em.unwrap(Session.class).doReturningWork(new AbstractReturningWork<List<Asset<?>>>() {
-//            @Override
-//            public List<Asset<?>> execute(Connection connection) throws SQLException {
-//                LOG.fine("Executing: " + querySql.querySql);
-//                try (PreparedStatement st = connection.prepareStatement(querySql.querySql)) {
-//                    querySql.apply(st);
-//
-//                    try (ResultSet rs = st.executeQuery()) {
-//                        List<Asset<?>> result = new ArrayList<>();
-//                        if (containsCalendarPredicate) {
-//                            while (rs.next()) {
-//                                Asset<?> asset = mapResultTuple(query, rs);
-//                                // Apply calendar event filter here (difficult to translate this into a SQL query)
-//                                if (calendarEventPredicateMatches(timerService::getCurrentTimeMillis, query, asset)) {
-//                                    result.add(asset);
-//                                }
-//                            }
-//                        } else {
-//                            while (rs.next()) {
-//                                result.add(mapResultTuple(query, rs));
-//                            }
-//                        }
-//                        return result;
-//                    }
-//                }
-//            }
-//        });
+        List<Object[]> results = jpql.getResultList();
+        return results.stream().map(objArr -> {
+            Asset<?> asset = (Asset<?>)objArr[0];
+
+            if (objArr.length == 3) {
+                // We have transient parent info
+                String parentName = (String)objArr[1];
+                String parentType = (String)objArr[2];
+                try {
+                    assetParentNameField.set(asset, parentName);
+                    assetParentTypeField.set(asset, parentType);
+                } catch (IllegalAccessException e) {
+                    LOG.log(Level.WARNING, "Failed to set asset parent name and/or type fields", e);
+                }
+            }
+            return asset;
+        }).collect(Collectors.toList());
     }
 
     protected Pair<PreparedAssetQuery, Boolean> buildQuery(AssetQuery query) {
@@ -1109,15 +1127,17 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         AssetQuery.Select select = query.select;
 
         sb.append("select A.ID as ID, A.NAME as NAME, A.ACCESS_PUBLIC_READ as ACCESS_PUBLIC_READ");
-        sb.append(", A.CREATED_ON AS CREATED_ON, A.ASSET_TYPE AS ASSET_TYPE, A.PARENT_ID AS PARENT_ID");
-        sb.append(", A.REALM AS REALM, A.OBJ_VERSION as OBJ_VERSION");
+        sb.append(", A.CREATED_ON AS CREATED_ON, A.TYPE AS TYPE, A.PARENT_ID AS PARENT_ID");
+        sb.append(", A.REALM AS REALM, A.VERSION as VERSION");
 
         if (select == null || !select.excludeParentInfo) {
             if (level == 3) {
                 sb.append(", A.PARENT_NAME as PARENT_NAME, A.PARENT_TYPE as PARENT_TYPE");
             } else {
-                sb.append(", P.NAME as PARENT_NAME, P.ASSET_TYPE as PARENT_TYPE");
+                sb.append(", P.NAME as PARENT_NAME, P.TYPE as PARENT_TYPE");
             }
+        } else if (level != 3) {
+            sb.append(", NULL as PARENT_NAME, NULL as PARENT_TYPE");
         }
 
         if (!query.recursive || level == 3) {
@@ -1244,20 +1264,20 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             sb.append(" from Asset A ");
         } else if (level == 2) {
             sb.append(" from top_level_assets P ");
-            sb.append("join ASSET A on A.PARENT_ID = P.ID ");
+            sb.append("join Asset A on A.PARENT_ID = P.ID ");
         } else {
             sb.append(" from top_level_assets A ");
         }
 
         if ((!recursive || level == 3) && query.ids == null && query.userIds != null && query.userIds.length > 0) {
-            sb.append("cross join USER_ASSET ua ");
+            sb.append("cross join UserAsset ua ");
         }
 
         if (level == 1) {
             if (hasParentConstraint(query.parents)) {
-                sb.append("cross join ASSET P ");
+                sb.append("cross join Asset P ");
             } else {
-                sb.append("left outer join ASSET P on A.PARENT_ID = P.ID ");
+                sb.append("left outer join Asset P on A.PARENT_ID = P.id ");
             }
         }
 
@@ -1289,7 +1309,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     sb.append(" A.CREATED_ON ");
                     break;
                 case ASSET_TYPE:
-                    sb.append(" A.ASSET_TYPE ");
+                    sb.append(" A.TYPE ");
                     break;
                 case NAME:
                     sb.append(" A.NAME ");
@@ -1383,7 +1403,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     sb.append("p.ID = a.PARENT_ID");
 
                     if (pred.type != null) {
-                        sb.append(" and P.ASSET_TYPE = ?");
+                        sb.append(" and P.TYPE = ?");
                         final int pos = binders.size() + 1;
                         binders.add(st -> st.setParameter(pos, pred.type));
                     }
@@ -1412,7 +1432,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
                 isFirst = false;
 
-                sb.append("? <@ get_asset_tree_path(A.ID)");
+                sb.append("? <@ get_asset_tree_path(A.id)");
                 final int pos = binders.size() + 1;
                 binders.add(st -> st.setParameter(pos, pred.path));
             }
@@ -1422,13 +1442,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
         if (!recursive || level == 3) {
             if (query.tenant != null && !TextUtil.isNullOrEmpty(query.tenant.realm)) {
-                sb.append(" and A.REALM = ?");
+                sb.append(" and A.realm = ?");
                 final int pos = binders.size() + 1;
                 binders.add(st -> st.setParameter(pos, query.tenant.realm));
             }
 
             if (query.ids == null && query.userIds != null && query.userIds.length > 0) {
-                sb.append(" and ua.ASSET_ID = a.ID and ua.USER_ID IN (?");
+                sb.append(" and ua.assetId = a.id and ua.userId IN (?");
                 final int pos = binders.size() + 1;
                 binders.add(st -> st.setParameter(pos, query.userIds[0]));
 
@@ -1442,11 +1462,11 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             }
 
             if (level == 1 && query.access == Access.PUBLIC) {
-                sb.append(" and A.ACCESS_PUBLIC_READ is true");
+                sb.append(" and A.access_public_read is true");
             }
 
             if (query.types != null && query.types.length > 0) {
-                sb.append(" and type(A) IN (");
+                sb.append(" and A.type IN (");
                 boolean isFirst = true;
 
                 for (Class<? extends Asset<?>> type : query.types) {
@@ -1457,7 +1477,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
                     sb.append("?");
                     final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, type));
+                    binders.add(st -> st.setParameter(pos, type.getSimpleName()));
                 }
 
                 sb.append(")");
@@ -1481,8 +1501,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
             if (query.attributes != null) {
                 AtomicInteger joinCounter = new AtomicInteger(1);
-                sb.append(" and A.ID in (select A.ID from");
-                sb.append(" jsonb_each(A.ATTRIBUTES) as AX1");
+                sb.append(" and A.id in (select A.id from");
+                sb.append(" jsonb_each(A.attributes) as AX1");
                 int offset = sb.length();
                 sb.append(" where true AND ");
                 containsCalendarPredicate = addAttributePredicateGroupQuery(sb, binders, joinCounter, query.attributes);
@@ -1491,7 +1511,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 int counter = joinCounter.get();
 
                 while (counter > 2) {
-                    sb.insert(offset, ", jsonb_each(A.ATTRIBUTES) as AX" + (counter-1));
+                    sb.insert(offset, ", jsonb_each(A.attributes) as AX" + (counter-1));
                     counter--;
                 }
             }
@@ -1535,7 +1555,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
                     sb.append("(");
                     if (attributePredicate.mustNotExist && attributePredicate.name != null && attributePredicate.name.value != null) {
-                        sb.append("NOT A.ATTRIBUTES ?? ?");
+                        sb.append("NOT A.attributes ?? ?");
                         final int pos = binders.size() + 1;
                         binders.add(st -> st.setParameter(pos, attributePredicate.name.value));
                     } else {
@@ -1892,7 +1912,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 //        Asset<?> asset = new ThingAsset(rs.getString("NAME"));
 //        asset.setId(rs.getString("ID"));
 //        asset.setType(rs.getString("ASSET_TYPE"));
-//        asset.setVersion(rs.getLong("OBJ_VERSION"));
+//        asset.setVersion(rs.getLong("VERSION"));
 //        asset.setCreatedOn(rs.getTimestamp("CREATED_ON"));
 //        asset.setAccessPublicRead(rs.getBoolean("ACCESS_PUBLIC_READ"));
 //        asset.setParentId(rs.getString("PARENT_ID"));
@@ -1922,9 +1942,9 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
     public boolean storeAttributeValue(EntityManager em, String assetId, String attributeName, Object value, String timestamp) {
 
         try {
-            TypedQuery<Boolean> jpql = em.createQuery("update ASSET" +
-                " set ATTRIBUTES = jsonb_set(jsonb_set(ATTRIBUTES, ?, ?, true), ?, ?, true)" +
-                " where ID = ? and ATTRIBUTES -> ? is not null", Boolean.class);
+            TypedQuery<Boolean> jpql = em.createQuery("update Asset a" +
+                " set a.attributes = jsonb_set(jsonb_set(a.attributes, ?, ?, true), ?, ?, true)" +
+                " where a.id = ? and a.attributes -> ? is not null", Boolean.class);
 
             jpql.setParameter(1, new String[]{attributeName, "value"});
 

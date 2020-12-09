@@ -47,6 +47,9 @@ public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink
         @Pattern(regexp = "^\\d{1,3}/\\d{1,3}/\\d{1,3}$")
         protected String statusGroupAddress;
 
+        // For Hydrators
+        protected KNXAgentLink() {}
+
         public KNXAgentLink(String id, String dpt, String actionGroupAddress, String statusGroupAddress) {
             super(id);
             this.dpt = dpt;

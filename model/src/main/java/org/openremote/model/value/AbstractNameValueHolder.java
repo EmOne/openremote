@@ -20,6 +20,7 @@
 package org.openremote.model.value;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openremote.model.util.TextUtil;
@@ -86,11 +87,13 @@ public abstract class AbstractNameValueHolder<T> implements ValueHolder<T>, Name
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AbstractNameValueHolder<?> that = (AbstractNameValueHolder<?>) o;
-        return name.equals(that.name) && Objects.equals(value, that.value);
+        return name.equals(that.name)
+            && Objects.equals(type, that.type)
+            && Objects.equals(Values.convert(value, JsonNode.class), Values.convert(that.value, JsonNode.class));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(value, name);
+        return Objects.hash(value, type, name);
     }
 }

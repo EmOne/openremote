@@ -43,36 +43,18 @@ public class AssetTypeIdResolver extends TypeIdResolverBase {
         if (!(value instanceof Asset)) {
             throw new IllegalArgumentException("Type must be an asset type");
         }
-        return getIdFromAssetType((Class<? extends Asset<?>>)value.getClass());
+        return ((Asset<?>)value).getType();
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public String idFromValueAndType(Object value, Class<?> suggestedType) {
-        Class<? extends Asset<?>> assetType;
-
-        if (suggestedType != null) {
-            if (!Asset.class.isAssignableFrom(suggestedType)) {
-                throw new IllegalArgumentException("Type must be an asset type");
-            }
-            return getIdFromAssetType((Class<? extends Asset<?>>)suggestedType);
-        }
-
         return idFromValue(value);
-    }
-
-    protected String getIdFromAssetType(Class<? extends Asset<?>> assetType) {
-        AssetDescriptor<?> descriptor = AssetModelUtil.getAssetDescriptor(assetType).orElseThrow(() -> {
-            // This shouldn't happen
-            return new IllegalArgumentException("Asset type doesn't have an asset descriptor: " + assetType.getSimpleName());
-        });
-
-        return descriptor.getName();
     }
 
     @Override
     public JsonTypeInfo.Id getMechanism() {
-        return null;
+        return JsonTypeInfo.Id.CUSTOM;
     }
 
     @Override

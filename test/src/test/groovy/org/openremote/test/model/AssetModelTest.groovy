@@ -1,29 +1,51 @@
-package org.openremote.test.assets
+package org.openremote.test.model
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.openremote.agent.protocol.http.HttpClientAgent
+import org.openremote.agent.protocol.simulator.SimulatorAgent
 import org.openremote.model.Constants
+import org.openremote.model.asset.Asset
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.impl.LightAsset
+import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.MetaItem
+import org.openremote.model.util.AssetModelUtil
 import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.SubStringValueFilter
 import org.openremote.model.value.ValueFilter
-import org.openremote.model.value.ValueType
 import org.openremote.model.value.Values
 import org.openremote.model.value.impl.ColourRGB
+import org.openremote.test.protocol.http.HttpServerTestAgent
 import spock.lang.Specification
 
 import java.util.stream.Collectors
 
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes
-import static org.openremote.model.value.ValueType.*
+import static org.openremote.model.value.ValueType.BIG_NUMBER
+import static org.openremote.model.value.ValueType.STRING
 
 // TODO: Define new asset model tests (setValue - equality checking etc.)
 class AssetModelTest extends Specification {
 
     def "Descriptors"() {
+        when: "The Asset model is explicitly initialised"
+        AssetModelUtil.initialiseOrThrow()
 
+        then: "the asset model should be available"
+        def thingAssetInfo = AssetModelUtil.getAssetInfo(ThingAsset.class).orElse(null)
+        thingAssetInfo != null
+        thingAssetInfo.assetDescriptor != null
+        thingAssetInfo.attributeDescriptors != null
+        thingAssetInfo.metaItemDescriptors != null
+        thingAssetInfo.valueDescriptors != null
+        thingAssetInfo.attributeDescriptors.contains(Asset.LOCATION)
+        thingAssetInfo.metaItemDescriptors.contains(MetaItemType.AGENT_LINK)
+        AssetModelUtil.getAssetDescriptor(ThingAsset.class) != null
+        AssetModelUtil.getAgentDescriptor(SimulatorAgent.class) != null
+
+        and: "the test asset model provider should have registered test agents and assets"
+        AssetModelUtil.getAgentDescriptor(HttpServerTestAgent.DESCRIPTOR.name).isPresent()
     }
 
     def "Serialize/Deserialize Asset"() {
@@ -34,6 +56,11 @@ class AssetModelTest extends Specification {
             .setColourRGB(new ColourRGB(50, 100, 200))
             .addAttributes(
                 new Attribute<>("testAttribute", BIG_NUMBER, 100.5, System.currentTimeMillis())
+                    .addOrReplaceMeta(
+                        new MetaItem<>(MetaItemType.AGENT_LINK, new HttpClientAgent.HttpClientAgentLink("http_agent_id")
+                            .setPath("test_path")
+                            .setPagingMode(true))
+                    )
             )
 
         asset.getAttribute(LightAsset.COLOUR_RGB).ifPresent({
@@ -58,10 +85,14 @@ class AssetModelTest extends Specification {
         then: "the string should be valid JSON"
         def assetObjectNode = Values.parse(assetStr, ObjectNode.class).get()
         assetObjectNode.get("name").asText() == "Test light"
-        assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).get("id").asText() == "agent_id"
         assetObjectNode.get("attributes").get("colourRGB").get("timestamp") == null
-        assetObjectNode.get("attributes").get("testAttribute").get("value").decimalValue() == 100.5
         assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).isObject()
+        assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).get("id").asText() == "agent_id"
+        assetObjectNode.get("attributes").get("colourRGB").get("meta").get(MetaItemType.AGENT_LINK.name).get("type").asText() == AgentLink.Default.class.getSimpleName()
+        assetObjectNode.get("attributes").get("testAttribute").get("meta").get(MetaItemType.AGENT_LINK.name).isObject()
+        assetObjectNode.get("attributes").get("testAttribute").get("value").decimalValue() == 100.5
+        assetObjectNode.get("attributes").get("testAttribute").get("meta").get(MetaItemType.AGENT_LINK.name).get("id").asText() == "http_agent_id"
+        assetObjectNode.get("attributes").get("testAttribute").get("meta").get(MetaItemType.AGENT_LINK.name).get("type").asText() == HttpClientAgent.HttpClientAgentLink.class.getSimpleName()
 
         when: "the asset is deserialized"
         def asset2 = Values.parse(assetStr, LightAsset.class).orElse(null)
@@ -73,6 +104,9 @@ class AssetModelTest extends Specification {
         asset2.getColourRGB().map{it.getRed()}.orElse(null) == asset.getColourRGB().map{it.getRed()}.orElse(null)
         asset2.getColourRGB().map{it.getGreen()}.orElse(null) == asset.getColourRGB().map{it.getGreen()}.orElse(null)
         asset2.getColourRGB().map{it.getBlue()}.orElse(null) == asset.getColourRGB().map{it.getBlue()}.orElse(null)
+        asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.orElse(null) instanceof HttpClientAgent.HttpClientAgentLink
+        asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.path}.orElse("") == "test_path"
+        asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.pagingMode}.orElse(false)
     }
 
     def "Comparing asset attributes"() {

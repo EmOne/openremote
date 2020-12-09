@@ -457,33 +457,21 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                     if (loadedAsset == null)
                         return;
 
-                    // Attributes have possibly changed so need to compare old and new attributes
-                    // to determine which facts to retract and which to insert
-                    List<Attribute<?>> oldRuleStateAttributes =
-                        persistenceEvent.<AttributeList>getPreviousState("attributes").stream()
-                            .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
-                            .collect(Collectors.toList());
-
-                    List<Attribute<?>> newRuleStateAttributes =
-                        persistenceEvent.<AttributeList>getCurrentState("attributes").stream()
-                            .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
-                            .collect(Collectors.toList());
-
-                    // Retract facts for attributes that are obsolete
-                    getAddedOrModifiedAttributes(newRuleStateAttributes,
-                        oldRuleStateAttributes)
-                        .forEach(obsoleteFactAttribute -> {
-                            AssetState update = buildAssetState.apply(loadedAsset, obsoleteFactAttribute);
-                            LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), retracting: " + update);
-                            retractAssetState(update);
+                    // Retract old attribute facts
+                    persistenceEvent.<AttributeList>getPreviousState("attributes").stream()
+                        .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
+                        .forEach(attribute -> {
+                            AssetState assetState = buildAssetState.apply(loadedAsset, attribute);
+                            LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), retracting fact: " + assetState);
+                            retractAssetState(assetState);
                         });
 
-                    // Insert facts for attributes that are new
-                    getAddedOrModifiedAttributes(oldRuleStateAttributes,
-                        newRuleStateAttributes)
-                        .forEach(newFactAttribute -> {
-                            AssetState assetState = buildAssetState.apply(loadedAsset, newFactAttribute);
-                            LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), updating: " + assetState);
+                    // Insert new attribute facts
+                    persistenceEvent.<AttributeList>getCurrentState("attributes").stream()
+                        .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
+                        .forEach(attribute -> {
+                            AssetState assetState = buildAssetState.apply(loadedAsset, attribute);
+                            LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), inserting fact: " + assetState);
                             updateAssetState(assetState);
                         });
                     break;

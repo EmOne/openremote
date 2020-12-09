@@ -60,9 +60,23 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
             JsonParser jp2 = tokenBuffer.asParser();
             JsonParser jp3 = tokenBuffer.asParser();
             String attributeValueType = null;
+            int level = 1;
+            jp2.nextToken();
 
-            while (jp2.nextToken() != JsonToken.END_OBJECT) {
-                if (jp2.currentName().equals("type")) {
+            while (level > 0) {
+                JsonToken nextToken = jp2.nextToken();
+
+                if (nextToken == JsonToken.START_OBJECT) {
+                    level++;
+                    continue;
+                }
+
+                if (nextToken == JsonToken.END_OBJECT) {
+                    level--;
+                    continue;
+                }
+
+                if (level == 1 && jp2.currentName().equals("type")) {
                     jp2.nextToken();
                     attributeValueType = jp2.getValueAsString();
                     break;
@@ -486,6 +500,10 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
         return super.hashCode() + Objects.hash(timestamp) + Objects.hash(meta);
     }
 
+    /**
+     * Equality check by converting value to {@link JsonNode} as all {@link Attribute} values must be serialisable
+     * but this doesn't mean that the value type has an equality override so this is the safest mechanism.
+     */
     @Override
     public boolean equals(Object obj) {
         if (obj == null)
@@ -540,8 +558,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
     }
 
     /**
-     * @return All attributes that exist only in the new list or are different than any attribute in the old list; this
-     * uses {@link #equalsBasic} for performance.
+     * @return All attributes that exist only in the new list or are different than any attribute in the old list
      */
     public static Stream<Attribute<?>> getAddedOrModifiedAttributes(List<Attribute<?>> oldAttributes,
                                                                     List<Attribute<?>> newAttributes,
@@ -562,10 +579,9 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
                     .findFirst()
                     .map(attribute -> {
                         // Attribute may have been modified do basic equality check
-                        return !attribute.equalsBasic(newAttribute);
+                        return !attribute.equals(newAttribute);
                     })
                     .orElse(true); // Attribute is new
-
             }
         );
     }

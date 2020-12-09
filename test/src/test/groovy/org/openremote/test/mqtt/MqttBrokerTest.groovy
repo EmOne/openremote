@@ -213,7 +213,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute which is readonly"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        def payload = Values.JSON.createObjectNode().put("motionSensor", 70).toJson()
+        def payload = Values.createObjectMap().put("motionSensor", 70).toJson()
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH
@@ -232,7 +232,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        payload = Values.JSON.createObjectNode().put("lights", false).toJson()
+        payload = Values.createObjectMap().put("lights", false).toJson()
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH

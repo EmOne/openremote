@@ -57,7 +57,7 @@ public class WeatherAsset extends Asset<WeatherAsset> {
         new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_SPEED_KILOMETERS_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Integer> WIND_DIRECTION = new AttributeDescriptor<>("sunAltitude", ValueType.DIRECTION,
+    public static final AttributeDescriptor<Integer> WIND_DIRECTION = new AttributeDescriptor<>("windDirection", ValueType.DIRECTION,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> RAINFALL = new AttributeDescriptor<>("rainfall", ValueType.POSITIVE_NUMBER,

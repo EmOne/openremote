@@ -37,6 +37,8 @@ public abstract class AbstractHttpServerAgent<T extends AbstractHttpServerAgent<
     public static final AttributeDescriptor<String[]> ALLOWED_ORIGINS = new AttributeDescriptor<>("allowedOrigins", ValueType.STRING.asArray());
     public static final AttributeDescriptor<Boolean> ROLE_BASED_SECURITY = new AttributeDescriptor<>("roleBasedSecurity", ValueType.BOOLEAN);
 
+    protected AbstractHttpServerAgent() {}
+
     protected AbstractHttpServerAgent(String name, AgentDescriptor<T, U, V> descriptor) {
         super(name, descriptor);
     }
@@ -45,15 +47,39 @@ public abstract class AbstractHttpServerAgent<T extends AbstractHttpServerAgent<
         return getAttributes().getValue(DEPLOYMENT_PATH);
     }
 
+    @SuppressWarnings("unchecked")
+    public T setDeploymentPath(String value) {
+        getAttributes().getOrCreate(DEPLOYMENT_PATH).setValue(value);
+        return (T)this;
+    }
+
     public Optional<HttpMethod[]> getAllowedHTTPMethods() {
         return getAttributes().getValue(ALLOWED_HTTP_METHODS);
+    }
+
+    @SuppressWarnings("unchecked")
+    public T setAllowedHTTPMethods(HttpMethod[] value) {
+        getAttributes().getOrCreate(ALLOWED_HTTP_METHODS).setValue(value);
+        return (T)this;
     }
 
     public Optional<String[]> getAllowedOrigins() {
         return getAttributes().getValue(ALLOWED_ORIGINS);
     }
 
+    @SuppressWarnings("unchecked")
+    public T setAllowedOrigins(String[] value) {
+        getAttributes().getOrCreate(ALLOWED_ORIGINS).setValue(value);
+        return (T)this;
+    }
+
     public Optional<Boolean> isRoleBasedSecurity() {
         return getAttributes().getValue(ROLE_BASED_SECURITY);
+    }
+
+    @SuppressWarnings("unchecked")
+    public T setRoleBasedSecurity(Boolean value) {
+        getAttributes().getOrCreate(ROLE_BASED_SECURITY).setValue(value);
+        return (T)this;
     }
 }

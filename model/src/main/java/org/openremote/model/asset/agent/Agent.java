@@ -126,6 +126,8 @@ public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V e
      */
     public static final AttributeDescriptor<Integer> POLLING_MILLIS = new AttributeDescriptor<>("pollingMillis", ValueType.POSITIVE_INTEGER);
 
+    protected Agent() {}
+
     protected Agent(String name, AgentDescriptor<T, U, V> descriptor) {
         super(name, descriptor);
     }

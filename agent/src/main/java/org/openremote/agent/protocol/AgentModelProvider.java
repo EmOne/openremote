@@ -26,6 +26,7 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,17 +44,17 @@ public class AgentModelProvider implements AssetModelProvider {
     }
 
     @Override
-    public Map<Class<? extends Asset<?>>, AttributeDescriptor<?>[]> getAttributeDescriptors() {
+    public Map<Class<? extends Asset<?>>, List<AttributeDescriptor<?>>> getAttributeDescriptors() {
         return null;
     }
 
     @Override
-    public Map<Class<? extends Asset<?>>, MetaItemDescriptor<?>[]> getMetaItemDescriptors() {
+    public Map<Class<? extends Asset<?>>, List<MetaItemDescriptor<?>>> getMetaItemDescriptors() {
         return null;
     }
 
     @Override
-    public Map<Class<? extends Asset<?>>, ValueDescriptor<?>[]> getValueDescriptors() {
+    public Map<Class<? extends Asset<?>>, List<ValueDescriptor<?>>> getValueDescriptors() {
         return null;
     }
 }

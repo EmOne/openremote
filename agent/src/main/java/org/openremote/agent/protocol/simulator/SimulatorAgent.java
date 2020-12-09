@@ -40,6 +40,9 @@ public class SimulatorAgent extends Agent<SimulatorAgent, SimulatorProtocol, Sim
             " linked attribute) in a continuous loop.")
         protected SimulatorReplayDatapoint[] simulatorReplayData;
 
+        // For Hydrators
+        protected SimulatorAgentLink() {}
+
         public SimulatorAgentLink(String id) {
             super(id);
         }

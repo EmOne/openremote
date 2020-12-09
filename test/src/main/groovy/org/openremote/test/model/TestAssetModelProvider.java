@@ -17,39 +17,27 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.openremote.model;
+package org.openremote.test.model;
 
+import org.openremote.model.AssetModelProvider;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.syslog.SyslogCategory;
-import org.openremote.model.value.*;
+import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.MetaItemDescriptor;
+import org.openremote.model.value.ValueDescriptor;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.logging.Logger;
 
-import static org.openremote.model.syslog.SyslogCategory.MODEL_AND_VALUES;
-
-/**
- * Built in model provider that scans the model classes for asset classes and also includes {@link MetaItemType} and
- * {@link ValueType} classes.
- */
-@ModelDescriptor(assetType = Asset.class, provider = MetaItemType.class)
-@ModelDescriptor(assetType = Asset.class, provider = ValueType.class)
-public class StandardModelProvider implements AssetModelProvider {
-
-    protected static Logger LOG = SyslogCategory.getLogger(MODEL_AND_VALUES, StandardModelProvider.class);
-    protected Set<Class<? extends Asset<?>>> assetClasses;
-
-    @Override
-    public AssetDescriptor<?>[] getAssetDescriptors() {
-        return null;
-    }
-
+public class TestAssetModelProvider implements AssetModelProvider {
     @Override
     public boolean useAutoScan() {
         return true;
+    }
+
+    @Override
+    public AssetDescriptor<?>[] getAssetDescriptors() {
+        return new AssetDescriptor[0];
     }
 
     @Override

@@ -27,7 +27,8 @@ import org.openremote.model.value.NameHolder;
  * Describes an {@link Asset} that can be added to this instance; the {@link #getName()} must match the {@link Asset#type}
  * with which it is associated. For a given {@link Asset} class only one {@link AssetDescriptor} is allowed, each concrete
  * {@link Asset} class must have a corresponding {@link AssetDescriptor} and {@link AssetDescriptor}s are not allowed for
- * abstract {@link Asset} classes.
+ * abstract {@link Asset} classes. {@link AssetDescriptor} names are extracted using {@link Class#getSimpleName} of the
+ * {@link Asset} class, so each asset's simple class name must be unique to avoid clashes.
  * <p>
  * {@link AssetDescriptor#getName} must be globally unique within the context of the manager it is registered with.
  */

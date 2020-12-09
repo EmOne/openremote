@@ -23,6 +23,8 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 
+import java.util.Objects;
+
 /**
  * Describes a {@link MetaItem} that can be added to an {@link Attribute}; the {@link #getName()} must match the {@link
  * MetaItem#getName()}, it also indicates what the {@link ValueDescriptor} is for the {@link MetaItem}. The {@link
@@ -36,5 +38,29 @@ public class MetaItemDescriptor<T> extends AbstractNameValueDescriptorHolder<T> 
 
     public MetaItemDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
         super(name, valueDescriptor);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name);
+    }
+
+    /**
+     * Meta item descriptor names are unique identifiers so can use this for equality purposes
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        MetaItemDescriptor<?> that = (MetaItemDescriptor<?>)obj;
+        return Objects.equals(name, that.name);
+    }
+
+    @Override
+    public String toString() {
+        return MetaItemDescriptor.class.getSimpleName() + "{" +
+            "name='" + name + '\'' +
+            ", valueDescriptor=" + valueDescriptor +
+            '}';
     }
 }

@@ -45,11 +45,6 @@ import org.openremote.model.security.Tenant;
 import org.openremote.model.security.User;
 import org.openremote.model.syslog.SyslogEvent;
 import org.openremote.model.util.AssetModelUtil;
-import org.reflections.Reflections;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.scanners.TypeAnnotationsScanner;
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
 
 import javax.persistence.*;
 import javax.persistence.spi.ClassTransformer;
@@ -62,9 +57,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-import static org.keycloak.common.Profile.getName;
 import static org.openremote.container.util.MapAccess.*;
 
 /**
@@ -87,6 +80,8 @@ public class PersistenceService implements ContainerService {
             props.put(AvailableSettings.FORMAT_SQL, "true");
             props.put(AvailableSettings.USE_SQL_COMMENTS, "true");
             props.put(AvailableSettings.SCANNER_DISCOVERY, "none");
+            props.put(AvailableSettings.DEFAULT_SCHEMA, DEFAULT_SCHEMA_NAME);
+            //props.put(AvailableSettings.SHOW_SQL, "true");
             props.put(AvailableSettings.CURRENT_SESSION_CONTEXT_CLASS, "thread");
             props.put(AvailableSettings.HBM2DDL_IMPORT_FILES_SQL_EXTRACTOR, "org.openremote.container.persistence.EnhancedImportSqlCommandExtractor");
 

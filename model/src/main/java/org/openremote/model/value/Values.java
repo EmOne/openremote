@@ -271,6 +271,10 @@ public class Values {
         return new ValueType.ObjectMap();
     }
 
+    public static List<Object> createObjectList() {
+        return new ArrayList<>();
+    }
+
     /**
      * @param o A timestamp string as 'HH:mm:ss' or 'HH:mm'.
      * @return Epoch time or 0 if there is a problem parsing the timestamp string.

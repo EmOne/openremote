@@ -333,6 +333,10 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
                     ex);
             throw new RuntimeException(ex);
         }
+    }
 
+    @Override
+    public String getProtocolInstanceUri() {
+        return "httpServer://" + getDeploymentPath();
     }
 }
