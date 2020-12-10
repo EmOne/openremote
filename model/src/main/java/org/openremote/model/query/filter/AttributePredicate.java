@@ -66,12 +66,6 @@ public class AttributePredicate extends NameValuePredicate {
     }
 
     @Override
-    public AttributePredicate mustExist() {
-        this.mustExist = true;
-        return this;
-    }
-
-    @Override
     public AttributePredicate mustNotExist() {
         this.mustNotExist = true;
         return this;
@@ -91,7 +85,6 @@ public class AttributePredicate extends NameValuePredicate {
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name=" + name +
-            ", mustExist=" + mustExist +
             ", mustNotExist=" + mustNotExist +
             ", value=" + value +
             ", meta=" + Arrays.toString(meta) +

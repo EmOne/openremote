@@ -39,6 +39,7 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetTreeNode;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
@@ -141,9 +142,16 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         // Load all enabled agents and instantiate a protocol instance for each
         LOG.fine("Loading agents...");
         Collection<Agent<?, ?, ?>> agents = getAgents().values();
-        LOG.fine("Found enabled agent count = " + agents.size());
+        LOG.fine("Found agent count = " + agents.size());
 
-        agents.forEach(this::startAgent);
+        agents.stream().filter(agent -> {
+            boolean isDisabled = agent.isDisabled().orElse(false);
+            if (isDisabled) {
+                LOG.fine("Agent is disabled so not starting: " + agent);
+                assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
+            }
+            return isDisabled;
+        }).forEach(this::startAgent);
     }
 
     @Override
@@ -418,7 +426,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 new AssetQuery()
                     .attributes(
                         new AttributePredicate().meta(
-                            new NameValuePredicate(new StringPredicate(AGENT_LINK.getName()), new StringPredicate(agent.getId()))
+                            new NameValuePredicate(new StringPredicate(AGENT_LINK.getName()), new ObjectValueKeyPredicate("id", new StringPredicate(agent.getId()), false))
                         )
                     )
             );
@@ -607,14 +615,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         return withLockReturning(getClass().getSimpleName() + "::getAgents", () -> {
             if (agentMap == null) {
                 agentMap = assetStorageService.findAll(
-                        new AssetQuery().types(Agent.class).attributes(
-                            new LogicGroup<>(
-                                LogicGroup.Operator.OR,
-                                new AttributePredicate(new StringPredicate(Agent.STATUS.getName())).mustNotExist(),
-                                new AttributePredicate(new StringPredicate(Agent.STATUS.getName()), new ValueEmptyPredicate()),
-                                new AttributePredicate(new StringPredicate(Agent.STATUS.getName()), new BooleanPredicate(false))
-                            )
-                        )
+                        new AssetQuery().types(Agent.class)
                     )
                     .stream()
                     .filter(asset -> gatewayService.getLocallyRegisteredGatewayId(asset.getId(), null) == null)

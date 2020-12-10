@@ -26,12 +26,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.*;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import org.hibernate.internal.util.SerializationHelper;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.TextUtil;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -72,6 +75,10 @@ public class Values {
 
         JSON.configOverride(Map.class)
             .setInclude(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.NON_NULL));
+
+        SimpleFilterProvider filters = new SimpleFilterProvider();
+        filters.setFailOnUnknownId(false);
+        JSON.setFilterProvider(filters);
     }
 
     public static final String NULL_LITERAL = "null";
@@ -473,9 +480,12 @@ public class Values {
         if (object == null) {
             return null;
         }
+
         try {
-            String str = JSON.writeValueAsString(object);
-            return (T)JSON.readValue(str, object.getClass());
+
+            return object instanceof Serializable ?
+                (T) SerializationHelper.clone((Serializable) object) :
+                JSON.readValue(JSON.writeValueAsBytes(object), (Class<T>) object.getClass());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Failed to clone object of type: " + object.getClass(), e);
             return null;

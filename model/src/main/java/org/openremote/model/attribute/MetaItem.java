@@ -65,11 +65,11 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
     }
 
     // For JPA/Hydrators
-    void setNameInternal(String name) {
+    protected void setNameInternal(String name) {
         this.name = name;
     }
 
-    void setTypeInternal(ValueDescriptor<T> type) {
+    protected void setTypeInternal(ValueDescriptor<T> type) {
         this.type = type;
     }
 

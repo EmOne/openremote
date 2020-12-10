@@ -116,7 +116,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
             uri = new URIBuilder(baseURL).build();
         } catch (URISyntaxException e) {
             LOG.log(Level.SEVERE, "Invalid Controller URI", e);
-            setConnectionStatus(ConnectionStatus.ERROR_CONFIGURATION);
+            setConnectionStatus(ConnectionStatus.ERROR);
             throw e;
         }
 

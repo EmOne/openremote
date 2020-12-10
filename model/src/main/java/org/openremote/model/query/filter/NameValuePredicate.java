@@ -23,16 +23,15 @@ import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.NameHolder;
 
 /**
- * There is an implicit AND condition between the name and the value; the name is required and {@link #mustExist} or
- * {@link #mustNotExist} can be set to control whether the {@link AbstractNameValueHolder}
- * exists or doesn't; if neither are specified then it is assumed to be optional and then the {@link #value} can be
- * used to predicate on the value of the {@link AbstractNameValueHolder} if it is present.
+ * There is an implicit AND condition between the name and the value; the name is optional and {@link #mustNotExist} can
+ * be set to control whether a {@link AbstractNameValueHolder} with this name exists or doesn't; if neither are
+ * specified then only the {@link #value} is usedto predicate on the value of the {@link AbstractNameValueHolder} if it
+ * is present.
  */
 public class NameValuePredicate {
 
     public StringPredicate name;
     public boolean mustNotExist;
-    public boolean mustExist;
     public ValuePredicate value;
 
     public NameValuePredicate() {
@@ -78,16 +77,10 @@ public class NameValuePredicate {
         return this;
     }
 
-    public NameValuePredicate mustExist() {
-        this.mustExist = true;
-        return this;
-    }
-
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name=" + name +
-            ", mustExist=" + mustExist +
             ", mustNotExist=" + mustNotExist +
             ", value=" + value +
             '}';

@@ -159,14 +159,14 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
 
                     boolean matched = true;
 
-                    if (metaItemPredicate.mustExist) {
-                        matched = meta.stream()
-                            .anyMatch(metaItem ->
-                                metaItemPredicate.name.asPredicate(currentMillisSupplier).test(metaItem.getName())
-                            );
-                    } else if (metaItemPredicate.mustNotExist) {
+                    if (metaItemPredicate.mustNotExist && metaItemPredicate.name != null) {
                         matched = meta.stream()
                             .noneMatch(metaItem ->
+                                metaItemPredicate.name.asPredicate(currentMillisSupplier).test(metaItem.getName())
+                            );
+                    } else if (metaItemPredicate.name != null) {
+                        matched = meta.stream()
+                            .anyMatch(metaItem ->
                                 metaItemPredicate.name.asPredicate(currentMillisSupplier).test(metaItem.getName())
                             );
                     }

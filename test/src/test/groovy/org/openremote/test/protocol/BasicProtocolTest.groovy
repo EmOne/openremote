@@ -89,7 +89,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
             assert agentService.getProtocolInstance(mockAgent3.id) != null
             assert agentService.getAgent(mockAgent1.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
             assert agentService.getAgent(mockAgent2.id).getAgentStatus().orElse(null) == ConnectionStatus.DISABLED
-            assert agentService.getAgent(mockAgent3.id).getAgentStatus().orElse(null) == ConnectionStatus.ERROR_CONFIGURATION
+            assert agentService.getAgent(mockAgent3.id).getAgentStatus().orElse(null) == ConnectionStatus.ERROR
         }
 
         when: "a mock thing asset is created that links to the mock agents"
@@ -322,7 +322,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         }
 
         when: "the same attribute receives a sensor value that doesn't match the regex filter (no match)"
-        def lastUpdate = mockThing.getAttribute("filterRegex").get().valueTimestamp.get()
+        def lastUpdate = mockThing.getAttribute("filterRegex").get().timestamp.get()
         state = new AttributeState(mockThing.id, "filterRegex", "no match to be found!")
         mockProtocol.updateReceived(state)
 

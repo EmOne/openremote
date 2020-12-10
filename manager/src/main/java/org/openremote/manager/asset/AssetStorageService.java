@@ -65,11 +65,9 @@ import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.validation.ConstraintViolation;
 import java.lang.reflect.Field;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -1060,7 +1058,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         if (query.orderBy == null && query.ids == null)
             query.orderBy = new OrderBy(OrderBy.Property.CREATED_ON);
 
-        Pair<PreparedAssetQuery, Boolean> queryAndContainsCalendarPredicate = buildQuery(query);
+        Pair<PreparedAssetQuery, Boolean> queryAndContainsCalendarPredicate = buildQuery(query, timerService::getCurrentTimeMillis);
         PreparedAssetQuery querySql = queryAndContainsCalendarPredicate.key;
         boolean containsCalendarPredicate = queryAndContainsCalendarPredicate.value;
 
@@ -1093,887 +1091,51 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         }).collect(Collectors.toList());
     }
 
-    protected Pair<PreparedAssetQuery, Boolean> buildQuery(AssetQuery query) {
-        LOG.fine("Building: " + query);
-        StringBuilder sb = new StringBuilder();
-        boolean recursive = query.recursive;
-        List<ParameterBinder> binders = new ArrayList<>();
-        sb.append(buildSelectString(query, 1, binders));
-        sb.append(buildFromString(query, 1));
-        boolean containsCalendarPredicate = appendWhereClause(sb, query, 1, binders);
-
-        if (recursive) {
-            sb.insert(0, "WITH RECURSIVE top_level_assets AS ((");
-            sb.append(") UNION (");
-            sb.append(buildSelectString(query, 2, binders));
-            sb.append(buildFromString(query, 2));
-            containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 2, binders);
-            sb.append("))");
-            sb.append(buildSelectString(query, 3, binders));
-            sb.append(buildFromString(query, 3));
-            containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 3, binders);
-        }
-
-        sb.append(buildOrderByString(query));
-        sb.append(buildLimitString(query));
-        return new Pair<>(new PreparedAssetQuery(sb.toString(), binders), containsCalendarPredicate);
-    }
-
-    protected String buildSelectString(AssetQuery query, int level, List<ParameterBinder> binders) {
-        // level = 1 is main query select
-        // level = 2 is union select
-        // level = 3 is CTE select
-        StringBuilder sb = new StringBuilder();
-        AssetQuery.Select select = query.select;
-
-        sb.append("select A.ID as ID, A.NAME as NAME, A.ACCESS_PUBLIC_READ as ACCESS_PUBLIC_READ");
-        sb.append(", A.CREATED_ON AS CREATED_ON, A.TYPE AS TYPE, A.PARENT_ID AS PARENT_ID");
-        sb.append(", A.REALM AS REALM, A.VERSION as VERSION");
-
-        if (select == null || !select.excludeParentInfo) {
-            if (level == 3) {
-                sb.append(", A.PARENT_NAME as PARENT_NAME, A.PARENT_TYPE as PARENT_TYPE");
-            } else {
-                sb.append(", P.NAME as PARENT_NAME, P.TYPE as PARENT_TYPE");
-            }
-        } else if (level != 3) {
-            sb.append(", NULL as PARENT_NAME, NULL as PARENT_TYPE");
-        }
-
-        if (!query.recursive || level == 3) {
-            sb.append(", A.NAME as TENANT_NAME");
-        }
-
-        if (!query.recursive || level == 3) {
-            if (select == null || !select.excludePath) {
-                sb.append(", get_asset_tree_path(A.ID) as PATH");
-            } else {
-                sb.append(", NULL as PATH");
-            }
-        }
-
-        if (select == null || !select.excludeAttributes) {
-            if (query.recursive && level != 3) {
-                sb.append(", A.ATTRIBUTES as ATTRIBUTES");
-            } else {
-                sb.append(buildAttributeSelect(query, binders));
-            }
-        } else {
-            sb.append(", NULL as ATTRIBUTES");
-        }
-
-        return sb.toString();
-    }
-
-    protected String buildAttributeSelect(AssetQuery query, List<ParameterBinder> binders) {
-
-        Select select = query.select;
-        boolean hasMetaFilter = select != null && !select.excludeAttributeMeta && select.meta != null && select.meta.length > 0;
-        boolean fullyPopulateAttributes = select == null || !(select.excludeAttributeMeta || select.excludeAttributeValue || select.excludeAttributeTimestamp || select.meta != null);
-
-        if ((select == null || select.attributes == null) && query.access == PRIVATE && fullyPopulateAttributes) {
-            return ", A.ATTRIBUTES as ATTRIBUTES";
-        }
-
-        StringBuilder attributeBuilder = new StringBuilder();
-
-        if (select != null && select.excludeAttributeMeta) {
-            attributeBuilder.append(" - 'meta'");
-        }
-        if (select != null && select.excludeAttributeTimestamp) {
-            attributeBuilder.append(" - 'valueTimestamp'");
-        }
-        if (select != null && select.excludeAttributeValue) {
-            attributeBuilder.append(" - 'value'");
-        }
-        if (select != null && select.excludeAttributeType) {
-            attributeBuilder.append(" - 'type'");
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(", (");
-
-        if (select != null && select.excludeAttributeMeta) {
-            sb.append("select json_object_agg(AX.key, AX.value");
-            sb.append(attributeBuilder);
-            sb.append(") from jsonb_each(A.attributes) as AX");
-            if (query.access != PRIVATE) {
-                // Use implicit inner join on meta array set to only select non-private attributes
-                sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            }
-        } else if (query.access != PRIVATE || hasMetaFilter) {
-            // Use sub-select for processing the attributes the meta inside each attribute is replaced with filtered meta
-            // (coalesce null to empty array because jsonb_set() with null will clear the whole object)
-            sb.append(
-                "select json_object_agg(AX.key, jsonb_set(AX.value, '{meta}', coalesce(AMF.VALUE, jsonb_build_array()), false)) from jsonb_each(A.attributes) as AX");
-            // Use implicit inner join on meta array set to only select attributes with a non-private access meta item
-            sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            // Use subquery to filter out meta items not marked as non-private access
-            sb.append(" INNER JOIN LATERAL (");
-            sb.append("select jsonb_agg(AM.value) AS VALUE from jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            sb.append(" where AM.VALUE #>> '{name}' IN");
-
-            if (hasMetaFilter) {
-                sb.append(" ('");
-                sb.append(String.join("','", select.meta));
-                sb.append("')");
-            }
-
-            sb.append(") as AMF ON true");
-        } else {
-            sb.append("select json_object_agg(AX.key, AX.value) from jsonb_each(A.attributes) as AX");
-        }
-
-        sb.append(" where true");
-
-        // Filter attributes
-        if (select != null && select.attributes != null && select.attributes.length > 0) {
-            sb.append(" AND AX.key IN (");
-            for (int i = 0; i < select.attributes.length; i++) {
-                sb.append(i == select.attributes.length - 1 ? "?" : "?,");
-                final String attributeName = select.attributes[i];
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, attributeName));
-            }
-            sb.append(")");
-        }
-
-        if (query.access != PRIVATE) {
-            // TODO: Filter attributes based on access meta
-//            query.att
-//            // Filter non-private access attributes
-//            MetaPredicate accessPredicate =
-//                new MetaPredicate()
-//                    .itemName(query.access == PROTECTED ? ACCESS_RESTRICTED_READ : MetaItemType.ACCESS_PUBLIC_READ)
-//                    .itemValue(new BooleanPredicate(true));
-//            sb.append(buildAttributeMetaFilter(binders, accessPredicate));
-        }
-
-        sb.append(") AS ATTRIBUTES");
-        return sb.toString();
-    }
-
-    protected String buildFromString(AssetQuery query, int level) {
-        // level = 1 is main query
-        // level = 2 is union
-        // level = 3 is CTE
-        StringBuilder sb = new StringBuilder();
-        boolean recursive = query.recursive;
-
-        if (level == 1) {
-            sb.append(" from Asset A ");
-        } else if (level == 2) {
-            sb.append(" from top_level_assets P ");
-            sb.append("join Asset A on A.PARENT_ID = P.ID ");
-        } else {
-            sb.append(" from top_level_assets A ");
-        }
-
-        if ((!recursive || level == 3) && query.ids == null && query.userIds != null && query.userIds.length > 0) {
-            sb.append("cross join UserAsset ua ");
-        }
-
-        if (level == 1) {
-            if (hasParentConstraint(query.parents)) {
-                sb.append("cross join Asset P ");
-            } else {
-                sb.append("left outer join Asset P on A.PARENT_ID = P.id ");
-            }
-        }
-
-        return sb.toString();
-    }
-
-    protected boolean hasParentConstraint(ParentPredicate[] parentPredicates) {
-        if (parentPredicates == null || parentPredicates.length == 0) {
-            return false;
-        }
-
-        return Arrays.stream(parentPredicates)
-            .anyMatch(p -> !p.noParent && (p.id != null || p.type != null || p.name != null));
-    }
-
-
-    protected String buildOrderByString(AssetQuery query) {
-        StringBuilder sb = new StringBuilder();
-
-        if (query.ids != null && !query.recursive) {
-            return sb.toString();
-        }
-
-        if (query.orderBy != null && query.orderBy.property != null) {
-            sb.append(" order by ");
-
-            switch (query.orderBy.property) {
-                case CREATED_ON:
-                    sb.append(" A.CREATED_ON ");
-                    break;
-                case ASSET_TYPE:
-                    sb.append(" A.TYPE ");
-                    break;
-                case NAME:
-                    sb.append(" A.NAME ");
-                    break;
-                case PARENT_ID:
-                    sb.append(" A.PARENT_ID ");
-                    break;
-                case REALM:
-                    sb.append(" A.REALM ");
-                    break;
-            }
-            sb.append(query.orderBy.descending ? "desc " : "asc ");
-        }
-
-        return sb.toString();
-    }
-
-    protected String buildLimitString(AssetQuery query) {
-        if (query.limit > 0) {
-            return " LIMIT " + query.limit;
-        }
-        return "";
-    }
-
-    protected boolean appendWhereClause(StringBuilder sb, AssetQuery query, int level, List<ParameterBinder> binders) {
-        // level = 1 is main query
-        // level = 2 is union
-        // level = 3 is CTE
-        boolean containsCalendarPredicate = false;
-        boolean recursive = query.recursive;
-        sb.append(" where true");
-
-        if (level == 2) {
-            return containsCalendarPredicate;
-        }
-
-        if (level == 1 && query.ids != null && query.ids.length > 0) {
-            sb.append(" and A.ID IN (?");
-            final int pos = binders.size() + 1;
-            binders.add(st -> st.setParameter(pos, query.ids[0]));
-
-            for (int i = 1; i < query.ids.length; i++) {
-                sb.append(",?");
-                final int pos2 = binders.size() + 1;
-                final int index = i;
-                binders.add(st -> st.setParameter(pos2, query.ids[index]));
-            }
-            sb.append(")");
-        }
-
-        if (level == 1 && query.names != null && query.names.length > 0) {
-
-            sb.append(" and (");
-            boolean isFirst = true;
-
-            for (StringPredicate pred : query.names) {
-                if (!isFirst) {
-                    sb.append(" or ");
-                }
-                isFirst = false;
-                sb.append(pred.caseSensitive ? "A.NAME " : "upper(A.NAME)");
-                sb.append(buildMatchFilter(pred));
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, pred.prepareValue()));
-            }
-            sb.append(")");
-        }
-
-        if (query.parents != null && query.parents.length > 0) {
-
-            sb.append(" and (");
-            boolean isFirst = true;
-
-            for (ParentPredicate pred : query.parents) {
-                if (!isFirst) {
-                    sb.append(" or (");
-                } else {
-                    sb.append("(");
-                }
-                isFirst = false;
-
-                if (level == 1 && pred.id != null) {
-                    sb.append("p.ID = a.PARENT_ID");
-                    sb.append(" and A.PARENT_ID = ?");
-                    final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, pred.id));
-                } else if (level == 1 && pred.noParent) {
-                    sb.append("A.PARENT_ID is null");
-                } else if (pred.type != null || pred.name != null) {
-
-                    sb.append("p.ID = a.PARENT_ID");
-
-                    if (pred.type != null) {
-                        sb.append(" and P.TYPE = ?");
-                        final int pos = binders.size() + 1;
-                        binders.add(st -> st.setParameter(pos, pred.type));
-                    }
-                    if (pred.name != null) {
-                        sb.append(" and P.NAME = ?");
-                        final int pos = binders.size() + 1;
-                        binders.add(st -> st.setParameter(pos, pred.name));
-                    }
-                } else {
-                    sb.append("true");
-                }
-
-                sb.append(")");
-            }
-
-            sb.append(")");
-        }
-
-        if (level == 1 && hasPathConstraint(query.paths)) {
-            sb.append(" and (");
-            boolean isFirst = true;
-
-            for (PathPredicate pred : query.paths) {
-                if (!isFirst) {
-                    sb.append(" or ");
-                }
-                isFirst = false;
-
-                sb.append("? <@ get_asset_tree_path(A.id)");
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, pred.path));
-            }
-
-            sb.append(")");
-        }
-
-        if (!recursive || level == 3) {
-            if (query.tenant != null && !TextUtil.isNullOrEmpty(query.tenant.realm)) {
-                sb.append(" and A.realm = ?");
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, query.tenant.realm));
-            }
-
-            if (query.ids == null && query.userIds != null && query.userIds.length > 0) {
-                sb.append(" and ua.assetId = a.id and ua.userId IN (?");
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, query.userIds[0]));
-
-                for (int i = 1; i < query.userIds.length; i++) {
-                    sb.append(",?");
-                    final int pos2 = binders.size() + 1;
-                    final int index = i;
-                    binders.add(st -> st.setParameter(pos2, query.userIds[index]));
-                }
-                sb.append(")");
-            }
-
-            if (level == 1 && query.access == Access.PUBLIC) {
-                sb.append(" and A.access_public_read is true");
-            }
-
-            if (query.types != null && query.types.length > 0) {
-                sb.append(" and A.type IN (");
-                boolean isFirst = true;
-
-                for (Class<? extends Asset<?>> type : query.types) {
-                    if (!isFirst) {
-                        sb.append(",");
-                    }
-                    isFirst = false;
-
-                    sb.append("?");
-                    final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, type.getSimpleName()));
-                }
-
-                sb.append(")");
-            }
-
-            // TODO: Combine meta query with attributes
-//            if (query.attributeMeta != null) {
-//                for (MetaPredicate attributeMetaPredicate : query.attributeMeta) {
-//                    String attributeMetaFilter = buildAttributeMetaFilter(binders, attributeMetaPredicate);
-//
-//                    if (attributeMetaFilter.length() > 0) {
-//                        sb.append(" and A.ID in (select A.ID from");
-//                        sb.append(" jsonb_each(A.ATTRIBUTES) as AX,");
-//                        sb.append(" jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-//                        sb.append(" where true");
-//                        sb.append(attributeMetaFilter);
-//                        sb.append(")");
-//                    }
-//                }
-//            }
-
-            if (query.attributes != null) {
-                AtomicInteger joinCounter = new AtomicInteger(1);
-                sb.append(" and A.id in (select A.id from");
-                sb.append(" jsonb_each(A.attributes) as AX1");
-                int offset = sb.length();
-                sb.append(" where true AND ");
-                containsCalendarPredicate = addAttributePredicateGroupQuery(sb, binders, joinCounter, query.attributes);
-                sb.append(")");
-
-                int counter = joinCounter.get();
-
-                while (counter > 2) {
-                    sb.insert(offset, ", jsonb_each(A.attributes) as AX" + (counter-1));
-                    counter--;
-                }
-            }
-        }
-        return containsCalendarPredicate;
-    }
-
-    protected boolean addAttributePredicateGroupQuery(StringBuilder sb, List<ParameterBinder> binders, AtomicInteger joinCounter, LogicGroup<AttributePredicate> attributePredicateGroup) {
-
-        boolean containsCalendarPredicate = false;
-        LogicGroup.Operator operator = attributePredicateGroup.operator;
-
-        if (operator == null) {
-            operator = LogicGroup.Operator.AND;
-        }
-
-        sb.append("(");
-
-        if (!attributePredicateGroup.getItems().isEmpty()) {
-
-            boolean isFirst = true;
-            Collection<List<AttributePredicate>> grouped;
-
-            if (operator == LogicGroup.Operator.AND) {
-                // Group predicates by their attribute name predicate
-                grouped = attributePredicateGroup.getItems().stream().collect(groupingBy(predicate -> predicate.name)).values();
-            } else {
-                grouped = new ArrayList<>();
-                grouped.add(attributePredicateGroup.getItems());
-            }
-
-            for (List<AttributePredicate> group : grouped) {
-                for (AttributePredicate attributePredicate : group) {
-                    if (!containsCalendarPredicate && attributePredicate.value instanceof CalendarEventPredicate) {
-                        containsCalendarPredicate = true;
-                    }
-                    if (!isFirst) {
-                        sb.append(operator == LogicGroup.Operator.OR ? " or " : " and ");
-                    }
-                    isFirst = false;
-
-                    sb.append("(");
-                    if (attributePredicate.mustNotExist && attributePredicate.name != null && attributePredicate.name.value != null) {
-                        sb.append("NOT A.attributes ?? ?");
-                        final int pos = binders.size() + 1;
-                        binders.add(st -> st.setParameter(pos, attributePredicate.name.value));
-                    } else {
-                        sb.append(buildAttributeFilter(attributePredicate, joinCounter.get(), binders));
-                    }
-                    sb.append(")");
-                }
-                joinCounter.incrementAndGet();
-            }
-        }
-
-        if (attributePredicateGroup.groups != null && attributePredicateGroup.groups.size() > 0) {
-            for (LogicGroup<AttributePredicate> group : attributePredicateGroup.groups) {
-                sb.append(operator == LogicGroup.Operator.OR ? " or " : " and ");
-                if (!containsCalendarPredicate && addAttributePredicateGroupQuery(sb, binders, joinCounter, group)) {
-                    containsCalendarPredicate = true;
-                }
-            }
-        }
-        sb.append(")");
-
-        return containsCalendarPredicate;
-    }
-
-    protected boolean hasPathConstraint(PathPredicate[] pathPredicates) {
-        if (pathPredicates == null || pathPredicates.length == 0) {
-            return false;
-        }
-
-        return Arrays.stream(pathPredicates).anyMatch(p -> p.path != null);
-    }
-
-//    protected String buildAttributeMetaFilter(List<ParameterBinder> binders, MetaPredicate...attributeMetaPredicates) {
-//        StringBuilder sb = new StringBuilder();
-//
-//        if (attributeMetaPredicates == null || attributeMetaPredicates.length == 0) {
-//            return "";
-//        }
-//
-//        sb.append(" AND (");
-//
-//        boolean isFirst = true;
-//        for (MetaPredicate attributeMetaPredicate : attributeMetaPredicates) {
-//
-//            if (!isFirst) {
-//                sb.append(" OR (true");
-//            } else {
-//                sb.append("(true");
-//            }
-//            isFirst = false;
-//
-//            if (attributeMetaPredicate.itemNamePredicate != null) {
-//                sb.append(attributeMetaPredicate.itemNamePredicate.caseSensitive
-//                    ? " and AM.VALUE #>> '{name}'"
-//                    : " and upper(AM.VALUE #>> '{name}')"
-//                );
-//                sb.append(buildMatchFilter(attributeMetaPredicate.itemNamePredicate));
-//                final int pos = binders.size() + 1;
-//                binders.add(st -> st.setParameter()));
-//            }
-//
-//            if (attributeMetaPredicate.itemValuePredicate != null) {
-//                if (attributeMetaPredicate.itemValuePredicate instanceof StringPredicate) {
-//                    StringPredicate stringPredicate = (StringPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    sb.append(stringPredicate.caseSensitive
-//                        ? " and AM.VALUE #>> '{value}'"
-//                        : " and upper(AM.VALUE #>> '{value}')"
-//                    );
-//                    sb.append(buildMatchFilter(stringPredicate));
-//
-//                    final int pos = binders.size() + 1;
-//                    binders.add(st -> st.setParameter()));
-//                } else if (attributeMetaPredicate.itemValuePredicate instanceof BooleanPredicate) {
-//                    BooleanPredicate booleanPredicate = (BooleanPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    sb.append(" and AM.VALUE #> '{value}' = to_jsonb(")
-//                        .append(booleanPredicate.value)
-//                        .append(")");
-//                } else if (attributeMetaPredicate.itemValuePredicate instanceof StringArrayPredicate) {
-//                    StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
-//                        StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
-//                        sb.append(stringPredicate.caseSensitive
-//                            ? " and AM.VALUE #> '{value}' ->> " + i
-//                            : " and upper(AM.VALUE #> '{value}' ->> " + i + ")"
-//                        );
-//                        sb.append(buildMatchFilter(stringPredicate));
-//                        final int pos = binders.size() + 1;
-//                        binders.add(st -> st.setParameter()));
-//                    }
-//                }
-//            }
-//            sb.append(")");
-//        }
-//        sb.append(")");
-//        return sb.toString();
-//    }
-
-    protected String buildAttributeFilter(AttributePredicate attributePredicate, int joinCounter, List<ParameterBinder> binders) {
-        StringBuilder attributeBuilder = new StringBuilder();
-
-        if (attributePredicate.name != null) {
-            attributeBuilder.append(attributePredicate.name.caseSensitive
-                ? "AX" + joinCounter + ".key"
-                : "upper(AX" + joinCounter + ".key)"
-            );
-            attributeBuilder.append(buildMatchFilter(attributePredicate.name));
-
-            final int pos = binders.size() + 1;
-            binders.add(st -> st.setParameter(pos, attributePredicate.name.prepareValue()));
-        }
-        if (attributePredicate.value != null) {
-
-            if (attributePredicate.name != null) {
-                attributeBuilder.append(" and ");
-            }
-
-            if (attributePredicate.value instanceof StringPredicate) {
-                StringPredicate stringPredicate = (StringPredicate) attributePredicate.value;
-                attributeBuilder.append(stringPredicate.caseSensitive
-                    ? "AX" + joinCounter + ".VALUE #>> '{value}'"
-                    : "upper(AX" + joinCounter + ".VALUE #>> '{value}')"
-                );
-                attributeBuilder.append(buildMatchFilter(stringPredicate));
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
-            } else if (attributePredicate.value instanceof BooleanPredicate) {
-                BooleanPredicate booleanPredicate = (BooleanPredicate) attributePredicate.value;
-                attributeBuilder.append("AX")
-                    .append(joinCounter)
-                    .append(".VALUE #> '{value}' = to_jsonb(")
-                    .append(booleanPredicate.value)
-                    .append(")");
-            } else if (attributePredicate.value instanceof StringArrayPredicate) {
-                StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) attributePredicate.value;
-                for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
-                    StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
-                    attributeBuilder.append(stringPredicate.caseSensitive
-                        ? "AX" + joinCounter + ".VALUE #> '{value}' ->> " + i
-                        : "upper(AX" + joinCounter + ".VALUE #> '{value}' ->> " + i + ")"
-                    );
-                    attributeBuilder.append(buildMatchFilter(stringPredicate));
-                    final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
-                }
-            } else if (attributePredicate.value instanceof DateTimePredicate) {
-                DateTimePredicate dateTimePredicate = (DateTimePredicate) attributePredicate.value;
-                attributeBuilder.append("(AX")
-                    .append(joinCounter)
-                    .append(".Value #>> '{value}')::timestamp");
-
-                Pair<Long, Long> fromAndTo = dateTimePredicate.asFromAndTo(timerService.getCurrentTimeMillis());
-
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, new java.sql.Timestamp(fromAndTo.key != null ? fromAndTo.key : 0L)));
-                attributeBuilder.append(buildOperatorFilter(dateTimePredicate.operator, dateTimePredicate.negate));
-
-                if (dateTimePredicate.operator == Operator.BETWEEN) {
-                    final int pos2 = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos2, new java.sql.Timestamp(fromAndTo.value != null ? fromAndTo.value : Long.MAX_VALUE)));
-                }
-            } else if (attributePredicate.value instanceof NumberPredicate) {
-                NumberPredicate numberPredicate = (NumberPredicate) attributePredicate.value;
-                attributeBuilder.append("(AX")
-                    .append(joinCounter)
-                    .append(".VALUE #>> '{value}')::numeric");
-                attributeBuilder.append(buildOperatorFilter(numberPredicate.operator, numberPredicate.negate));
-
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, numberPredicate.value));
-                if (numberPredicate.operator == Operator.BETWEEN) {
-                    final int pos2 = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos2, numberPredicate.rangeValue));
-                }
-            } else if (attributePredicate.value instanceof ObjectValueKeyPredicate) {
-                ObjectValueKeyPredicate keyPredicate = (ObjectValueKeyPredicate) attributePredicate.value;
-                if (keyPredicate.negated) {
-                    attributeBuilder.append("NOT(AX").append(joinCounter).append(".VALUE #> '{value}' ?? ? ) ");
-                } else {
-                    attributeBuilder.append("AX").append(joinCounter).append(".VALUE #> '{value}' ?? ? ");
-                }
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, keyPredicate.key));
-            } else if (attributePredicate.value instanceof ArrayPredicate) {
-                ArrayPredicate arrayPredicate = (ArrayPredicate) attributePredicate.value;
-                attributeBuilder.append("true");
-                if (arrayPredicate.negated) {
-                    attributeBuilder.append(" and NOT(");
-                }
-                if (arrayPredicate.value != null) {
-                    if (arrayPredicate.index != null) {
-                        attributeBuilder.append("AX")
-                            .append(joinCounter)
-                            .append(".VALUE -> ")
-                            .append(arrayPredicate.index);
-                    } else {
-                        attributeBuilder.append("AX").append(joinCounter).append(".VALUE");
-                    }
-                    attributeBuilder.append(" @> ?");
-                    final int pos = binders.size() + 1;
-                    PGobject pgJsonValue = new PGobject();
-                    pgJsonValue.setType("jsonb");
-                    try {
-                        pgJsonValue.setValue(Values.asJSON(arrayPredicate.value).orElse("null"));
-                    } catch (SQLException e) {
-                        LOG.log(Level.SEVERE, "Failed to build SQL statement for array predicate", e);
-                        return "";
-                    }
-                    binders.add(st -> st.setParameter(pos, pgJsonValue));
-                }
-                if (arrayPredicate.lengthEquals != null) {
-                    attributeBuilder.append("json_array_length(AX")
-                        .append(joinCounter)
-                        .append(".VALUE) = ")
-                        .append(arrayPredicate.lengthEquals);
-                }
-                if (arrayPredicate.lengthGreaterThan != null) {
-                    attributeBuilder.append("json_array_length(AX")
-                        .append(joinCounter)
-                        .append(".VALUE) > ")
-                        .append(arrayPredicate.lengthGreaterThan);
-                }
-                if (arrayPredicate.lengthLessThan != null) {
-                    attributeBuilder.append("json_array_length(AX")
-                        .append(joinCounter)
-                        .append(".VALUE) < ")
-                        .append(arrayPredicate.lengthLessThan);
-                }
-                if (arrayPredicate.negated) {
-                    attributeBuilder.append(")");
-                }
-            } else if (attributePredicate.value instanceof GeofencePredicate) {
-                if (attributePredicate.value instanceof RadialGeofencePredicate) {
-                    RadialGeofencePredicate location = (RadialGeofencePredicate) attributePredicate.value;
-                    attributeBuilder.append("ST_DistanceSphere(ST_MakePoint(")
-                        .append("(AX")
-                        .append(joinCounter)
-                        .append(".VALUE #>> '{value,coordinates,0}')::numeric")
-                        .append(", (AX")
-                        .append(joinCounter)
-                        .append(".VALUE #>> '{value,coordinates,1}')::numeric")
-                        .append("), ST_MakePoint(")
-                        .append(location.lng)
-                        .append(",")
-                        .append(location.lat)
-                        .append(location.negated ? ")) > " : ")) <= ")
-                        .append(location.radius);
-                } else if (attributePredicate.value instanceof RectangularGeofencePredicate) {
-                    RectangularGeofencePredicate location = (RectangularGeofencePredicate) attributePredicate.value;
-                    if (location.negated) {
-                        attributeBuilder.append("NOT");
-                    }
-                    attributeBuilder.append(" ST_Within(ST_MakePoint(")
-                        .append("(AX")
-                        .append(joinCounter)
-                        .append(".VALUE #>> '{value,coordinates,0}')::numeric")
-                        .append(", (AX").append(joinCounter).append(".VALUE #>> '{value,coordinates,1}')::numeric")
-                        .append(")")
-                        .append(", ST_MakeEnvelope(")
-                        .append(location.lngMin)
-                        .append(",")
-                        .append(location.latMin)
-                        .append(",")
-                        .append(location.lngMax)
-                        .append(",")
-                        .append(location.latMax)
-                        .append("))");
-                }
-            } else if (attributePredicate.value instanceof ValueNotEmptyPredicate) {
-                attributeBuilder.append("AX").append(joinCounter).append(".VALUE ->> 'value' IS NOT NULL");
-            } else if (attributePredicate.value instanceof ValueEmptyPredicate) {
-                attributeBuilder.append("AX").append(joinCounter).append(".VALUE ->> 'value' IS NULL");
-            } else if (attributePredicate.value instanceof CalendarEventPredicate) {
-                final int pos = binders.size() + 1;
-                java.sql.Timestamp when = new java.sql.Timestamp(((CalendarEventPredicate)attributePredicate.value).timestamp.getTime());
-
-                // The recurrence logic is applied post DB query just check start key is present and in the past and also
-                // that the end key is numeric and in the future if no recurrence value
-                attributeBuilder.append("(jsonb_typeof(AX")
-                    .append(joinCounter)
-                    .append(".VALUE #> '{value, start}') = 'number' AND jsonb_typeof(AX")
-                    .append(joinCounter)
-                    .append(".VALUE #> '{value, end}') = 'number' AND to_timestamp((AX")
-                    .append(joinCounter)
-                    .append(".VALUE #>> '{value,start}')::float / 1000) <= ? AND (to_timestamp((AX")
-                    .append(joinCounter)
-                    .append(".VALUE #>> '{value,end}')::float / 1000) > ? OR jsonb_typeof(AX")
-                    .append(joinCounter)
-                    .append(".VALUE #> '{value,recurrence}') = 'string'))");
-                binders.add(st -> st.setParameter(pos, when));
-                binders.add(st -> st.setParameter(pos+1, when));
-            } else {
-                throw new UnsupportedOperationException("Attribute value predicate is not supported: " + attributePredicate.value);
-            }
-        }
-
-        return attributeBuilder.toString();
-    }
-
-    protected String buildOperatorFilter(AssetQuery.Operator operator, boolean negate) {
-        switch (operator) {
-            case EQUALS:
-                if (negate) {
-                    return " <> ? ";
-                }
-                return " = ? ";
-            case GREATER_THAN:
-                if (negate) {
-                    return " <= ? ";
-                }
-                return " > ? ";
-            case GREATER_EQUALS:
-                if (negate) {
-                    return " < ? ";
-                }
-                return " >= ? ";
-            case LESS_THAN:
-                if (negate) {
-                    return " >= ? ";
-                }
-                return " < ? ";
-            case LESS_EQUALS:
-                if (negate) {
-                    return " > ? ";
-                }
-                return " <= ? ";
-            case BETWEEN:
-                if (negate) {
-                    return " NOT BETWEEN ? AND ? ";
-                }
-                return " BETWEEN ? AND ? ";
-        }
-
-        throw new IllegalArgumentException("Unsupported operator: " + operator);
-    }
-
-    protected String buildMatchFilter(StringPredicate predicate) {
-        switch (predicate.match) {
-            case BEGIN:
-            case END:
-            case CONTAINS:
-                if (predicate.negate) {
-                    return " not like ? ";
-                }
-                return " like ? ";
-            default:
-                if (predicate.negate) {
-                    return " <> ? ";
-                }
-                return " = ? ";
-        }
-    }
-
-//    protected Asset<?> mapResultTuple(AssetQuery query, ResultSet rs) throws SQLException {
-//        Asset<?> asset = new ThingAsset(rs.getString("NAME"));
-//        asset.setId(rs.getString("ID"));
-//        asset.setType(rs.getString("ASSET_TYPE"));
-//        asset.setVersion(rs.getLong("VERSION"));
-//        asset.setCreatedOn(rs.getTimestamp("CREATED_ON"));
-//        asset.setAccessPublicRead(rs.getBoolean("ACCESS_PUBLIC_READ"));
-//        asset.setParentId(rs.getString("PARENT_ID"));
-//        asset.setRealm(rs.getString("REALM"));
-//
-//        if (query.select == null || !query.select.excludeParentInfo) {
-//            asset.setParentName(rs.getString("PARENT_NAME"));
-//            asset.setParentType(rs.getString("PARENT_TYPE"));
-//        }
-//
-//        if (query.select == null || !query.select.excludeAttributes) {
-//            if (rs.getString("ATTRIBUTES") != null) {
-//                asset.setAttributes(Values.instance().<ObjectValue>parse(rs.getString("ATTRIBUTES")).orElse(null));
-//            }
-//        }
-//
-//        if (query.select == null || !query.select.excludePath) {
-//            Array path = rs.getArray("PATH");
-//            if (path != null) {
-//                asset.setPath((String[]) path.getArray());
-//            }
-//        }
-//
-//        return asset;
-//    }
-
-    public boolean storeAttributeValue(EntityManager em, String assetId, String attributeName, Object value, String timestamp) {
+    public boolean updateAttributeValue(EntityManager em, String assetId, String attributeName, Object value, String timestamp) {
 
         try {
-            TypedQuery<Boolean> jpql = em.createQuery("update Asset a" +
-                " set a.attributes = jsonb_set(jsonb_set(a.attributes, ?, ?, true), ?, ?, true)" +
-                " where a.id = ? and a.attributes -> ? is not null", Boolean.class);
+            return em.unwrap(Session.class).doReturningWork(connection -> {
+                String jpql = "update Asset" +
+                    " set attributes = jsonb_set(jsonb_set(attributes, ?, ?, true), ?, ?, true)" +
+                    " where id = ? and attributes -> ? is not null";
 
-            jpql.setParameter(1, new String[]{attributeName, "value"});
+                try (PreparedStatement statement = connection.prepareStatement(jpql)) {
+                    Array attributeValuePath = connection.createArrayOf(
+                        "text",
+                        new String[]{attributeName, "value"}
+                    );
+                    statement.setArray(1, attributeValuePath);
 
-            PGobject pgJsonValue = new PGobject();
-            pgJsonValue.setType("jsonb");
-            // Careful, do not set Java null (as returned by value.toJson()) here! It will erase your whole SQL column!
-            pgJsonValue.setValue(Values.asJSON(value).orElse(Values.NULL_LITERAL));
-            jpql.setParameter(2, pgJsonValue);
+                    PGobject pgJsonValue = new PGobject();
+                    pgJsonValue.setType("jsonb");
+                    // Careful, do not set Java null here! It will erase your whole SQL column!
+                    pgJsonValue.setValue(Values.asJSON(value).orElse(Values.NULL_LITERAL));
+                    statement.setObject(2, pgJsonValue);
 
-            // Bind the value timestamp path
-            jpql.setParameter(3, new String[]{attributeName, "valueTimestamp"});
+                    // Bind the value timestamp
+                    Array attributeValueTimestampPath = connection.createArrayOf(
+                        "text",
+                        new String[]{attributeName, "timestamp"}
+                    );
+                    statement.setArray(3, attributeValueTimestampPath);
+                    PGobject pgJsonValueTimestamp = new PGobject();
+                    pgJsonValueTimestamp.setType("jsonb");
+                    pgJsonValueTimestamp.setValue(timestamp);
+                    statement.setObject(4, pgJsonValueTimestamp);
 
-            // Bind the value timestamp
-            PGobject pgJsonValueTimestamp = new PGobject();
-            pgJsonValueTimestamp.setType("jsonb");
-            pgJsonValueTimestamp.setValue(timestamp);
-            jpql.setParameter(4, pgJsonValueTimestamp);
+                    // Bind asset ID and attribute name
+                    statement.setString(5, assetId);
+                    statement.setString(6, attributeName);
 
-            // Bind asset ID and attribute name
-            jpql.setParameter(5, assetId);
-            jpql.setParameter(6, attributeName);
-
-            int updatedRows = jpql.executeUpdate();
-            LOG.fine("Stored asset '" + assetId
-                + "' attribute '" + attributeName
-                + "' (affected rows: " + updatedRows + ") value: "
-                + Values.asJSON(value));
-            return updatedRows == 1;
-        } catch (SQLException e) {
+                    int updatedRows = statement.executeUpdate();
+                    LOG.fine("Stored asset '" + assetId
+                        + "' attribute '" + attributeName
+                        + "' (affected rows: " + updatedRows + ") value: "
+                        + (value != null ? Values.asJSON(value) : "null"));
+                    return updatedRows == 1;
+                }
+            });
+        } catch (Exception e) {
             LOG.log(Level.WARNING, "Failed to store attribute value", e);
             return false;
         }
@@ -2087,5 +1249,835 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
     public String toString() {
         return getClass().getSimpleName() + "{" +
             '}';
+    }
+
+
+    /* SQL BUILDER METHODS */
+
+
+    protected static Pair<PreparedAssetQuery, Boolean> buildQuery(AssetQuery query, Supplier<Long> timeProvider) {
+        LOG.fine("Building: " + query);
+        StringBuilder sb = new StringBuilder();
+        boolean recursive = query.recursive;
+        List<ParameterBinder> binders = new ArrayList<>();
+        sb.append(buildSelectString(query, 1, binders));
+        sb.append(buildFromString(query, 1));
+        boolean containsCalendarPredicate = appendWhereClause(sb, query, 1, binders, timeProvider);
+
+        if (recursive) {
+            sb.insert(0, "WITH RECURSIVE top_level_assets AS ((");
+            sb.append(") UNION (");
+            sb.append(buildSelectString(query, 2, binders));
+            sb.append(buildFromString(query, 2));
+            containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 2, binders, timeProvider);
+            sb.append("))");
+            sb.append(buildSelectString(query, 3, binders));
+            sb.append(buildFromString(query, 3));
+            containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 3, binders, timeProvider);
+        }
+
+        sb.append(buildOrderByString(query));
+        sb.append(buildLimitString(query));
+        return new Pair<>(new PreparedAssetQuery(sb.toString(), binders), containsCalendarPredicate);
+    }
+
+    protected static String buildSelectString(AssetQuery query, int level, List<ParameterBinder> binders) {
+        // level = 1 is main query select
+        // level = 2 is union select
+        // level = 3 is CTE select
+        StringBuilder sb = new StringBuilder();
+        AssetQuery.Select select = query.select;
+
+        sb.append("select A.ID as ID, A.NAME as NAME, A.ACCESS_PUBLIC_READ as ACCESS_PUBLIC_READ");
+        sb.append(", A.CREATED_ON AS CREATED_ON, A.TYPE AS TYPE, A.PARENT_ID AS PARENT_ID");
+        sb.append(", A.REALM AS REALM, A.VERSION as VERSION");
+
+        if (select == null || !select.excludeParentInfo) {
+            if (level == 3) {
+                sb.append(", A.PARENT_NAME as PARENT_NAME, A.PARENT_TYPE as PARENT_TYPE");
+            } else {
+                sb.append(", P.NAME as PARENT_NAME, P.TYPE as PARENT_TYPE");
+            }
+        } else if (level != 3) {
+            sb.append(", NULL as PARENT_NAME, NULL as PARENT_TYPE");
+        }
+
+        if (!query.recursive || level == 3) {
+            if (select == null || !select.excludePath) {
+                sb.append(", get_asset_tree_path(A.ID) as PATH");
+            } else {
+                sb.append(", NULL as PATH");
+            }
+        }
+
+        if (select == null || !select.excludeAttributes) {
+            if (query.recursive && level != 3) {
+                sb.append(", A.ATTRIBUTES as ATTRIBUTES");
+            } else {
+                sb.append(buildAttributeSelect(query, binders));
+            }
+        } else {
+            sb.append(", NULL as ATTRIBUTES");
+        }
+
+        return sb.toString();
+    }
+
+    protected static String buildAttributeSelect(AssetQuery query, List<ParameterBinder> binders) {
+
+        Select select = query.select;
+        boolean hasMetaFilter = select != null && !select.excludeAttributeMeta && select.meta != null && select.meta.length > 0;
+        boolean fullyPopulateAttributes = select == null || !(select.excludeAttributeMeta || select.excludeAttributeValue || select.excludeAttributeTimestamp || select.meta != null);
+
+        if ((select == null || select.attributes == null) && query.access == PRIVATE && fullyPopulateAttributes) {
+            return ", A.ATTRIBUTES as ATTRIBUTES";
+        }
+
+        StringBuilder attributeBuilder = new StringBuilder();
+
+        if (select != null && select.excludeAttributeMeta) {
+            attributeBuilder.append(" - 'meta'");
+        }
+        if (select != null && select.excludeAttributeTimestamp) {
+            attributeBuilder.append(" - 'timestamp'");
+        }
+        if (select != null && select.excludeAttributeValue) {
+            attributeBuilder.append(" - 'value'");
+        }
+        if (select != null && select.excludeAttributeType) {
+            attributeBuilder.append(" - 'type'");
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(", (");
+
+        if (select != null && select.excludeAttributeMeta) {
+            sb.append("select json_object_agg(AX.key, AX.value");
+            sb.append(attributeBuilder);
+            sb.append(") from jsonb_each(A.attributes) as AX");
+            if (query.access != PRIVATE) {
+                // Use implicit inner join on meta array set to only select non-private attributes
+                sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
+            }
+        } else if (query.access != PRIVATE || hasMetaFilter) {
+            // Use sub-select for processing the attributes the meta inside each attribute is replaced with filtered meta
+            // (coalesce null to empty array because jsonb_set() with null will clear the whole object)
+            sb.append(
+                "select json_object_agg(AX.key, jsonb_set(AX.value, '{meta}', coalesce(AMF.VALUE, jsonb_build_array()), false)) from jsonb_each(A.attributes) as AX");
+            // Use implicit inner join on meta array set to only select attributes with a non-private access meta item
+            sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
+            // Use subquery to filter out meta items not marked as non-private access
+            sb.append(" INNER JOIN LATERAL (");
+            sb.append("select jsonb_agg(AM.value) AS VALUE from jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
+            sb.append(" where AM.VALUE #>> '{name}' IN");
+
+            if (hasMetaFilter) {
+                sb.append(" ('");
+                sb.append(String.join("','", select.meta));
+                sb.append("')");
+            }
+
+            sb.append(") as AMF ON true");
+        } else {
+            sb.append("select json_object_agg(AX.key, AX.value) from jsonb_each(A.attributes) as AX");
+        }
+
+        sb.append(" where true");
+
+        // Filter attributes
+        if (select != null && select.attributes != null && select.attributes.length > 0) {
+            sb.append(" AND AX.key IN (");
+            for (int i = 0; i < select.attributes.length; i++) {
+                sb.append(i == select.attributes.length - 1 ? "?" : "?,");
+                final String attributeName = select.attributes[i];
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, attributeName));
+            }
+            sb.append(")");
+        }
+
+        if (query.access != PRIVATE) {
+            // TODO: Filter attributes based on access meta
+//            query.att
+//            // Filter non-private access attributes
+//            MetaPredicate accessPredicate =
+//                new MetaPredicate()
+//                    .itemName(query.access == PROTECTED ? ACCESS_RESTRICTED_READ : MetaItemType.ACCESS_PUBLIC_READ)
+//                    .itemValue(new BooleanPredicate(true));
+//            sb.append(buildAttributeMetaFilter(binders, accessPredicate));
+        }
+
+        sb.append(") AS ATTRIBUTES");
+        return sb.toString();
+    }
+
+    protected static String buildFromString(AssetQuery query, int level) {
+        // level = 1 is main query
+        // level = 2 is union
+        // level = 3 is CTE
+        StringBuilder sb = new StringBuilder();
+        boolean recursive = query.recursive;
+
+        if (level == 1) {
+            sb.append(" from Asset A ");
+
+            if (requiresParentJoin(query)) {
+                sb.append("left outer join Asset P on A.PARENT_ID = P.id ");
+            }
+        } else if (level == 2) {
+            sb.append(" from top_level_assets P ");
+            sb.append("join Asset A on A.PARENT_ID = P.ID ");
+        } else {
+            sb.append(" from top_level_assets A ");
+        }
+
+        if ((!recursive || level == 3) && query.userIds != null && query.userIds.length > 0) {
+            sb.append("right join UserAsset UA on A.ID = UA.ASSET_ID ");
+        }
+
+        return sb.toString();
+    }
+
+    protected static String buildOrderByString(AssetQuery query) {
+        StringBuilder sb = new StringBuilder();
+
+        if (query.ids != null && !query.recursive) {
+            return sb.toString();
+        }
+
+        if (query.orderBy != null && query.orderBy.property != null) {
+            sb.append(" order by ");
+
+            switch (query.orderBy.property) {
+                case CREATED_ON:
+                    sb.append(" A.CREATED_ON ");
+                    break;
+                case ASSET_TYPE:
+                    sb.append(" A.TYPE ");
+                    break;
+                case NAME:
+                    sb.append(" A.NAME ");
+                    break;
+                case PARENT_ID:
+                    sb.append(" A.PARENT_ID ");
+                    break;
+                case REALM:
+                    sb.append(" A.REALM ");
+                    break;
+            }
+            sb.append(query.orderBy.descending ? "desc " : "asc ");
+        }
+
+        return sb.toString();
+    }
+
+    protected static String buildLimitString(AssetQuery query) {
+        if (query.limit > 0) {
+            return " LIMIT " + query.limit;
+        }
+        return "";
+    }
+
+    protected static boolean appendWhereClause(StringBuilder sb, AssetQuery query, int level, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
+        // level = 1 is main query
+        // level = 2 is union
+        // level = 3 is CTE
+        boolean containsCalendarPredicate = false;
+        boolean recursive = query.recursive;
+        sb.append(" where true");
+
+        if (level == 2) {
+            return false;
+        }
+
+        if (level == 1 && query.ids != null && query.ids.length > 0) {
+            sb.append(" and A.ID IN (?");
+            final int pos = binders.size() + 1;
+            binders.add(st -> st.setParameter(pos, query.ids[0]));
+
+            for (int i = 1; i < query.ids.length; i++) {
+                sb.append(",?");
+                final int pos2 = binders.size() + 1;
+                final int index = i;
+                binders.add(st -> st.setParameter(pos2, query.ids[index]));
+            }
+            sb.append(")");
+        }
+
+        if (level == 1 && query.names != null && query.names.length > 0) {
+
+            sb.append(" and (");
+            boolean isFirst = true;
+
+            for (StringPredicate pred : query.names) {
+                if (!isFirst) {
+                    sb.append(" or ");
+                }
+                isFirst = false;
+                sb.append(pred.caseSensitive ? "A.NAME " : "upper(A.NAME)");
+                sb.append(buildMatchFilter(pred));
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, pred.prepareValue()));
+            }
+            sb.append(")");
+        }
+
+        if (query.parents != null && query.parents.length > 0) {
+
+            sb.append(" and (");
+            boolean isFirst = true;
+
+            for (ParentPredicate pred : query.parents) {
+                if (!isFirst) {
+                    sb.append(" or (");
+                } else {
+                    sb.append("(");
+                }
+                isFirst = false;
+
+                if (level == 1 && pred.id != null) {
+                    sb.append(" and A.PARENT_ID = ?");
+                    final int pos = binders.size() + 1;
+                    binders.add(st -> st.setParameter(pos, pred.id));
+                } else if (level == 1 && pred.noParent) {
+                    sb.append("A.PARENT_ID is null");
+                } else if (pred.type != null || pred.name != null) {
+                    if (pred.type != null) {
+                        sb.append(" and P.TYPE = ?");
+                        final int pos = binders.size() + 1;
+                        binders.add(st -> st.setParameter(pos, pred.type));
+                    }
+                    if (pred.name != null) {
+                        sb.append(" and P.NAME = ?");
+                        final int pos = binders.size() + 1;
+                        binders.add(st -> st.setParameter(pos, pred.name));
+                    }
+                } else {
+                    sb.append("true");
+                }
+
+                sb.append(")");
+            }
+
+            sb.append(")");
+        }
+
+        if (level == 1 && hasPathConstraint(query.paths)) {
+            sb.append(" and (");
+            boolean isFirst = true;
+
+            for (PathPredicate pred : query.paths) {
+                if (!isFirst) {
+                    sb.append(" or ");
+                }
+                isFirst = false;
+
+                sb.append("? <@ get_asset_tree_path(A.id)");
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, pred.path));
+            }
+
+            sb.append(")");
+        }
+
+        if (!recursive || level == 3) {
+            if (query.tenant != null && !TextUtil.isNullOrEmpty(query.tenant.realm)) {
+                sb.append(" and A.REALM = ?");
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, query.tenant.realm));
+            }
+
+            if (query.userIds != null && query.userIds.length > 0) {
+                sb.append(" and UA.USER_ID IN (?");
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, query.userIds[0]));
+
+                for (int i = 1; i < query.userIds.length; i++) {
+                    sb.append(",?");
+                    final int pos2 = binders.size() + 1;
+                    final int index = i;
+                    binders.add(st -> st.setParameter(pos2, query.userIds[index]));
+                }
+                sb.append(")");
+            }
+
+            if (level == 1 && query.access == Access.PUBLIC) {
+                sb.append(" and A.ACCESS_PUBLIC_READ is true");
+            }
+
+            if (query.types != null && query.types.length > 0) {
+                sb.append(" and A.TYPE IN (");
+                boolean isFirst = true;
+
+                for (Class<? extends Asset<?>> type : query.types) {
+                    if (!isFirst) {
+                        sb.append(",");
+                    }
+                    isFirst = false;
+
+                    sb.append("?");
+                    final int pos = binders.size() + 1;
+                    binders.add(st -> st.setParameter(pos, type.getSimpleName()));
+                }
+
+                sb.append(")");
+            }
+
+            if (query.attributes != null) {
+                sb.append(" and A.id in (select A.id from ");
+                AtomicInteger offset = new AtomicInteger(sb.length());
+                Consumer<String> selectInserter = (str) -> sb.insert(offset.getAndAdd(str.length()), str);
+                sb.append(" where true AND ");
+                containsCalendarPredicate = addAttributePredicateGroupQuery(sb, binders, 0, selectInserter, query.attributes, timeProvider);
+                sb.append(")");
+            }
+        }
+        return containsCalendarPredicate;
+    }
+
+    protected static boolean addAttributePredicateGroupQuery(StringBuilder sb, List<ParameterBinder> binders, int groupIndex, Consumer<String> selectInserter, LogicGroup<AttributePredicate> attributePredicateGroup, Supplier<Long> timeProvider) {
+
+        boolean containsCalendarPredicate = false;
+        LogicGroup.Operator operator = attributePredicateGroup.operator;
+
+        if (operator == null) {
+            operator = LogicGroup.Operator.AND;
+        }
+
+
+        sb.append("(");
+
+        if (!attributePredicateGroup.getItems().isEmpty()) {
+
+            Collection<List<AttributePredicate>> grouped;
+
+            if (operator == LogicGroup.Operator.AND) {
+                // Group predicates by their attribute name predicate
+                grouped = attributePredicateGroup.getItems().stream().collect(groupingBy(predicate -> predicate.name != null ? predicate.name : "")).values();
+            } else {
+                grouped = new ArrayList<>();
+                grouped.add(attributePredicateGroup.getItems());
+            }
+
+            boolean isFirst = true;
+
+            for (List<AttributePredicate> group : grouped) {
+                if (!isFirst) {
+                    sb.append(operator == LogicGroup.Operator.OR ? " or " : " and ");
+                }
+                isFirst = false;
+
+                selectInserter.accept(groupIndex > 0 ? ", jsonb_each(A.attributes) as AX" + groupIndex : "jsonb_each(A.attributes) as AX" + groupIndex);
+                containsCalendarPredicate = !containsCalendarPredicate && addNameValuePredicates(group, sb, binders, "AX" + groupIndex, selectInserter, operator == LogicGroup.Operator.OR, timeProvider);
+                groupIndex++;
+            }
+        }
+
+        if (attributePredicateGroup.groups != null && attributePredicateGroup.groups.size() > 0) {
+            for (LogicGroup<AttributePredicate> group : attributePredicateGroup.groups) {
+                sb.append(operator == LogicGroup.Operator.OR ? " or " : " and ");
+                boolean containsCalPred = addAttributePredicateGroupQuery(sb, binders, groupIndex, selectInserter, group, timeProvider);
+                if (!containsCalendarPredicate && containsCalPred) {
+                    containsCalendarPredicate = true;
+                }
+            }
+        }
+        sb.append(")");
+
+        return containsCalendarPredicate;
+    }
+
+    protected static boolean addNameValuePredicates(List<? extends NameValuePredicate> nameValuePredicates, StringBuilder sb, List<ParameterBinder> binders, String jsonObjName, Consumer<String> selectInserter, boolean useOr, Supplier<Long> timeProvider) {
+        boolean containsCalendarPredicate = false;
+
+        boolean isFirst = true;
+
+        for (NameValuePredicate nameValuePredicate : nameValuePredicates) {
+            if (!containsCalendarPredicate && nameValuePredicate.value instanceof CalendarEventPredicate) {
+                containsCalendarPredicate = true;
+            }
+            if (!isFirst) {
+                sb.append(useOr ? " or " : " and ");
+            }
+            isFirst = false;
+
+            sb.append("(");
+
+            sb.append(buildNameValuePredicateFilter(nameValuePredicate, jsonObjName, binders, timeProvider));
+
+            if (nameValuePredicate instanceof AttributePredicate) {
+                AttributePredicate attributePredicate = (AttributePredicate)nameValuePredicate;
+
+                if (attributePredicate.meta != null && attributePredicate.meta.length > 0) {
+                    String metaJsonObjName = jsonObjName + "_AM";
+                    selectInserter.accept(", jsonb_each(" + jsonObjName + ".VALUE #> '{meta}') as " + metaJsonObjName);
+                    sb.append(" and (");
+                    addNameValuePredicates(Arrays.asList(attributePredicate.meta.clone()), sb, binders, metaJsonObjName, selectInserter, false, timeProvider);
+                    sb.append(")");
+                }
+            }
+            sb.append(")");
+        }
+
+        return containsCalendarPredicate;
+    }
+
+    protected static boolean hasPathConstraint(PathPredicate[] pathPredicates) {
+        if (pathPredicates == null || pathPredicates.length == 0) {
+            return false;
+        }
+
+        return Arrays.stream(pathPredicates).anyMatch(p -> p.path != null);
+    }
+
+    protected static boolean requiresParentJoin(AssetQuery query) {
+        ParentPredicate[] parentPredicates = query.parents;
+
+        if (query.select == null || !query.select.excludeParentInfo) {
+            return true;
+        }
+
+        if (parentPredicates == null || parentPredicates.length == 0) {
+            return false;
+        }
+
+        return Arrays.stream(parentPredicates)
+            .anyMatch(p -> !p.noParent && (p.type != null || p.name != null));
+    }
+
+//    protected String buildAttributeMetaFilter(List<ParameterBinder> binders, MetaPredicate...attributeMetaPredicates) {
+//        StringBuilder sb = new StringBuilder();
+//
+//        if (attributeMetaPredicates == null || attributeMetaPredicates.length == 0) {
+//            return "";
+//        }
+//
+//        sb.append(" AND (");
+//
+//        boolean isFirst = true;
+//        for (MetaPredicate attributeMetaPredicate : attributeMetaPredicates) {
+//
+//            if (!isFirst) {
+//                sb.append(" OR (true");
+//            } else {
+//                sb.append("(true");
+//            }
+//            isFirst = false;
+//
+//            if (attributeMetaPredicate.itemNamePredicate != null) {
+//                sb.append(attributeMetaPredicate.itemNamePredicate.caseSensitive
+//                    ? " and AM.VALUE #>> '{name}'"
+//                    : " and upper(AM.VALUE #>> '{name}')"
+//                );
+//                sb.append(buildMatchFilter(attributeMetaPredicate.itemNamePredicate));
+//                final int pos = binders.size() + 1;
+//                binders.add(st -> st.setParameter()));
+//            }
+//
+//            if (attributeMetaPredicate.itemValuePredicate != null) {
+//                if (attributeMetaPredicate.itemValuePredicate instanceof StringPredicate) {
+//                    StringPredicate stringPredicate = (StringPredicate) attributeMetaPredicate.itemValuePredicate;
+//                    sb.append(stringPredicate.caseSensitive
+//                        ? " and AM.VALUE #>> '{value}'"
+//                        : " and upper(AM.VALUE #>> '{value}')"
+//                    );
+//                    sb.append(buildMatchFilter(stringPredicate));
+//
+//                    final int pos = binders.size() + 1;
+//                    binders.add(st -> st.setParameter()));
+//                } else if (attributeMetaPredicate.itemValuePredicate instanceof BooleanPredicate) {
+//                    BooleanPredicate booleanPredicate = (BooleanPredicate) attributeMetaPredicate.itemValuePredicate;
+//                    sb.append(" and AM.VALUE #> '{value}' = to_jsonb(")
+//                        .append(booleanPredicate.value)
+//                        .append(")");
+//                } else if (attributeMetaPredicate.itemValuePredicate instanceof StringArrayPredicate) {
+//                    StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) attributeMetaPredicate.itemValuePredicate;
+//                    for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
+//                        StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
+//                        sb.append(stringPredicate.caseSensitive
+//                            ? " and AM.VALUE #> '{value}' ->> " + i
+//                            : " and upper(AM.VALUE #> '{value}' ->> " + i + ")"
+//                        );
+//                        sb.append(buildMatchFilter(stringPredicate));
+//                        final int pos = binders.size() + 1;
+//                        binders.add(st -> st.setParameter()));
+//                    }
+//                }
+//            }
+//            sb.append(")");
+//        }
+//        sb.append(")");
+//        return sb.toString();
+//    }
+
+    protected static String buildNameValuePredicateFilter(NameValuePredicate nameValuePredicate, String jsonObjName, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
+        if (nameValuePredicate.name == null && nameValuePredicate.value == null) {
+            return "TRUE";
+        }
+
+        String valuePath = nameValuePredicate instanceof AttributePredicate ? jsonObjName + ".VALUE #> '{value}'" : jsonObjName + ".VALUE";
+
+        StringBuilder attributeBuilder = new StringBuilder();
+
+        if (nameValuePredicate.name != null) {
+
+            if (nameValuePredicate.mustNotExist) {
+                attributeBuilder.append("NOT (");
+            }
+
+            attributeBuilder.append(nameValuePredicate.name.caseSensitive
+                ? jsonObjName + ".key"
+                : "upper(" + jsonObjName + ".key)"
+            );
+            attributeBuilder.append(buildMatchFilter(nameValuePredicate.name));
+
+            final int pos = binders.size() + 1;
+            binders.add(st -> st.setParameter(pos, nameValuePredicate.name.prepareValue()));
+
+            if (nameValuePredicate.mustNotExist) {
+                attributeBuilder.append(")");
+            }
+        }
+
+        if (nameValuePredicate.value != null) {
+
+            if (nameValuePredicate.name != null) {
+                attributeBuilder.append(" and ");
+            }
+
+            if (nameValuePredicate.value instanceof StringPredicate) {
+                StringPredicate stringPredicate = (StringPredicate) nameValuePredicate.value;
+                attributeBuilder.append(stringPredicate.caseSensitive
+                    ? valuePath + "\\:\\:text"
+                    : "upper(" + valuePath + "\\:\\:text)"
+                );
+                attributeBuilder.append(buildMatchFilter(stringPredicate));
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
+            } else if (nameValuePredicate.value instanceof BooleanPredicate) {
+                BooleanPredicate booleanPredicate = (BooleanPredicate) nameValuePredicate.value;
+                attributeBuilder
+                    .append(valuePath)
+                    .append(" = to_jsonb(")
+                    .append(booleanPredicate.value)
+                    .append(")");
+            } else if (nameValuePredicate.value instanceof StringArrayPredicate) {
+                StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) nameValuePredicate.value;
+                for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
+                    StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
+                    attributeBuilder.append(stringPredicate.caseSensitive
+                        ? valuePath + " ->> " + i
+                        : "upper(" + valuePath + " ->> " + i + ")"
+                    );
+                    attributeBuilder.append(buildMatchFilter(stringPredicate));
+                    final int pos = binders.size() + 1;
+                    binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
+                }
+            } else if (nameValuePredicate.value instanceof DateTimePredicate) {
+                DateTimePredicate dateTimePredicate = (DateTimePredicate) nameValuePredicate.value;
+                attributeBuilder
+                    .append(valuePath)
+                    .append("\\:\\:text)\\:\\:timestamp");
+
+                Pair<Long, Long> fromAndTo = dateTimePredicate.asFromAndTo(timeProvider.get());
+
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, new java.sql.Timestamp(fromAndTo.key != null ? fromAndTo.key : 0L)));
+                attributeBuilder.append(buildOperatorFilter(dateTimePredicate.operator, dateTimePredicate.negate));
+
+                if (dateTimePredicate.operator == Operator.BETWEEN) {
+                    final int pos2 = binders.size() + 1;
+                    binders.add(st -> st.setParameter(pos2, new java.sql.Timestamp(fromAndTo.value != null ? fromAndTo.value : Long.MAX_VALUE)));
+                }
+            } else if (nameValuePredicate.value instanceof NumberPredicate) {
+                NumberPredicate numberPredicate = (NumberPredicate) nameValuePredicate.value;
+                attributeBuilder
+                    .append(jsonObjName)
+                    .append("\\:\\:text)\\:\\:numeric");
+                attributeBuilder.append(buildOperatorFilter(numberPredicate.operator, numberPredicate.negate));
+
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, numberPredicate.value));
+                if (numberPredicate.operator == Operator.BETWEEN) {
+                    final int pos2 = binders.size() + 1;
+                    binders.add(st -> st.setParameter(pos2, numberPredicate.rangeValue));
+                }
+            } else if (nameValuePredicate.value instanceof ObjectValueKeyPredicate) {
+                ObjectValueKeyPredicate keyPredicate = (ObjectValueKeyPredicate) nameValuePredicate.value;
+                if (keyPredicate.negated) {
+                    attributeBuilder.append("NOT (jsonb_exists(").append(valuePath).append(", ?) ");
+                } else {
+                    attributeBuilder.append("jsonb_exists(").append(valuePath).append(", ?) ");
+                }
+                final int pos = binders.size() + 1;
+                binders.add(st -> st.setParameter(pos, keyPredicate.key));
+            } else if (nameValuePredicate.value instanceof ArrayPredicate) {
+                ArrayPredicate arrayPredicate = (ArrayPredicate) nameValuePredicate.value;
+                attributeBuilder.append("true");
+                if (arrayPredicate.negated) {
+                    attributeBuilder.append(" and NOT(");
+                }
+                if (arrayPredicate.value != null) {
+                    if (arrayPredicate.index != null) {
+                        attributeBuilder
+                            .append(valuePath)
+                            .append(" -> ")
+                            .append(arrayPredicate.index);
+                    } else {
+                        attributeBuilder.append(jsonObjName).append(".VALUE");
+                    }
+                    attributeBuilder.append(" @> ?");
+                    final int pos = binders.size() + 1;
+                    PGobject pgJsonValue = new PGobject();
+                    pgJsonValue.setType("jsonb");
+                    try {
+                        pgJsonValue.setValue(Values.asJSON(arrayPredicate.value).orElse("null"));
+                    } catch (SQLException e) {
+                        LOG.log(Level.SEVERE, "Failed to build SQL statement for array predicate", e);
+                        return "";
+                    }
+                    binders.add(st -> st.setParameter(pos, pgJsonValue));
+                }
+                if (arrayPredicate.lengthEquals != null) {
+                    attributeBuilder.append("json_array_length(")
+                        .append(valuePath)
+                        .append(") = ")
+                        .append(arrayPredicate.lengthEquals);
+                }
+                if (arrayPredicate.lengthGreaterThan != null) {
+                    attributeBuilder.append("json_array_length(")
+                        .append(valuePath)
+                        .append(") > ")
+                        .append(arrayPredicate.lengthGreaterThan);
+                }
+                if (arrayPredicate.lengthLessThan != null) {
+                    attributeBuilder.append("json_array_length(")
+                        .append(valuePath)
+                        .append(") < ")
+                        .append(arrayPredicate.lengthLessThan);
+                }
+                if (arrayPredicate.negated) {
+                    attributeBuilder.append(")");
+                }
+            } else if (nameValuePredicate.value instanceof GeofencePredicate) {
+                if (nameValuePredicate.value instanceof RadialGeofencePredicate) {
+                    RadialGeofencePredicate location = (RadialGeofencePredicate) nameValuePredicate.value;
+                    attributeBuilder.append("ST_DistanceSphere(ST_MakePoint((")
+                        .append(valuePath)
+                        .append(" #>> '{coordinates,0}')\\:\\:numeric")
+                        .append(", (")
+                        .append(valuePath)
+                        .append(" #>> '{coordinates,1}')\\:\\:numeric")
+                        .append("), ST_MakePoint(")
+                        .append(location.lng)
+                        .append(",")
+                        .append(location.lat)
+                        .append(location.negated ? ")) > " : ")) <= ")
+                        .append(location.radius);
+                } else if (nameValuePredicate.value instanceof RectangularGeofencePredicate) {
+                    RectangularGeofencePredicate location = (RectangularGeofencePredicate) nameValuePredicate.value;
+                    if (location.negated) {
+                        attributeBuilder.append("NOT");
+                    }
+                    attributeBuilder.append(" ST_Within(ST_MakePoint((")
+                        .append(valuePath)
+                        .append(" #>> '{coordinates,0}')\\:\\:numeric")
+                        .append(", (")
+                        .append(valuePath)
+                        .append(" #>> '{coordinates,1}')\\:\\:numeric")
+                        .append(")")
+                        .append(", ST_MakeEnvelope(")
+                        .append(location.lngMin)
+                        .append(",")
+                        .append(location.latMin)
+                        .append(",")
+                        .append(location.lngMax)
+                        .append(",")
+                        .append(location.latMax)
+                        .append("))");
+                }
+            } else if (nameValuePredicate.value instanceof ValueNotEmptyPredicate) {
+                attributeBuilder.append(valuePath).append("\\:\\:text IS NOT NULL");
+            } else if (nameValuePredicate.value instanceof ValueEmptyPredicate) {
+                attributeBuilder.append(valuePath).append("\\:\\:text IS NULL");
+            } else if (nameValuePredicate.value instanceof CalendarEventPredicate) {
+                final int pos = binders.size() + 1;
+                java.sql.Timestamp when = new java.sql.Timestamp(((CalendarEventPredicate)nameValuePredicate.value).timestamp.getTime());
+
+                // The recurrence logic is applied post DB query just check start key is present and in the past and also
+                // that the end key is numeric and in the future if no recurrence value
+                attributeBuilder.append("(jsonb_typeof(")
+                    .append(valuePath)
+                    .append(" #> '{start}') = 'number' AND jsonb_typeof(")
+                    .append(valuePath)
+                    .append(" #> '{end}') = 'number' AND to_timestamp((")
+                    .append(valuePath)
+                    .append(" #>> '{start}')\\:\\:float / 1000) <= ? AND (to_timestamp((")
+                    .append(valuePath)
+                    .append(" #>> '{end}')\\:\\:float / 1000) > ? OR jsonb_typeof(")
+                    .append(valuePath)
+                    .append(" #> '{recurrence}') = 'string'))");
+                binders.add(st -> st.setParameter(pos, when));
+                binders.add(st -> st.setParameter(pos+1, when));
+            } else {
+                throw new UnsupportedOperationException("Attribute value predicate is not supported: " + nameValuePredicate.value);
+            }
+        }
+
+        return attributeBuilder.toString();
+    }
+
+    protected static String buildOperatorFilter(AssetQuery.Operator operator, boolean negate) {
+        switch (operator) {
+            case EQUALS:
+                if (negate) {
+                    return " <> ? ";
+                }
+                return " = ? ";
+            case GREATER_THAN:
+                if (negate) {
+                    return " <= ? ";
+                }
+                return " > ? ";
+            case GREATER_EQUALS:
+                if (negate) {
+                    return " < ? ";
+                }
+                return " >= ? ";
+            case LESS_THAN:
+                if (negate) {
+                    return " >= ? ";
+                }
+                return " < ? ";
+            case LESS_EQUALS:
+                if (negate) {
+                    return " > ? ";
+                }
+                return " <= ? ";
+            case BETWEEN:
+                if (negate) {
+                    return " NOT BETWEEN ? AND ? ";
+                }
+                return " BETWEEN ? AND ? ";
+        }
+
+        throw new IllegalArgumentException("Unsupported operator: " + operator);
+    }
+
+    protected static String buildMatchFilter(StringPredicate predicate) {
+        switch (predicate.match) {
+            case BEGIN:
+            case END:
+            case CONTAINS:
+                if (predicate.negate) {
+                    return " not like ? ";
+                }
+                return " like ? ";
+            default:
+                if (predicate.negate) {
+                    return " <> ? ";
+                }
+                return " = ? ";
+        }
     }
 }

@@ -88,7 +88,7 @@ public class ZWNetwork {
             disposeClient();
             controller = null;
             ioClient = null;
-            onConnectionStatusChanged(ConnectionStatus.ERROR_CONFIGURATION);
+            onConnectionStatusChanged(ConnectionStatus.ERROR);
         }
     }
 

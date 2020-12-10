@@ -22,7 +22,6 @@ package org.openremote.manager.asset;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
-import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
@@ -42,13 +41,11 @@ import org.openremote.model.attribute.*;
 import org.openremote.model.asset.*;
 import org.openremote.model.attribute.AttributeEvent.Source;
 import org.openremote.model.security.ClientRole;
-import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
 
 import javax.persistence.EntityManager;
-import javax.validation.Validation;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -306,25 +303,6 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                             break;
                     }
 
-                    // Only certain agent attributes can be updated with events
-                    if (asset instanceof Agent) {
-
-                        boolean ok = false;
-
-                        if (source == INTERNAL && Agent.STATUS.getName().equals(event.getAttributeName())) {
-                            ok = true;
-                        }
-
-                        if (Agent.DISABLED.getName().equals(event.getAttributeName())) {
-                            ok = true;
-                        }
-
-                        if (!ok) {
-                            LOG.info("Illegal agent attribute update: " + event);
-                            throw new AssetProcessingException(ILLEGAL_AGENT_UPDATE);
-                        }
-                    }
-
                     // For executable attributes, non-sensor sources can set a writable attribute execute status
                     if (oldAttribute.getValueType() == ValueType.EXECUTION_STATUS && source != SENSOR) {
                         Optional<AttributeExecuteStatus> status = event.getValue()
@@ -514,7 +492,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
         Long timestamp = attribute.getTimestamp().orElse(timerService.getCurrentTimeMillis());
         String valueTimestamp = Long.toString(timestamp);
 
-        if (!assetStorageService.storeAttributeValue(em, asset.getId(), attributeName, value, valueTimestamp)) {
+        if (!assetStorageService.updateAttributeValue(em, asset.getId(), attributeName, value, valueTimestamp)) {
             throw new AssetProcessingException(
                 STATE_STORAGE_FAILED, "database update failed, no rows updated"
             );

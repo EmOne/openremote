@@ -36,21 +36,17 @@ import org.openremote.model.value.NameHolder;
 @JsonTypeName("asset")
 public class AssetDescriptor<T extends Asset<?>> implements NameHolder {
 
-    protected String name;
-    protected Class<T> type;
-    protected String icon;
-    protected String colour;
+    protected final String name;
+    protected final Class<T> type;
+    protected final String icon;
+    protected final String colour;
 
     /**
      * Construct an instance using the {@link Class#getSimpleName} value of the specified type as the descriptor name,
      * the {@link Class#getSimpleName} must therefore be unique enough to not clash with other {@link AssetDescriptor}s.
      */
     public AssetDescriptor(String icon, String colour, Class<T> type) {
-        this(icon, colour, type.getSimpleName(), type);
-    }
-
-    public AssetDescriptor(String icon, String colour, String name, Class<T> type) {
-        this.name = name;
+        this.name = type.getSimpleName();
         this.icon = icon;
         this.colour = colour;
         this.type = type;

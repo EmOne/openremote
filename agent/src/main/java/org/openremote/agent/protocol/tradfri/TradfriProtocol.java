@@ -106,7 +106,7 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink.De
                 synchroniseAssets(devices);
             }
         } else {
-            setConnectionStatus(ConnectionStatus.ERROR_CONFIGURATION);
+            setConnectionStatus(ConnectionStatus.ERROR);
         }
     }
 

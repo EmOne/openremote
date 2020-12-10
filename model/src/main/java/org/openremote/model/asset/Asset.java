@@ -309,7 +309,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     protected Asset() {
     }
 
-    //A.id as ID, A.name as NAME, A.accessPublicRead as ACCESS_PUBLIC_READ, A.createdOn AS CREATED_ON, A.type AS ASSET_TYPE, A.parentId AS PARENT_ID, A.realm AS REALM, A.version as VERSION, P.name as PARENT_NAME, P.type as PARENT_TYPE, A.name as TENANT_NAME, get_asset_tree_path(A.id) as PATH, A.attributes as ATTRIBUTES
     protected Asset(String id) {
         this.id = id;
     }

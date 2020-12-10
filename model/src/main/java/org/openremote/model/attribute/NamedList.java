@@ -29,11 +29,11 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.ser.FilterProvider;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import org.openremote.model.value.AbstractNameValueDescriptorHolder;
-import org.openremote.model.value.AbstractNameValueHolder;
-import org.openremote.model.value.NameHolder;
-import org.openremote.model.value.ValueHolder;
+import org.openremote.model.value.*;
 
 import java.io.IOException;
 import java.util.*;
@@ -48,6 +48,14 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
 
     public static class NamedListSerializer extends StdSerializer<NamedList<?>> {
 
+        protected static ObjectWriter withoutNameWriter;
+
+        static {
+            SimpleBeanPropertyFilter filter = SimpleBeanPropertyFilter.serializeAllExcept("name");
+            FilterProvider fp = new SimpleFilterProvider().addFilter("excludeNameFilter", filter);
+            withoutNameWriter = Values.JSON.writer(fp);
+        }
+
         @SuppressWarnings("unchecked")
         public NamedListSerializer() {
             super((Class<NamedList<?>>)(Class)NamedList.class);
@@ -55,10 +63,11 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
 
         @Override
         public void serialize(NamedList<?> value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            gen.writeStartObject();
 
-            for (NameHolder model : value) {
-                gen.writeObjectField(model.getName(), model);
+            gen.writeStartObject();
+            for (AbstractNameValueHolder<?> model : value) {
+                gen.writeFieldName(model.getName());
+                withoutNameWriter.writeValue(gen, model);
             }
 
             gen.writeEndObject();

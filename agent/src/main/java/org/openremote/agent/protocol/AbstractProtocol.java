@@ -291,10 +291,9 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
             LOG.warning("Attempt to update non existent agent attribute or agent ID is incorrect: " + state);
             return;
         }
-
         AttributeEvent attributeEvent = new AttributeEvent(state, timerService.getCurrentTimeMillis());
-        LOG.fine("Sending agent attribute update  on sensor queue: " + attributeEvent);
-        producerTemplate.sendBodyAndHeader(SENSOR_QUEUE, attributeEvent, Protocol.SENSOR_QUEUE_SOURCE_PROTOCOL, getProtocolName());
+        LOG.fine("Sending protocol agent attribute update: " + attributeEvent);
+        assetService.sendAttributeEvent(attributeEvent);
     }
 
     /**

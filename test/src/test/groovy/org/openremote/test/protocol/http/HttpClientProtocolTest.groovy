@@ -696,7 +696,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
 
         and: "the protocol connection status should now be ERROR_AUTHENTICATION"
         conditions.eventually {
-            assert agentService.getAgentConnectionStatus(new AttributeRef(agent.id, "protocolConfig4")) == ConnectionStatus.ERROR_AUTHENTICATION
+            assert agentService.getAgentConnectionStatus(new AttributeRef(agent.id, "protocolConfig4")) == ConnectionStatus.ERROR
         }
 
         when: "a linked attribute value is updated"

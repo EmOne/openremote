@@ -382,7 +382,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
             assert notificationIds.size() == 1
             def asset = assetStorageService.find(testUser3Console2.id, true)
             assert asset != null
-            timestamp = asset.getAttribute(LOCATION.attributeName).flatMap { it.valueTimestamp }.orElse(Long.MAX_VALUE)
+            timestamp = asset.getAttribute(LOCATION.attributeName).flatMap { it.timestamp }.orElse(Long.MAX_VALUE)
         }
 
         when: "time advances"
@@ -395,8 +395,8 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         conditions.eventually {
             def asset = assetStorageService.find(testUser3Console2.id, true)
             assert asset != null
-            assert asset.getAttribute(LOCATION.attributeName).flatMap { it.valueTimestamp }.orElse(Long.MIN_VALUE) > timestamp
-            timestamp = asset.getAttribute(LOCATION.attributeName).flatMap { it.valueTimestamp }.orElse(Long.MIN_VALUE)
+            assert asset.getAttribute(LOCATION.attributeName).flatMap { it.timestamp }.orElse(Long.MIN_VALUE) > timestamp
+            timestamp = asset.getAttribute(LOCATION.attributeName).flatMap { it.timestamp }.orElse(Long.MIN_VALUE)
             assert notificationIds.size() == 1
         }
 
@@ -410,7 +410,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         conditions.eventually {
             def asset = assetStorageService.find(testUser3Console2.id, true)
             assert asset != null
-            assert asset.getAttribute(LOCATION.attributeName).flatMap { it.valueTimestamp }.orElse(Long.MIN_VALUE) > timestamp
+            assert asset.getAttribute(LOCATION.attributeName).flatMap { it.timestamp }.orElse(Long.MIN_VALUE) > timestamp
             assert notificationIds.size() == 1
             def tenantBuildingEngine = rulesService.tenantEngines.get(keycloakTestSetup.tenantBuilding.realm)
             assert tenantBuildingEngine != null

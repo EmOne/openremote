@@ -53,7 +53,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * <ol>
  * <li>{@link #start} - If this call throws an exception then it is assumed that a permanent failure has occurred (i.e.
  *  the {@link Agent} is incorrectly configured) and this Agent's status will be marked as
- *  {@link ConnectionStatus#ERROR_CONFIGURATION} and attribute linking will not occur.</li>
+ *  {@link ConnectionStatus#ERROR} and attribute linking will not occur.</li>
  * <li>{@link #linkAttribute} - Called for each attribute linked to the {@link Agent}</li>
  * </ol>
  * <h3>Configuring protocol instances</h3>

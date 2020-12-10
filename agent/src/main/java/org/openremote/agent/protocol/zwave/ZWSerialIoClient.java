@@ -125,9 +125,6 @@ public class ZWSerialIoClient extends SerialIoClient<byte[]> implements Transpor
                 case ERROR:
                     listener.onConnectionStatusChanged(org.openremote.protocol.zwave.port.ConnectionStatus.ERROR);
                     break;
-                case ERROR_CONFIGURATION:
-                    listener.onConnectionStatusChanged(org.openremote.protocol.zwave.port.ConnectionStatus.ERROR_CONFIGURATION);
-                    break;
             }
         }
     }

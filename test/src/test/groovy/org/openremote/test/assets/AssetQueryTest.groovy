@@ -60,6 +60,12 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         persistenceService = container.getService(PersistenceService.class)
     }
 
+    // TODO: Test attribute/meta mustnotexist
+    // TODO: Test parent predicate noparent
+    // TODO: Test ID and user ID
+    // TODO: Test multiple logic groups with different conditions
+    // TODO: Test Array predicate
+
     def "Query assets 1"() {
 
         when: "an agent filtering query is executed"

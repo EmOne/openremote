@@ -82,7 +82,6 @@ public class AgentHealthStatusProvider implements HealthStatusProvider, Containe
             if (status != null) {
                 switch (status) {
 
-                    case UNKNOWN:
                     case DISCONNECTED:
                     case CONNECTING:
                     case DISCONNECTING:
@@ -95,8 +94,6 @@ public class AgentHealthStatusProvider implements HealthStatusProvider, Containe
                     case DISABLED:
                         disabledCount.incrementAndGet();
                         break;
-                    case ERROR_AUTHENTICATION:
-                    case ERROR_CONFIGURATION:
                     case ERROR:
                         errorCount.incrementAndGet();
                         break;
