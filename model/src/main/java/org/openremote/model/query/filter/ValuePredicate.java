@@ -29,12 +29,10 @@ import java.util.function.Supplier;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = StringPredicate.class, name = StringPredicate.name),
     @JsonSubTypes.Type(value = BooleanPredicate.class, name = BooleanPredicate.name),
-    @JsonSubTypes.Type(value = StringArrayPredicate.class, name = StringArrayPredicate.name),
     @JsonSubTypes.Type(value = DateTimePredicate.class, name = DateTimePredicate.name),
     @JsonSubTypes.Type(value = NumberPredicate.class, name = NumberPredicate.name),
     @JsonSubTypes.Type(value = RadialGeofencePredicate.class, name = RadialGeofencePredicate.name),
     @JsonSubTypes.Type(value = RectangularGeofencePredicate.class, name = RectangularGeofencePredicate.name),
-    @JsonSubTypes.Type(value = ObjectValueKeyPredicate.class, name = ObjectValueKeyPredicate.name),
     @JsonSubTypes.Type(value = ArrayPredicate.class, name = ArrayPredicate.name),
     @JsonSubTypes.Type(value = ValueEmptyPredicate.class, name = ValueEmptyPredicate.name),
     @JsonSubTypes.Type(value = ValueNotEmptyPredicate.class, name = ValueNotEmptyPredicate.name),

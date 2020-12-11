@@ -24,7 +24,7 @@ public enum NodeModel {
                 AttributeInternalValue assetAttributePair = Values.JSON.convertValue(info.getInternals()[0].getValue(), AttributeInternalValue.class);
                 String assetId = assetAttributePair.getAssetId();
                 String attributeName = assetAttributePair.getAttributeName();
-                Optional<AssetState> readValue = info.getFacts().matchFirstAssetState(new AssetQuery().ids(assetId).attributeName(attributeName));
+                Optional<AssetState<?>> readValue = info.getFacts().matchFirstAssetState(new AssetQuery().ids(assetId).attributeName(attributeName));
                 if (!readValue.isPresent()) return null;
                 return readValue.get().getValue().orElse(null);
             },
@@ -32,7 +32,7 @@ public enum NodeModel {
                 AttributeInternalValue internal = Values.JSON.convertValue(params.getNode().getInternals()[0].getValue(), AttributeInternalValue.class);
                 String assetId = internal.getAssetId();
                 String attributeName = internal.getAttributeName();
-                List<AssetState> allAssets = params.getFacts().matchAssetState(new AssetQuery().ids(assetId).attributeName(attributeName)
+                List<AssetState<?>> allAssets = params.getFacts().matchAssetState(new AssetQuery().ids(assetId).attributeName(attributeName)
                 ).collect(Collectors.toList());
 
                 return allAssets.stream().anyMatch(state -> {
@@ -57,7 +57,7 @@ public enum NodeModel {
                     return;
                 }
                 AttributeInternalValue assetAttributePair = Values.JSON.convertValue(info.getInternals()[0].getValue(), AttributeInternalValue.class);
-                Optional<AssetState> existingValue = info.getFacts().matchFirstAssetState(new AssetQuery().ids(assetAttributePair.getAssetId()).attributeName(assetAttributePair.getAttributeName()));
+                Optional<AssetState<?>> existingValue = info.getFacts().matchFirstAssetState(new AssetQuery().ids(assetAttributePair.getAssetId()).attributeName(assetAttributePair.getAttributeName()));
 
                 if (existingValue.isPresent())
                     if (existingValue.get().getValue().isPresent())

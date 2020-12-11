@@ -123,7 +123,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     // Keep global list of asset states that have been pushed to any engines
     // The objects are already in memory inside the rule engines but keeping them
     // here means we can quickly insert facts into newly started engines
-    protected Set<AssetState> assetStates = new HashSet<>();
+    protected Set<AssetState<?>> assetStates = new HashSet<>();
     protected String configEventExpires;
     protected boolean initDone;
 
@@ -768,7 +768,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         }
     }
 
-    protected List<AssetState> getAssetStatesInScope(String assetId) {
+    protected List<AssetState<?>> getAssetStatesInScope(String assetId) {
         return assetStates
             .stream()
             .filter(assetState -> Arrays.asList(assetState.getPath()).contains(assetId))
@@ -806,7 +806,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
             new AssetQuery()
                 .attributes(
                     new AttributePredicate().meta(
-                        new NameValuePredicate(MetaItemType.RULE_STATE).value(new BooleanPredicate(true)))));
+                        new NameValuePredicate(MetaItemType.RULE_STATE, new BooleanPredicate(true)))));
 
         return assets.stream()
             .map(asset ->
@@ -969,7 +969,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     }
 
     public void fireDeploymentsWithPredictedDataForAsset(String assetId) {
-        List<AssetState> assetStates = getAssetStatesInScope(assetId);
+        List<AssetState<?>> assetStates = getAssetStatesInScope(assetId);
         if (assetStates.size() > 0) {
             String realm = assetStates.get(0).getRealm();
             String[] assetPaths = assetStates.stream().flatMap(assetState -> Arrays.stream(assetState.getPath())).toArray(String[]::new);

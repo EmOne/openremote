@@ -23,9 +23,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
@@ -43,7 +43,7 @@ import java.util.stream.Stream;
  * Stores a named value with associated {@link MetaItem}s.
  */
 @JsonDeserialize(using = Attribute.AttributeDeserializer.class)
-public class Attribute<T> extends AbstractNameValueHolder<T> {
+public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHolder {
 
     public static class AttributeDeserializer extends StdDeserializer<Attribute<?>> {
 
@@ -53,7 +53,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
-        public Attribute<?> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+        public Attribute<?> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
 
             // Need to find the type field to know how to deserialise the value
             TokenBuffer tokenBuffer = TokenBuffer.asCopyOfValue(jp);
@@ -490,7 +490,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> {
         return getClass().getSimpleName() + "{" +
             "name='" + name + '\'' +
             ", value='" + value + '\'' +
-            ", timestamp='" + getTimestamp() + '\'' +
+            ", timestamp='" + getTimestamp().orElse(0L) + '\'' +
             ", meta='" + getMeta().stream().map(MetaItem::toString).collect(Collectors.joining(",")) + '\'' +
             "} ";
     }

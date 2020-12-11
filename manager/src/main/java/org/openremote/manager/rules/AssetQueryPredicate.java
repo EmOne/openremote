@@ -19,24 +19,26 @@
  */
 package org.openremote.manager.rules;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.impl.ThingAsset;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.LogicGroup;
-import org.openremote.model.query.filter.AttributePredicate;
-import org.openremote.model.query.filter.ParentPredicate;
-import org.openremote.model.query.filter.PathPredicate;
-import org.openremote.model.query.filter.TenantPredicate;
+import org.openremote.model.query.filter.*;
 import org.openremote.model.rules.AssetState;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.value.MetaHolder;
+import org.openremote.model.value.NameValueHolder;
+import org.openremote.model.value.Values;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -44,7 +46,7 @@ import java.util.stream.Collectors;
 /**
  * Test an {@link AssetState} with a {@link AssetQuery}.
  */
-public class AssetQueryPredicate implements Predicate<AssetState> {
+public class AssetQueryPredicate implements Predicate<AssetState<?>> {
 
     final protected AssetQuery query;
     final protected TimerService timerService;
@@ -68,7 +70,7 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
         if (query.names != null && query.names.length > 0) {
             if (Arrays.stream(query.names)
                     .map(stringPredicate -> stringPredicate.asPredicate(timerService::getCurrentTimeMillis))
-                    .noneMatch(np -> np.test(assetState.getName()))) {
+                    .noneMatch(np -> np.test(assetState.getAssetName()))) {
                 return false;
             }
         }
@@ -84,7 +86,7 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
         if (query.types != null && query.types.length > 0) {
             if (Arrays.stream(query.types).noneMatch(type ->
                         type.isAssignableFrom(
-                            AssetModelUtil.getAssetDescriptor(assetState.getType())
+                            AssetModelUtil.getAssetDescriptor(assetState.getAssetType())
                                 .orElse(ThingAsset.DESCRIPTOR).getType()))
                     ) {
                 return false;
@@ -120,7 +122,7 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
         return true;
     }
 
-    public static Predicate<AssetState> asPredicate(ParentPredicate predicate) {
+    public static Predicate<AssetState<?>> asPredicate(ParentPredicate predicate) {
         return assetState ->
             (predicate.id == null || predicate.id.equals(assetState.getParentId()))
                 && (predicate.type == null || predicate.type.equals(assetState.getParentType()))
@@ -132,12 +134,12 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
         return givenPath -> Arrays.equals(predicate.path, givenPath);
     }
 
-    public static Predicate<AssetState> asPredicate(TenantPredicate predicate) {
+    public static Predicate<AssetState<?>> asPredicate(TenantPredicate predicate) {
         return assetState ->
             predicate == null || (predicate.realm != null && predicate.realm.equals(assetState.getRealm()));
     }
 
-    public static Predicate<AssetState> asPredicate(Supplier<Long> currentMillisSupplier, AttributePredicate predicate) {
+    public static Predicate<NameValueHolder<?>> asPredicate(Supplier<Long> currentMillisSupplier, NameValuePredicate predicate) {
 
         Predicate<Object> namePredicate = predicate.name != null
             ? predicate.name.asPredicate(currentMillisSupplier) : str -> true;
@@ -149,78 +151,81 @@ public class AssetQueryPredicate implements Predicate<AssetState> {
             return predicate.value.asPredicate(currentMillisSupplier).test(value);
         };
 
-        Predicate<MetaList> metaPredicate = meta -> {
-            if (predicate.meta == null || predicate.meta.length == 0) {
-                return true;
-            }
+        AtomicReference<Function<NameValueHolder<?>, Object>> valueExtractor = new AtomicReference<>(nameValueHolder -> nameValueHolder.getValue().orElse(null));
 
-            return Arrays.stream(predicate.meta)
-                .allMatch(metaItemPredicate -> {
+        if (predicate.path != null && predicate.path.getPaths().length > 0) {
+            valueExtractor.set(nameValueHolder -> {
+                if (!nameValueHolder.getValue().isPresent()) {
+                    return null;
+                }
+                Object rawValue = nameValueHolder.getValue().get();
 
-                    boolean matched = true;
+                if (!Values.isArray(rawValue.getClass()) && !Values.isObject(rawValue.getClass())) {
+                    return null;
+                }
 
-                    if (metaItemPredicate.mustNotExist && metaItemPredicate.name != null) {
-                        matched = meta.stream()
-                            .noneMatch(metaItem ->
-                                metaItemPredicate.name.asPredicate(currentMillisSupplier).test(metaItem.getName())
-                            );
-                    } else if (metaItemPredicate.name != null) {
-                        matched = meta.stream()
-                            .anyMatch(metaItem ->
-                                metaItemPredicate.name.asPredicate(currentMillisSupplier).test(metaItem.getName())
-                            );
+                JsonNode jsonNode = Values.convert(nameValueHolder.getValue(), JsonNode.class);
+                for (Object path : predicate.path.getPaths()) {
+                    if (path == null) {
+                        return null;
                     }
-
-                    if (!matched) {
-                        return false;
+                    if (path instanceof Integer) {
+                        jsonNode = jsonNode.get((int)path);
+                    } else if (path instanceof String) {
+                        jsonNode = jsonNode.get((String)path);
                     }
-
-                    if (metaItemPredicate.value != null) {
-                        // Get meta that match the name predicate and see if any of them match the value predicate
-                        matched = meta.stream()
-                            .filter(metaItem ->
-                                metaItemPredicate.name == null
-                                    || metaItemPredicate.name
-                                        .asPredicate(currentMillisSupplier)
-                                        .test(metaItem.getName()))
-                            .anyMatch(metaItem ->
-                                metaItemPredicate.value
-                                    .asPredicate(currentMillisSupplier)
-                                    .test(metaItem.getValue().orElse(null)));
+                    if (jsonNode == null) {
+                        break;
                     }
+                }
+                return jsonNode;
+            });
+        }
 
-                    return matched;
-                });
-        };
-
-        Predicate<Object> oldValuePredicate = value -> {
-            if (predicate.previousValue == null) {
-                return true;
-            }
-            return predicate.previousValue.asPredicate(currentMillisSupplier).test(value);
-        };
-
-        return assetState -> namePredicate.test(assetState.getAttributeName())
-            && valuePredicate.test(assetState.getValue().orElse(null))
-            && oldValuePredicate.test(assetState.getOldValue().orElse(null))
-            && metaPredicate.test(assetState.getMeta());
+        return nameValueHolder -> namePredicate.test(nameValueHolder.getName())
+            && valuePredicate.test(valueExtractor.get().apply(nameValueHolder));
     }
 
-    public static Predicate<AssetState> asPredicate(Supplier<Long> currentMillisProducer, LogicGroup<AttributePredicate> condition) {
+    @SuppressWarnings("unchecked")
+    public static Predicate<AssetState<?>> asPredicate(Supplier<Long> currentMillisProducer, LogicGroup<AttributePredicate> condition) {
         if (groupIsEmpty(condition)) {
             return as -> true;
         }
 
         LogicGroup.Operator operator = condition.operator == null ? LogicGroup.Operator.AND : condition.operator;
 
-        List<Predicate<AssetState>> assetStatePredicates = new ArrayList<>();
+        List<Predicate<AssetState<?>>> assetStatePredicates = new ArrayList<>();
 
         if (condition.getItems().size() > 0) {
-            assetStatePredicates.addAll(
-                condition.getItems().stream()
-                            .map(p -> asPredicate(currentMillisProducer, p))
-                    .collect(Collectors.toList())
-            );
+
+            condition.getItems().stream()
+                .forEach(p -> {
+                    assetStatePredicates.add((Predicate<AssetState<?>>)(Predicate)asPredicate(currentMillisProducer, p));
+
+                    AtomicReference<Predicate<AssetState<?>>> metaPredicate = new AtomicReference<>(nameValueHolder -> true);
+                    AtomicReference<Predicate<AssetState<?>>> oldValuePredicate = new AtomicReference<>(value -> true);
+
+                    if (p.meta != null) {
+                        final Predicate<NameValueHolder<?>> innerMetaPredicate = Arrays.stream(p.meta)
+                            .map(metaPred -> asPredicate(currentMillisProducer, metaPred))
+                            .reduce(x->true, Predicate::and);
+
+                        metaPredicate.set(assetState -> {
+                            Collection<MetaItem<?>> metaItems = ((MetaHolder)assetState).getMeta();
+                            return metaItems.stream().anyMatch(metaItem ->
+                                innerMetaPredicate.test(assetState)
+                            );
+                        });
+                    }
+
+                    if (p.previousValue != null) {
+                        Predicate<Object> innerOldValuePredicate = p.previousValue.asPredicate(currentMillisProducer);
+                        oldValuePredicate.set(nameValueHolder -> innerOldValuePredicate.test((nameValueHolder).getOldValue()));
+                    }
+
+                    assetStatePredicates.add(metaPredicate.get());
+                    assetStatePredicates.add(oldValuePredicate.get());
+                });
         }
 
         if (condition.groups != null && condition.groups.size() > 0) {

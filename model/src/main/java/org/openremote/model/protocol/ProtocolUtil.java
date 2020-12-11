@@ -156,7 +156,7 @@ public final class ProtocolUtil {
                     Protocol.LOG.info("Value filters generated a null value for attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
                 }
                 return o;
-            }).orElse(null)
+            }).orElse(valRef.get())
         );
 
         // value conversion
@@ -179,7 +179,7 @@ public final class ProtocolUtil {
 
         if (toType != fromType) {
             Protocol.LOG.fine("Applying built in attribute value conversion: " + fromType + " -> " + toType);
-            valRef.set(Values.getValue(valRef.get(), attribute.getValueType().getType()));
+            valRef.set(Values.getValueCoerced(valRef.get(), toType));
 
             if (valRef.get() == null) {
                 Protocol.LOG.warning("Failed to convert value: " + fromType + " -> " + toType);

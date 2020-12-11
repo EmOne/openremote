@@ -26,7 +26,6 @@ import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.AttributeEvent;
-import org.openremote.model.attribute.AttributeExecuteStatus;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.filter.GeofencePredicate;
 import org.openremote.model.rules.AssetState;
@@ -64,8 +63,8 @@ public class RulesFacts extends Facts implements RuleListener {
     final protected Assets assetsFacade;
     final protected Object loggingContext;
     final protected Logger LOG;
-    final protected Map<String, Collection<AssetState>> assetIdIndex = new HashMap<>();
-    final protected Map<String, Collection<AssetState>> assetTypeIndex = new HashMap<>();
+    final protected Map<String, Collection<AssetState<?>>> assetIdIndex = new HashMap<>();
+    final protected Map<String, Collection<AssetState<?>>> assetTypeIndex = new HashMap<>();
     public RulesClock clock;
     protected int triggerCount;
     protected boolean trackLocationRules;
@@ -111,13 +110,13 @@ public class RulesFacts extends Facts implements RuleListener {
     }
 
     @SuppressWarnings("unchecked")
-    public Collection<AssetState> getAssetStates() {
-        return (Collection<AssetState>) get(ASSET_STATES);
+    public Collection<AssetState<?>> getAssetStates() {
+        return (Collection<AssetState<?>>) get(ASSET_STATES);
     }
 
     @SuppressWarnings("unchecked")
-    public Collection<TemporaryFact<AssetState>> getAssetEvents() {
-        return (Collection<TemporaryFact<AssetState>>) get(ASSET_EVENTS);
+    public Collection<TemporaryFact<AssetState<?>>> getAssetEvents() {
+        return (Collection<TemporaryFact<AssetState<?>>>) get(ASSET_EVENTS);
     }
 
     @SuppressWarnings("unchecked")
@@ -218,9 +217,9 @@ public class RulesFacts extends Facts implements RuleListener {
         assetIdIndex.get(assetState.getId()).add(assetState);
 
         // Maintain index of all asset states for this asset by type
-        assetTypeIndex.putIfAbsent(assetState.getType(), new ArrayDeque<>());
-        assetTypeIndex.get(assetState.getType()).remove(assetState);
-        assetTypeIndex.get(assetState.getType()).add(assetState);
+        assetTypeIndex.putIfAbsent(assetState.getAssetType(), new ArrayDeque<>());
+        assetTypeIndex.get(assetState.getAssetType()).remove(assetState);
+        assetTypeIndex.get(assetState.getAssetType()).add(assetState);
 
         return this;
     }
@@ -232,13 +231,13 @@ public class RulesFacts extends Facts implements RuleListener {
         getAssetStates().remove(assetState);
 
         // Maintain index of all asset states for this asset by ID
-        Collection<AssetState> assetIdIndexCollection = assetIdIndex.get(assetState.getId());
+        Collection<AssetState<?>> assetIdIndexCollection = assetIdIndex.get(assetState.getId());
         if (assetIdIndexCollection != null) {
             assetIdIndexCollection.remove(assetState);
         }
 
         // Maintain index of all asset states for this asset by type
-        Collection<AssetState> assetTypeIndexCollection = assetTypeIndex.get(assetState.getType());
+        Collection<AssetState<?>> assetTypeIndexCollection = assetTypeIndex.get(assetState.getAssetType());
         if (assetTypeIndexCollection != null) {
             assetTypeIndexCollection.remove(assetState);
         }
@@ -251,7 +250,7 @@ public class RulesFacts extends Facts implements RuleListener {
     }
 
     public RulesFacts insertAssetEvent(long expiresMilliSeconds, AssetState assetState) {
-        TemporaryFact<AssetState> fact = new TemporaryFact<>(assetState.getTimestamp(), expiresMilliSeconds, assetState);
+        TemporaryFact<AssetState<?>> fact = new TemporaryFact<>(assetState.getTimestamp(), expiresMilliSeconds, assetState);
         if (LOG.isLoggable(Level.FINEST)) {
             LOG.finest("Fact change (INSERT): " + fact + " - on: " + loggingContext);
         }
@@ -422,38 +421,39 @@ public class RulesFacts extends Facts implements RuleListener {
                 .map(fact -> (T) fact);
     }
 
-    public Optional<AssetState> matchFirstAssetState(AssetQuery assetQuery) {
+    public Optional<AssetState<?>> matchFirstAssetState(AssetQuery assetQuery) {
         return matchAssetState(assetQuery).findFirst();
     }
 
-    public Stream<AssetState> matchAssetState(AssetQuery assetQuery) {
+    public Stream<AssetState<?>> matchAssetState(AssetQuery assetQuery) {
 
         if (trackLocationRules && assetQuery.attributes != null) {
             storeLocationPredicates(getLocationPredicates(assetQuery.attributes));
         }
 
-        Predicate<AssetState> p = new AssetQueryPredicate(timerService, assetStorageService, assetQuery);
+        Predicate<AssetState<?>> p = new AssetQueryPredicate(timerService, assetStorageService, assetQuery);
         return matchAssetState(p);
     }
 
-    public Stream<AssetState> matchAssetState(Predicate<AssetState> p) {
+    public Stream<AssetState<?>> matchAssetState(Predicate<AssetState<?>> p) {
         // Match against all asset states by default
-        Stream<AssetState> assetStates = getAssetStates().stream();
+        Stream<AssetState<?>> assetStates = getAssetStates().stream();
         return assetStates.parallel().filter(p);
     }
 
-    public Optional<TemporaryFact<AssetState>> matchFirstAssetEvent(AssetQuery assetQuery) {
+    public Optional<TemporaryFact<AssetState<?>>> matchFirstAssetEvent(AssetQuery assetQuery) {
         return matchAssetEvent(assetQuery).findFirst();
     }
 
-    public Optional<TemporaryFact<AssetState>> matchLastAssetEvent(AssetQuery assetQuery) {
+    public Optional<TemporaryFact<AssetState<?>>> matchLastAssetEvent(AssetQuery assetQuery) {
         return matchAssetEvent(assetQuery).reduce((first, second) -> second);
     }
 
-    public Stream<TemporaryFact<AssetState>> matchAssetEvent(AssetQuery assetQuery) {
-        Predicate<AssetState> p = new AssetQueryPredicate(timerService, assetStorageService, assetQuery);
+    @SuppressWarnings("unchecked")
+    public Stream<TemporaryFact<AssetState<?>>> matchAssetEvent(AssetQuery assetQuery) {
+        Predicate<AssetState<?>> p = new AssetQueryPredicate(timerService, assetStorageService, assetQuery);
         return getAssetEvents().stream().parallel()
-                .filter(fact -> matchFact(fact, AssetState.class, p).isPresent());
+                .filter(fact -> this.matchFact(fact, (Class<AssetState<?>>)(Class)AssetState.class, p).isPresent());
     }
 
     public RulesFacts updateAssetState(String assetId, String attributeName, Object value) {
@@ -509,7 +509,7 @@ public class RulesFacts extends Facts implements RuleListener {
             haveLog = true;
         }
 
-        List<AssetState> sortedAssetStates = new ArrayList<>(getAssetStates());
+        List<AssetState<?>> sortedAssetStates = new ArrayList<>(getAssetStates());
         sortedAssetStates.sort(Comparator.naturalOrder());
         if (sortedAssetStates.size() > 0) {
             logger.info("--------------------------------- ASSET STATES (" + sortedAssetStates.size() + ") ---------------------------------");
@@ -518,11 +518,11 @@ public class RulesFacts extends Facts implements RuleListener {
             }
             haveLog = true;
         }
-        List<TemporaryFact<AssetState>> sortedAssetEvents = new ArrayList<>(getAssetEvents());
+        List<TemporaryFact<AssetState<?>>> sortedAssetEvents = new ArrayList<>(getAssetEvents());
         if (sortedAssetEvents.size() > 0) {
             logger.info("--------------------------------- ASSET EVENTS (" + sortedAssetEvents.size() + ") ---------------------------------");
             sortedAssetEvents.sort(Comparator.comparing(TemporaryFact::getTime));
-            for (TemporaryFact<AssetState> assetEvent : sortedAssetEvents) {
+            for (TemporaryFact<AssetState<?>> assetEvent : sortedAssetEvents) {
                 logger.info(assetEvent.toString());
             }
             haveLog = true;
@@ -561,9 +561,9 @@ public class RulesFacts extends Facts implements RuleListener {
         return haveLog;
     }
 
-    public static Comparator<AssetState> asComparator(AssetQuery.OrderBy orderBy) {
+    public static Comparator<AssetState<?>> asComparator(AssetQuery.OrderBy orderBy) {
 
-        Function<AssetState, String> keyExtractor = AssetState::getName;
+        Function<AssetState, String> keyExtractor = AssetState::getAssetName;
         boolean reverse = orderBy.descending;
 
         switch (orderBy.property) {
@@ -572,7 +572,7 @@ public class RulesFacts extends Facts implements RuleListener {
                 keyExtractor = assetState -> Long.toString(assetState.getCreatedOn().getTime());
                 break;
             case ASSET_TYPE:
-                keyExtractor = AssetState::getType;
+                keyExtractor = AssetState::getAssetType;
                 break;
             case PARENT_ID:
                 keyExtractor = AssetState::getParentId;
@@ -582,7 +582,7 @@ public class RulesFacts extends Facts implements RuleListener {
                 break;
         }
 
-        Comparator<AssetState> comparator = Comparator.comparing(keyExtractor);
+        Comparator<AssetState<?>> comparator = Comparator.comparing(keyExtractor);
 
         if (reverse) {
             comparator = comparator.reversed();
@@ -595,18 +595,18 @@ public class RulesFacts extends Facts implements RuleListener {
         // Remove the asset state from the facts, it is invalid now
         getAssetStates()
                 .removeIf(assetState -> {
-                    boolean invalid = assetState.getId().equals(assetId) && assetState.getAttributeName().equals(attributeName);
+                    boolean invalid = assetState.getId().equals(assetId) && assetState.getName().equals(attributeName);
                     if (invalid) {
                         if (LOG.isLoggable(Level.FINEST)) {
                             LOG.finest("Fact change (INTERNAL DELETE): " + assetState + " - on: " + loggingContext);
                         }
                         // Maintain index of all asset states for this asset by ID
-                        Collection<AssetState> assetIdIndexCollection = assetIdIndex.get(assetState.getId());
+                        Collection<AssetState<?>> assetIdIndexCollection = assetIdIndex.get(assetState.getId());
                         if (assetIdIndexCollection != null) {
                             assetIdIndexCollection.remove(assetState);
                         }
                         // Maintain index of all asset states for this asset by type
-                        Collection<AssetState> assetTypeIndexCollection = assetTypeIndex.get(assetState.getType());
+                        Collection<AssetState<?>> assetTypeIndexCollection = assetTypeIndex.get(assetState.getAssetType());
                         if (assetTypeIndexCollection != null) {
                             assetTypeIndexCollection.remove(assetState);
                         }
@@ -629,7 +629,7 @@ public class RulesFacts extends Facts implements RuleListener {
             // Collect asset states only where the attribute is location (location predicates only make sense when the location
             // attribute is exposed to rules - we don't support RULE_EVENT facts just RULE_STATE
             if (assetStateLocationPredicateMap == null) {
-                Collection<AssetState> locationAssetStates = getAssetStates().stream().filter(assetState -> assetState.getAttributeName().equalsIgnoreCase(Asset.LOCATION.getName())).collect(Collectors.toSet());
+                Collection<AssetState<?>> locationAssetStates = getAssetStates().stream().filter(assetState -> assetState.getName().equalsIgnoreCase(Asset.LOCATION.getName())).collect(Collectors.toSet());
                 assetStateLocationPredicateMap = new HashMap<>(locationAssetStates.size());
                 locationAssetStates.forEach(assetState -> assetStateLocationPredicateMap.put(assetState.getId(), new HashSet<>()));
             }

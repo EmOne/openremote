@@ -173,14 +173,14 @@ public class RulesEngine<T extends Ruleset> {
     /**
      * @return a shallow copy of the asset state facts.
      */
-    public Set<AssetState> getAssetStates() {
+    public Set<AssetState<?>> getAssetStates() {
         return new HashSet<>(facts.getAssetStates());
     }
 
     /**
      * @return a shallow copy of the asset event facts.
      */
-    public List<TemporaryFact<AssetState>> getAssetEvents() {
+    public List<TemporaryFact<AssetState<?>>> getAssetEvents() {
         return new ArrayList<>(facts.getAssetEvents());
     }
 
@@ -546,7 +546,7 @@ public class RulesEngine<T extends Ruleset> {
     public void updateOrInsertAssetState(AssetState assetState, boolean insert) {
         facts.putAssetState(assetState);
         // Make sure location predicate tracking is activated before notifying the deployments otherwise they won't report location predicates
-        trackLocationPredicates(trackLocationPredicates || (insert && assetState.getAttributeName().equals(Asset.LOCATION.getName())));
+        trackLocationPredicates(trackLocationPredicates || (insert && assetState.getName().equals(Asset.LOCATION.getName())));
         notifyAssetStatesChanged(new AssetStateChangeEvent(insert ? PersistenceEvent.Cause.CREATE : PersistenceEvent.Cause.UPDATE, assetState));
         if (running) {
             scheduleFire();
@@ -556,7 +556,7 @@ public class RulesEngine<T extends Ruleset> {
     public void removeAssetState(AssetState assetState) {
         facts.removeAssetState(assetState);
         // Make sure location predicate tracking is activated before notifying the deployments otherwise they won't report location predicates
-        trackLocationPredicates(trackLocationPredicates || assetState.getAttributeName().equals(Asset.LOCATION.getName()));
+        trackLocationPredicates(trackLocationPredicates || assetState.getName().equals(Asset.LOCATION.getName()));
         notifyAssetStatesChanged(new AssetStateChangeEvent(PersistenceEvent.Cause.DELETE, assetState));
         if (running) {
             scheduleFire();
@@ -580,8 +580,8 @@ public class RulesEngine<T extends Ruleset> {
 
     protected void printSessionStats() {
         withLock(toString() + "::printSessionStats", () -> {
-            Collection<AssetState> assetStateFacts = facts.getAssetStates();
-            Collection<TemporaryFact<AssetState>> assetEventFacts = facts.getAssetEvents();
+            Collection<AssetState<?>> assetStateFacts = facts.getAssetStates();
+            Collection<TemporaryFact<AssetState<?>>> assetEventFacts = facts.getAssetEvents();
             Map<String, Object> namedFacts = facts.getNamedFacts();
             Collection<Object> anonFacts = facts.getAnonymousFacts();
             long temporaryFactsCount = facts.getTemporaryFacts().count();

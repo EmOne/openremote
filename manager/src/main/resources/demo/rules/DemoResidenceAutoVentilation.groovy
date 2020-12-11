@@ -33,7 +33,7 @@ final VENTILATION_THRESHOLD_HIGH_HUMIDITY = 85d
 final VENTILATION_THRESHOLD_MEDIUM_TIME_WINDOW = "30m"
 final VENTILATION_THRESHOLD_HIGH_TIME_WINDOW = "15m"
 
-Closure<Stream<AssetState>> residenceWithVentilationAutoMatch =
+Closure<Stream<AssetState<?>>> residenceWithVentilationAutoMatch =
         { RulesFacts facts, Operator operator, double ventilationLevelThreshold ->
             // Any residence where auto ventilation is on
             facts.matchAssetState(
@@ -110,7 +110,7 @@ rules.add()
         .then(
         { facts ->
             AssetState residence = facts.bound("residence")
-            LOG.info("Ventilation auto and too much CO2/humidity in a room, switching to MEDIUM: " + residence.name)
+            LOG.info("Ventilation auto and too much CO2/humidity in a room, switching to MEDIUM: " + residence.assetName)
             facts.updateAssetState(residence.id, "ventilationLevel", VENTILATION_LEVEL_MEDIUM)
         })
 
@@ -136,7 +136,7 @@ rules.add()
         .then(
         { facts ->
             AssetState residence = facts.bound("residence")
-            LOG.info("Ventilation auto and low CO2/humidity in all rooms, switching to LOW: " + residence.name)
+            LOG.info("Ventilation auto and low CO2/humidity in all rooms, switching to LOW: " + residence.assetName)
             facts.updateAssetState(residence.id, "ventilationLevel", VENTILATION_LEVEL_LOW)
         })
 
@@ -162,7 +162,7 @@ rules.add()
         .then(
         { facts ->
             AssetState residence = facts.bound("residence")
-            LOG.info("Ventilation auto and too much CO2/humidity in a room, switching to HIGH: " + residence.name)
+            LOG.info("Ventilation auto and too much CO2/humidity in a room, switching to HIGH: " + residence.assetName)
             facts.updateAssetState(residence.id, "ventilationLevel", VENTILATION_LEVEL_HIGH)
         })
 
@@ -188,6 +188,6 @@ rules.add()
         .then(
         { facts ->
             AssetState residence = facts.bound("residence")
-            LOG.info("Ventilation auto and low CO2/humidity in all rooms, switching to MEDIUM: " + residence.name)
+            LOG.info("Ventilation auto and low CO2/humidity in all rooms, switching to MEDIUM: " + residence.assetName)
             facts.updateAssetState(residence.id, "ventilationLevel", VENTILATION_LEVEL_MEDIUM)
         })

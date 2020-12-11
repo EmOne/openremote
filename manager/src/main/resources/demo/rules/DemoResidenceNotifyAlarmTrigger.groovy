@@ -12,7 +12,6 @@ import org.openremote.model.query.UserQuery
 import org.openremote.model.query.filter.UserAssetPredicate
 import org.openremote.model.rules.Notifications
 import org.openremote.model.rules.Users
-import org.openremote.model.value.Values
 
 import java.util.logging.Logger
 import java.util.stream.Collectors
@@ -53,7 +52,7 @@ rules.add()
                     alarmTrigger.residenceId == residenceWithAlarmEnabled.id
                 }.isPresent()
             }.map { residenceWithoutAlarmTrigger ->
-                // Map to Optional<AssetState> of the "first" room in the residence with presence detected
+                // Map to Optional<AssetState<?>> of the "first" room in the residence with presence detected
                 facts.matchFirstAssetState(
                         new AssetQuery().types(ROOM)
                                 .parents(residenceWithoutAlarmTrigger.id)
@@ -66,7 +65,7 @@ rules.add()
             }.findFirst().map { roomWithPresence ->
                 facts.bind("residenceId", roomWithPresence.parentId)
                         .bind("residenceName", roomWithPresence.parentName)
-                        .bind("roomName", roomWithPresence.name)
+                        .bind("roomName", roomWithPresence.assetName)
                 true
             }.orElse(false)
         })

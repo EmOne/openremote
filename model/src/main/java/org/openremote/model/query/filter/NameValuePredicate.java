@@ -19,46 +19,102 @@
  */
 package org.openremote.model.query.filter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import org.openremote.model.value.AbstractNameValueHolder;
 import org.openremote.model.value.NameHolder;
 
+import javax.validation.constraints.NotNull;
+import java.util.Arrays;
+
 /**
- * There is an implicit AND condition between the name and the value; the name is optional and {@link #mustNotExist} can
- * be set to control whether a {@link AbstractNameValueHolder} with this name exists or doesn't; if neither are
- * specified then only the {@link #value} is usedto predicate on the value of the {@link AbstractNameValueHolder} if it
- * is present.
+ * A predicate that can be applied to a {@link NameValuePredicate}; there is an implicit AND condition between the name and the value; one or both the name and value should be supplied
+ * and the following logic applies:
+ * <ul>
+ * <li>Both - A {@link AbstractNameValueHolder} whose {@link AbstractNameValueHolder#getName} matches {@link #name} and whose {@link AbstractNameValueHolder#getValue} matches {@link #value}</li>
+ * <li>Name only - A {@link AbstractNameValueHolder} whose {@link AbstractNameValueHolder#getName} matches {@link #name}</li>
+ * <li>Value only - A {@link AbstractNameValueHolder} whose {@link AbstractNameValueHolder#getValue} matches {@link #value}</li>
+ * </ul>
+ * When the predicate is applied the {@link AbstractNameValueHolder#getValue} is converted to JSON representation if not already this ensures consistency of results
+ * between in memory predicate evaluation and those applied to the DB.
+ * <p>
+ * The predicate can be negated to enforce name and/or value does not exist. An optional {@link #path} can be supplied
+ * to apply the predicate to a value within the {@link AbstractNameValueHolder#getValue} (i.e. when {@link AbstractNameValueHolder#getValue} is an object and/or array), the {@link #path}
+ * is made up of an array of int (for array index) and string (for object key) values.
  */
 public class NameValuePredicate {
 
+    public static class Path {
+        @JsonValue
+        Object[] paths; // ints for index, string for keys
+
+        @JsonCreator
+        protected Path(@JsonProperty("paths") Object[] paths) {
+            this.paths = paths;
+        }
+
+        public Path(String...keys) {
+            paths = keys;
+        }
+
+        public Path(Integer...indexes) {
+            paths = indexes;
+        }
+
+        public Path append(@NotNull String key) {
+            return append((Object)key);
+        }
+
+        public Path append(@NotNull Integer key) {
+            return append((Object)key);
+        }
+
+        protected Path append(Object path) {
+            int index = paths.length;
+            paths = Arrays.copyOf(paths, index + 1);
+            paths[index] = path;
+            return this;
+        }
+
+        public Object[] getPaths() {
+            return paths;
+        }
+    }
+
     public StringPredicate name;
-    public boolean mustNotExist;
+    public boolean negated;
+    public Path path;
     public ValuePredicate value;
 
     public NameValuePredicate() {
     }
 
-    public NameValuePredicate(String name) {
-        this(new StringPredicate(name));
-    }
-
-    public NameValuePredicate(NameHolder nameHolder) {
-        this(nameHolder.getName());
-    }
-
-    public NameValuePredicate(StringPredicate name) {
-        this.name = name;
-    }
-
-    public NameValuePredicate(ValuePredicate value) {
-        this.value = value;
-    }
-
     public NameValuePredicate(NameHolder nameHolder, ValuePredicate value) {
-        this(new StringPredicate(nameHolder.getName()), value);
+        this(nameHolder.getName(), value);
+    }
+
+    public NameValuePredicate(String name, ValuePredicate value) {
+        this(new StringPredicate(name), value);
     }
 
     public NameValuePredicate(StringPredicate name, ValuePredicate value) {
         this.name = name;
+        this.value = value;
+    }
+
+    public NameValuePredicate(NameHolder nameHolder, ValuePredicate value, boolean negated, Path path) {
+        this(nameHolder.getName(), value, negated, path);
+    }
+
+    public NameValuePredicate(String name, ValuePredicate value, boolean negated, Path path) {
+        this(new StringPredicate(name), value, negated, path);
+    }
+
+    public NameValuePredicate(StringPredicate name, ValuePredicate value, boolean negated, Path path) {
+        this.name = name;
+        this.negated = negated;
+        this.path = path;
         this.value = value;
     }
 
@@ -72,8 +128,13 @@ public class NameValuePredicate {
         return this;
     }
 
-    public NameValuePredicate mustNotExist() {
-        this.mustNotExist = true;
+    public NameValuePredicate negate() {
+        this.negated = !this.negated;
+        return this;
+    }
+
+    public NameValuePredicate path(Path path) {
+        this.path = path;
         return this;
     }
 
@@ -81,8 +142,9 @@ public class NameValuePredicate {
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name=" + name +
-            ", mustNotExist=" + mustNotExist +
             ", value=" + value +
+            ", negated=" + negated +
+            ", path=" + (path == null ? "null" : Arrays.toString(path.paths)) +
             '}';
     }
 }

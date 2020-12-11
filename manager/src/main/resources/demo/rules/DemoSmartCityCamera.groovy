@@ -6,7 +6,6 @@ import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.StringPredicate
 import org.openremote.model.rules.Assets
 import org.openremote.model.rules.Notifications
-import org.openremote.model.value.Values
 
 import java.util.logging.Logger
 import java.util.stream.Collectors

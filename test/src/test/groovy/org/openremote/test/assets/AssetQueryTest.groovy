@@ -9,9 +9,11 @@ import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.impl.BuildingAsset
+import org.openremote.model.asset.impl.ConsoleAsset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.calendar.CalendarEvent
 import org.openremote.model.geo.GeoJSONPoint
+import org.openremote.model.notification.PushNotificationMessage
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.AssetQuery.OrderBy
 import org.openremote.model.query.LogicGroup
@@ -512,11 +514,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
             new AssetQuery()
                 .select(selectExcludePathAndAttributes())
-                .attributes(
-                    new AttributePredicate().meta(
-                        new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                    )
-                )
+                .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
         )
 
         then: "result should match"
@@ -527,11 +525,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
                 new AssetQuery()
                     .select(selectExcludePathAndAttributes())
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                        )
-                    )
+                    .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
                     .names(new StringPredicate(Match.CONTAINS, false, "thing"))
         )
 
@@ -543,11 +537,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
                 new AssetQuery()
                     .select(selectExcludePathAndAttributes())
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                        )
-                    )
+                    .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
                     .names(new StringPredicate(Match.CONTAINS, true, "thing"))
         )
 
@@ -558,11 +548,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
                 new AssetQuery()
                     .select(selectExcludePathAndAttributes())
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                        )
-                    )
+                    .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
                     .parents(new ParentPredicate(managerTestSetup.agentId))
         )
 
@@ -574,11 +560,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
                 new AssetQuery()
                     .select(selectExcludePathAndAttributes())
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                        )
-                    )
+                    .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
                     .parents(new ParentPredicate(managerTestSetup.apartment1LivingroomId))
         )
 
@@ -589,11 +571,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets = assetStorageService.findAll(
                 new AssetQuery()
                     .select(selectExcludePathAndAttributes())
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new ObjectValueKeyPredicate("id", new StringPredicate(managerTestSetup.agentId), false))
-                        )
-                    )
+                    .attributes(new AttributePredicate().meta(new NameValuePredicate(AGENT_LINK, new StringPredicate(managerTestSetup.agentId), false, new NameValuePredicate.Path("id"))))
                     .tenant(new TenantPredicate(keycloakTestSetup.masterTenant.realm))
         )
 

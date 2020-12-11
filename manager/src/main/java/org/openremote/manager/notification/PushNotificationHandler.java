@@ -39,9 +39,7 @@ import org.openremote.model.notification.Notification;
 import org.openremote.model.notification.NotificationSendResult;
 import org.openremote.model.notification.PushNotificationMessage;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.query.filter.ObjectValueKeyPredicate;
-import org.openremote.model.query.filter.PathPredicate;
-import org.openremote.model.query.filter.TenantPredicate;
+import org.openremote.model.query.filter.*;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.Values;
 
@@ -123,8 +121,9 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
                 .select(new AssetQuery.Select().excludePath(true)
                     .attributes(ConsoleAsset.CONSOLE_PROVIDERS.getName()))
                 .types(ConsoleAsset.class)
-                .attributeValue(ConsoleAsset.CONSOLE_PROVIDERS.getName(),
-                    new ObjectValueKeyPredicate("push")))
+                .attributes(
+                    new AttributePredicate(ConsoleAsset.CONSOLE_PROVIDERS, null, false, new NameValuePredicate.Path(PushNotificationMessage.TYPE))
+                ))
             .stream()
             .map(asset -> (ConsoleAsset) asset)
             .filter(PushNotificationHandler::isLinkedToFcmProvider)
@@ -203,8 +202,7 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
                                     .select(AssetQuery.Select.selectExcludeAll())
                                     .tenant(new TenantPredicate(targetId))
                                     .types(ConsoleAsset.class)
-                                    .attributeValue(ConsoleAsset.CONSOLE_PROVIDERS.getName(),
-                                        new ObjectValueKeyPredicate(PushNotificationMessage.TYPE)))
+                                    .attributes(new AttributePredicate(ConsoleAsset.CONSOLE_PROVIDERS, null, false, new NameValuePredicate.Path(PushNotificationMessage.TYPE))))
                                 .stream()
                                 .map(asset -> new Notification.Target(Notification.TargetType.ASSET, asset.getId()))
                                 .collect(Collectors.toList()));
@@ -224,8 +222,7 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
                                         .select(AssetQuery.Select.selectExcludeAll())
                                         .ids(ids)
                                         .types(ConsoleAsset.class)
-                                        .attributeValue(ConsoleAsset.CONSOLE_PROVIDERS.getName(),
-                                            new ObjectValueKeyPredicate(PushNotificationMessage.TYPE)))
+                                        .attributes(new AttributePredicate(ConsoleAsset.CONSOLE_PROVIDERS, null, false, new NameValuePredicate.Path(PushNotificationMessage.TYPE))))
                                     .stream()
                                     .map(asset -> new Notification.Target(Notification.TargetType.ASSET, asset.getId()))
                                     .collect(Collectors.toList()));
@@ -244,8 +241,7 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
                                     .select(AssetQuery.Select.selectExcludeAll())
                                     .paths(new PathPredicate(targetId))
                                     .types(ConsoleAsset.class)
-                                    .attributeValue(ConsoleAsset.CONSOLE_PROVIDERS.getName(),
-                                        new ObjectValueKeyPredicate(PushNotificationMessage.TYPE)))
+                                    .attributes(new AttributePredicate(ConsoleAsset.CONSOLE_PROVIDERS, null, false, new NameValuePredicate.Path(PushNotificationMessage.TYPE))))
                                 .stream()
                                 .map(asset -> new Notification.Target(Notification.TargetType.ASSET, asset.getId()))
                                 .collect(Collectors.toList()));

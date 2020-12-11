@@ -79,7 +79,7 @@ rules.add()
         .then(
         { facts ->
             AssetState residence = facts.bound("residence")
-            LOG.info("Vacation ended in residence: " + residence.name)
+            LOG.info("Vacation ended in residence: " + residence.assetName)
             facts.updateAssetState(residence.id, "vacationUntil")
             assets.dispatch(residence.id, "enableSceneTimer", REQUEST_START)
         })

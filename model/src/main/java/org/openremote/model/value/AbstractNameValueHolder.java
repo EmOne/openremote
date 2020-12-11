@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @JsonFilter("excludeNameFilter")
-public abstract class AbstractNameValueHolder<T> implements ValueHolder<T>, NameHolder {
+public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T> {
 
     @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)

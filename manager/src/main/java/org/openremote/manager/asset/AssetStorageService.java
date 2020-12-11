@@ -19,9 +19,12 @@
  */
 package org.openremote.manager.asset;
 
+import com.vladmihalcea.hibernate.type.array.ListArrayType;
+import com.vladmihalcea.hibernate.type.array.StringArrayType;
 import org.apache.camel.builder.RouteBuilder;
 import org.hibernate.Session;
 import org.hibernate.jdbc.AbstractReturningWork;
+import org.hibernate.type.CustomType;
 import org.openremote.agent.protocol.ProtocolClientEventService;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
@@ -57,6 +60,7 @@ import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.Pair;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.Values;
+import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
 
 import javax.persistence.EntityManager;
@@ -69,6 +73,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -101,31 +106,25 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             this.binders = binders;
         }
 
-        protected void apply(Query query) {
+        protected void apply(EntityManager em, org.hibernate.query.Query query) {
             for (ParameterBinder binder : binders) {
-                binder.accept(query);
+                binder.accept(em, query);
             }
         }
-
-//        protected void apply(PreparedStatement preparedStatement) {
-//            for (ParameterBinder binder : binders) {
-//                binder.accept(preparedStatement);
-//            }
-//        }
     }
 
-    protected interface ParameterBinder extends Consumer<Query> {
+    protected interface ParameterBinder extends BiConsumer<EntityManager, org.hibernate.query.Query> {
 
         @Override
-        default void accept(Query st) {
+        default void accept(EntityManager em, org.hibernate.query.Query st) {
             try {
-                acceptStatement(st);
+                acceptStatement(em, st);
             } catch (SQLException ex) {
                 throw new RuntimeException(ex);
             }
         }
 
-        void acceptStatement(Query st) throws SQLException;
+        void acceptStatement(EntityManager em, org.hibernate.query.Query st) throws SQLException;
     }
 
     private static final Logger LOG = Logger.getLogger(AssetStorageService.class.getName());
@@ -369,7 +368,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     .process(exchange -> {
                         LOG.fine("Handling from client: " + exchange.getIn().getBody());
 
-                        String assetId = null;
+                        String assetId;
                         String attributeName = null;
 
                         if (exchange.getIn().getBody() instanceof ReadAssetEvent) {
@@ -848,7 +847,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             persistenceService.doTransaction(em -> {
                 LOG.fine("Removing: " + String.join(", ", ids));
                 List<Asset<?>> assets = em
-                    .createQuery("select a from Asset a where not exists(select child.id from Asset child where child.PARENT_ID = a.id and not child.id in :ids) and a.id in :ids", Asset.class)
+                    .createQuery("select a from Asset a where not exists(select child.id from Asset child where child.parentId = a.id and not child.id in :ids) and a.id in :ids", Asset.class)
                     .setParameter("ids", ids)
                     .getResultList().stream().map(asset -> (Asset<?>) asset).collect(Collectors.toList());
 
@@ -1068,9 +1067,9 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         }
 
         // Use a SqlResultSetMapping to allow auto hydration with retrieval of transient data as well
-        //Query jpql = em.createNativeQuery("select a.id, a.version, a.TYPE, a.realm, a.name, a.access_public_read as access, a.attributes, a.created_on, a.parent_id, 'test' as parent_name, null as parent_type, get_asset_tree_path(a.id) as path from Asset a where a.id in (?)", "AssetMapping");
-        Query jpql = em.createNativeQuery(querySql.querySql, "AssetMapping");
-        querySql.apply(jpql);
+        // Using hibernate query object rather than JPA as postgres array parameter support doesn't work in JPQL without specifying the data type
+        org.hibernate.query.Query<Object[]> jpql = em.createNativeQuery(querySql.querySql, "AssetMapping").unwrap(org.hibernate.query.Query.class);
+        querySql.apply(em, jpql);
 
         List<Object[]> results = jpql.getResultList();
         return results.stream().map(objArr -> {
@@ -1225,7 +1224,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 );
 
                 // Raise attribute event with deleted flag for each attribute
-                AttributeList deletedAttributes = persistenceEvent.getPreviousState("attributes");
+                AttributeList deletedAttributes = asset.getAttributes();
                 deletedAttributes.forEach(obsoleteAttribute ->
                     clientEventService.publishEvent(
                         new AttributeEvent(asset.getId(), obsoleteAttribute.getName(), true)
@@ -1388,10 +1387,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         if (select != null && select.attributes != null && select.attributes.length > 0) {
             sb.append(" AND AX.key IN (");
             for (int i = 0; i < select.attributes.length; i++) {
-                sb.append(i == select.attributes.length - 1 ? "?" : "?,");
-                final String attributeName = select.attributes[i];
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, attributeName));
+                sb.append("?").append(pos);
+                if (i < select.attributes.length - 1) {
+                    sb.append(",");
+                }
+                final String attributeName = select.attributes[i];
+                binders.add((em, st) -> st.setParameter(pos, attributeName));
             }
             sb.append(")");
         }
@@ -1491,15 +1493,15 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         }
 
         if (level == 1 && query.ids != null && query.ids.length > 0) {
-            sb.append(" and A.ID IN (?");
             final int pos = binders.size() + 1;
-            binders.add(st -> st.setParameter(pos, query.ids[0]));
+            sb.append(" and A.ID IN (?").append(pos);
+            binders.add((em, st) -> st.setParameter(pos, query.ids[0]));
 
             for (int i = 1; i < query.ids.length; i++) {
-                sb.append(",?");
                 final int pos2 = binders.size() + 1;
+                sb.append(",?").append(pos2);
                 final int index = i;
-                binders.add(st -> st.setParameter(pos2, query.ids[index]));
+                binders.add((em, st) -> st.setParameter(pos2, query.ids[index]));
             }
             sb.append(")");
         }
@@ -1514,10 +1516,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     sb.append(" or ");
                 }
                 isFirst = false;
-                sb.append(pred.caseSensitive ? "A.NAME " : "upper(A.NAME)");
-                sb.append(buildMatchFilter(pred));
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, pred.prepareValue()));
+                sb.append(pred.caseSensitive ? "A.NAME " : "upper(A.NAME)");
+                sb.append(buildMatchFilter(pred, pos));
+                binders.add((em, st) -> st.setParameter(pos, pred.prepareValue()));
             }
             sb.append(")");
         }
@@ -1536,21 +1538,21 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 isFirst = false;
 
                 if (level == 1 && pred.id != null) {
-                    sb.append(" and A.PARENT_ID = ?");
                     final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, pred.id));
+                    sb.append(" and A.PARENT_ID = ?").append(pos);
+                    binders.add((em, st) -> st.setParameter(pos, pred.id));
                 } else if (level == 1 && pred.noParent) {
                     sb.append("A.PARENT_ID is null");
                 } else if (pred.type != null || pred.name != null) {
                     if (pred.type != null) {
-                        sb.append(" and P.TYPE = ?");
                         final int pos = binders.size() + 1;
-                        binders.add(st -> st.setParameter(pos, pred.type));
+                        sb.append(" and P.TYPE = ?").append(pos);
+                        binders.add((em, st) -> st.setParameter(pos, pred.type));
                     }
                     if (pred.name != null) {
-                        sb.append(" and P.NAME = ?");
                         final int pos = binders.size() + 1;
-                        binders.add(st -> st.setParameter(pos, pred.name));
+                        sb.append(" and P.NAME = ?").append(pos);
+                        binders.add((em, st) -> st.setParameter(pos, pred.name));
                     }
                 } else {
                     sb.append("true");
@@ -1572,9 +1574,9 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
                 isFirst = false;
 
-                sb.append("? <@ get_asset_tree_path(A.id)");
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, pred.path));
+                sb.append("?").append(pos).append(" <@ get_asset_tree_path(A.id)");
+                binders.add((em, st) -> st.setParameter(pos, pred.path));
             }
 
             sb.append(")");
@@ -1582,21 +1584,21 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
         if (!recursive || level == 3) {
             if (query.tenant != null && !TextUtil.isNullOrEmpty(query.tenant.realm)) {
-                sb.append(" and A.REALM = ?");
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, query.tenant.realm));
+                sb.append(" and A.REALM = ?").append(pos);
+                binders.add((em, st) -> st.setParameter(pos, query.tenant.realm));
             }
 
             if (query.userIds != null && query.userIds.length > 0) {
-                sb.append(" and UA.USER_ID IN (?");
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, query.userIds[0]));
+                sb.append(" and UA.USER_ID IN (?").append(pos);
+                binders.add((em, st) -> st.setParameter(pos, query.userIds[0]));
 
                 for (int i = 1; i < query.userIds.length; i++) {
-                    sb.append(",?");
                     final int pos2 = binders.size() + 1;
+                    sb.append(",?").append(pos2);
                     final int index = i;
-                    binders.add(st -> st.setParameter(pos2, query.userIds[index]));
+                    binders.add((em, st) -> st.setParameter(pos2, query.userIds[index]));
                 }
                 sb.append(")");
             }
@@ -1615,9 +1617,9 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     }
                     isFirst = false;
 
-                    sb.append("?");
                     final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, type.getSimpleName()));
+                    sb.append("?").append(pos);
+                    binders.add((em, st) -> st.setParameter(pos, type.getSimpleName()));
                 }
 
                 sb.append(")");
@@ -1745,98 +1747,28 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             .anyMatch(p -> !p.noParent && (p.type != null || p.name != null));
     }
 
-//    protected String buildAttributeMetaFilter(List<ParameterBinder> binders, MetaPredicate...attributeMetaPredicates) {
-//        StringBuilder sb = new StringBuilder();
-//
-//        if (attributeMetaPredicates == null || attributeMetaPredicates.length == 0) {
-//            return "";
-//        }
-//
-//        sb.append(" AND (");
-//
-//        boolean isFirst = true;
-//        for (MetaPredicate attributeMetaPredicate : attributeMetaPredicates) {
-//
-//            if (!isFirst) {
-//                sb.append(" OR (true");
-//            } else {
-//                sb.append("(true");
-//            }
-//            isFirst = false;
-//
-//            if (attributeMetaPredicate.itemNamePredicate != null) {
-//                sb.append(attributeMetaPredicate.itemNamePredicate.caseSensitive
-//                    ? " and AM.VALUE #>> '{name}'"
-//                    : " and upper(AM.VALUE #>> '{name}')"
-//                );
-//                sb.append(buildMatchFilter(attributeMetaPredicate.itemNamePredicate));
-//                final int pos = binders.size() + 1;
-//                binders.add(st -> st.setParameter()));
-//            }
-//
-//            if (attributeMetaPredicate.itemValuePredicate != null) {
-//                if (attributeMetaPredicate.itemValuePredicate instanceof StringPredicate) {
-//                    StringPredicate stringPredicate = (StringPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    sb.append(stringPredicate.caseSensitive
-//                        ? " and AM.VALUE #>> '{value}'"
-//                        : " and upper(AM.VALUE #>> '{value}')"
-//                    );
-//                    sb.append(buildMatchFilter(stringPredicate));
-//
-//                    final int pos = binders.size() + 1;
-//                    binders.add(st -> st.setParameter()));
-//                } else if (attributeMetaPredicate.itemValuePredicate instanceof BooleanPredicate) {
-//                    BooleanPredicate booleanPredicate = (BooleanPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    sb.append(" and AM.VALUE #> '{value}' = to_jsonb(")
-//                        .append(booleanPredicate.value)
-//                        .append(")");
-//                } else if (attributeMetaPredicate.itemValuePredicate instanceof StringArrayPredicate) {
-//                    StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) attributeMetaPredicate.itemValuePredicate;
-//                    for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
-//                        StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
-//                        sb.append(stringPredicate.caseSensitive
-//                            ? " and AM.VALUE #> '{value}' ->> " + i
-//                            : " and upper(AM.VALUE #> '{value}' ->> " + i + ")"
-//                        );
-//                        sb.append(buildMatchFilter(stringPredicate));
-//                        final int pos = binders.size() + 1;
-//                        binders.add(st -> st.setParameter()));
-//                    }
-//                }
-//            }
-//            sb.append(")");
-//        }
-//        sb.append(")");
-//        return sb.toString();
-//    }
-
     protected static String buildNameValuePredicateFilter(NameValuePredicate nameValuePredicate, String jsonObjName, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
         if (nameValuePredicate.name == null && nameValuePredicate.value == null) {
             return "TRUE";
         }
 
-        String valuePath = nameValuePredicate instanceof AttributePredicate ? jsonObjName + ".VALUE #> '{value}'" : jsonObjName + ".VALUE";
-
         StringBuilder attributeBuilder = new StringBuilder();
 
-        if (nameValuePredicate.name != null) {
+        if (nameValuePredicate.negated) {
+            attributeBuilder.append("NOT (");
+        }
 
-            if (nameValuePredicate.mustNotExist) {
-                attributeBuilder.append("NOT (");
-            }
+        if (nameValuePredicate.name != null) {
 
             attributeBuilder.append(nameValuePredicate.name.caseSensitive
                 ? jsonObjName + ".key"
                 : "upper(" + jsonObjName + ".key)"
             );
-            attributeBuilder.append(buildMatchFilter(nameValuePredicate.name));
 
             final int pos = binders.size() + 1;
-            binders.add(st -> st.setParameter(pos, nameValuePredicate.name.prepareValue()));
+            attributeBuilder.append(buildMatchFilter(nameValuePredicate.name, pos));
+            binders.add((em, st) -> st.setParameter(pos, nameValuePredicate.name.prepareValue()));
 
-            if (nameValuePredicate.mustNotExist) {
-                attributeBuilder.append(")");
-            }
         }
 
         if (nameValuePredicate.value != null) {
@@ -1845,72 +1777,75 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 attributeBuilder.append(" and ");
             }
 
+            // Inserts the SQL string and adds the parameters
+            BiConsumer<StringBuilder, List<ParameterBinder>> valuePathInserter;
+            boolean isAttributePredicate = nameValuePredicate instanceof AttributePredicate;
+
+            if (nameValuePredicate.path == null || nameValuePredicate.path.getPaths().length == 0) {
+                valuePathInserter = (sb, b) ->
+                    sb.append(isAttributePredicate ? "(" + jsonObjName + ".VALUE #> '{value}')" : jsonObjName + ".VALUE");
+            } else {
+                List<String> paths = new ArrayList<>();
+                if (isAttributePredicate) {
+                    paths.add("value");
+                }
+                paths.addAll(Arrays.stream(nameValuePredicate.path.getPaths()).map(Object::toString).collect(Collectors.toList()));
+
+                valuePathInserter = (sb, b) -> {
+                    final int pos = binders.size() + 1;
+                    sb.append("(").append(jsonObjName).append(".VALUE #> ?").append(pos).append(")");
+                    binders.add((em, st) -> st.setParameter(pos, paths.toArray(new String[0]), StringArrayType.INSTANCE));
+                };
+            }
+
             if (nameValuePredicate.value instanceof StringPredicate) {
                 StringPredicate stringPredicate = (StringPredicate) nameValuePredicate.value;
-                attributeBuilder.append(stringPredicate.caseSensitive
-                    ? valuePath + "\\:\\:text"
-                    : "upper(" + valuePath + "\\:\\:text)"
-                );
-                attributeBuilder.append(buildMatchFilter(stringPredicate));
+                if (!stringPredicate.caseSensitive) {
+                    attributeBuilder.append("upper(");
+                }
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder.append("\\:\\:text");
+                if (!stringPredicate.caseSensitive) {
+                    attributeBuilder.append(")");
+                }
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
+                attributeBuilder.append(buildMatchFilter(stringPredicate, pos));
+                binders.add((em, st) -> st.setParameter(pos, stringPredicate.prepareValue()));
             } else if (nameValuePredicate.value instanceof BooleanPredicate) {
                 BooleanPredicate booleanPredicate = (BooleanPredicate) nameValuePredicate.value;
+                valuePathInserter.accept(attributeBuilder, binders);
                 attributeBuilder
-                    .append(valuePath)
                     .append(" = to_jsonb(")
                     .append(booleanPredicate.value)
                     .append(")");
-            } else if (nameValuePredicate.value instanceof StringArrayPredicate) {
-                StringArrayPredicate stringArrayPredicate = (StringArrayPredicate) nameValuePredicate.value;
-                for (int i = 0; i < stringArrayPredicate.predicates.length; i++) {
-                    StringPredicate stringPredicate = stringArrayPredicate.predicates[i];
-                    attributeBuilder.append(stringPredicate.caseSensitive
-                        ? valuePath + " ->> " + i
-                        : "upper(" + valuePath + " ->> " + i + ")"
-                    );
-                    attributeBuilder.append(buildMatchFilter(stringPredicate));
-                    final int pos = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos, stringPredicate.prepareValue()));
-                }
             } else if (nameValuePredicate.value instanceof DateTimePredicate) {
                 DateTimePredicate dateTimePredicate = (DateTimePredicate) nameValuePredicate.value;
+                valuePathInserter.accept(attributeBuilder, binders);
                 attributeBuilder
-                    .append(valuePath)
                     .append("\\:\\:text)\\:\\:timestamp");
 
                 Pair<Long, Long> fromAndTo = dateTimePredicate.asFromAndTo(timeProvider.get());
 
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, new java.sql.Timestamp(fromAndTo.key != null ? fromAndTo.key : 0L)));
-                attributeBuilder.append(buildOperatorFilter(dateTimePredicate.operator, dateTimePredicate.negate));
+                binders.add((em, st) -> st.setParameter(pos, new java.sql.Timestamp(fromAndTo.key != null ? fromAndTo.key : 0L)));
+                attributeBuilder.append(buildOperatorFilter(dateTimePredicate.operator, dateTimePredicate.negate, pos));
 
                 if (dateTimePredicate.operator == Operator.BETWEEN) {
                     final int pos2 = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos2, new java.sql.Timestamp(fromAndTo.value != null ? fromAndTo.value : Long.MAX_VALUE)));
+                    binders.add((em, st) -> st.setParameter(pos2, new java.sql.Timestamp(fromAndTo.value != null ? fromAndTo.value : Long.MAX_VALUE)));
                 }
             } else if (nameValuePredicate.value instanceof NumberPredicate) {
                 NumberPredicate numberPredicate = (NumberPredicate) nameValuePredicate.value;
+                valuePathInserter.accept(attributeBuilder, binders);
                 attributeBuilder
-                    .append(jsonObjName)
                     .append("\\:\\:text)\\:\\:numeric");
-                attributeBuilder.append(buildOperatorFilter(numberPredicate.operator, numberPredicate.negate));
-
                 final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, numberPredicate.value));
+                attributeBuilder.append(buildOperatorFilter(numberPredicate.operator, numberPredicate.negate, pos));
+                binders.add((em, st) -> st.setParameter(pos, numberPredicate.value));
                 if (numberPredicate.operator == Operator.BETWEEN) {
                     final int pos2 = binders.size() + 1;
-                    binders.add(st -> st.setParameter(pos2, numberPredicate.rangeValue));
+                    binders.add((em, st) -> st.setParameter(pos2, numberPredicate.rangeValue));
                 }
-            } else if (nameValuePredicate.value instanceof ObjectValueKeyPredicate) {
-                ObjectValueKeyPredicate keyPredicate = (ObjectValueKeyPredicate) nameValuePredicate.value;
-                if (keyPredicate.negated) {
-                    attributeBuilder.append("NOT (jsonb_exists(").append(valuePath).append(", ?) ");
-                } else {
-                    attributeBuilder.append("jsonb_exists(").append(valuePath).append(", ?) ");
-                }
-                final int pos = binders.size() + 1;
-                binders.add(st -> st.setParameter(pos, keyPredicate.key));
             } else if (nameValuePredicate.value instanceof ArrayPredicate) {
                 ArrayPredicate arrayPredicate = (ArrayPredicate) nameValuePredicate.value;
                 attributeBuilder.append("true");
@@ -1918,16 +1853,15 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     attributeBuilder.append(" and NOT(");
                 }
                 if (arrayPredicate.value != null) {
+                    valuePathInserter.accept(attributeBuilder, binders);
+
                     if (arrayPredicate.index != null) {
                         attributeBuilder
-                            .append(valuePath)
                             .append(" -> ")
                             .append(arrayPredicate.index);
-                    } else {
-                        attributeBuilder.append(jsonObjName).append(".VALUE");
                     }
-                    attributeBuilder.append(" @> ?");
                     final int pos = binders.size() + 1;
+                    attributeBuilder.append(" @> ?").append(pos);
                     PGobject pgJsonValue = new PGobject();
                     pgJsonValue.setType("jsonb");
                     try {
@@ -1936,23 +1870,26 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                         LOG.log(Level.SEVERE, "Failed to build SQL statement for array predicate", e);
                         return "";
                     }
-                    binders.add(st -> st.setParameter(pos, pgJsonValue));
+                    binders.add((em, st) -> st.setParameter(pos, pgJsonValue));
                 }
                 if (arrayPredicate.lengthEquals != null) {
-                    attributeBuilder.append("json_array_length(")
-                        .append(valuePath)
+                    attributeBuilder.append("json_array_length(");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(") = ")
                         .append(arrayPredicate.lengthEquals);
                 }
                 if (arrayPredicate.lengthGreaterThan != null) {
-                    attributeBuilder.append("json_array_length(")
-                        .append(valuePath)
+                    attributeBuilder.append("json_array_length(");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(") > ")
                         .append(arrayPredicate.lengthGreaterThan);
                 }
                 if (arrayPredicate.lengthLessThan != null) {
-                    attributeBuilder.append("json_array_length(")
-                        .append(valuePath)
+                    attributeBuilder.append("json_array_length(");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(") < ")
                         .append(arrayPredicate.lengthLessThan);
                 }
@@ -1962,11 +1899,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             } else if (nameValuePredicate.value instanceof GeofencePredicate) {
                 if (nameValuePredicate.value instanceof RadialGeofencePredicate) {
                     RadialGeofencePredicate location = (RadialGeofencePredicate) nameValuePredicate.value;
-                    attributeBuilder.append("ST_DistanceSphere(ST_MakePoint((")
-                        .append(valuePath)
+                    attributeBuilder.append("ST_DistanceSphere(ST_MakePoint((");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(" #>> '{coordinates,0}')\\:\\:numeric")
-                        .append(", (")
-                        .append(valuePath)
+                        .append(", (");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(" #>> '{coordinates,1}')\\:\\:numeric")
                         .append("), ST_MakePoint(")
                         .append(location.lng)
@@ -1979,11 +1918,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     if (location.negated) {
                         attributeBuilder.append("NOT");
                     }
-                    attributeBuilder.append(" ST_Within(ST_MakePoint((")
-                        .append(valuePath)
+                    attributeBuilder.append(" ST_Within(ST_MakePoint((");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(" #>> '{coordinates,0}')\\:\\:numeric")
-                        .append(", (")
-                        .append(valuePath)
+                        .append(", (");
+                    valuePathInserter.accept(attributeBuilder, binders);
+                    attributeBuilder
                         .append(" #>> '{coordinates,1}')\\:\\:numeric")
                         .append(")")
                         .append(", ST_MakeEnvelope(")
@@ -1997,87 +1938,98 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                         .append("))");
                 }
             } else if (nameValuePredicate.value instanceof ValueNotEmptyPredicate) {
-                attributeBuilder.append(valuePath).append("\\:\\:text IS NOT NULL");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder.append("\\:\\:text IS NOT NULL");
             } else if (nameValuePredicate.value instanceof ValueEmptyPredicate) {
-                attributeBuilder.append(valuePath).append("\\:\\:text IS NULL");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder.append("\\:\\:text IS NULL");
             } else if (nameValuePredicate.value instanceof CalendarEventPredicate) {
                 final int pos = binders.size() + 1;
                 java.sql.Timestamp when = new java.sql.Timestamp(((CalendarEventPredicate)nameValuePredicate.value).timestamp.getTime());
 
                 // The recurrence logic is applied post DB query just check start key is present and in the past and also
                 // that the end key is numeric and in the future if no recurrence value
-                attributeBuilder.append("(jsonb_typeof(")
-                    .append(valuePath)
-                    .append(" #> '{start}') = 'number' AND jsonb_typeof(")
-                    .append(valuePath)
-                    .append(" #> '{end}') = 'number' AND to_timestamp((")
-                    .append(valuePath)
-                    .append(" #>> '{start}')\\:\\:float / 1000) <= ? AND (to_timestamp((")
-                    .append(valuePath)
-                    .append(" #>> '{end}')\\:\\:float / 1000) > ? OR jsonb_typeof(")
-                    .append(valuePath)
+                attributeBuilder.append("(jsonb_typeof(");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder
+                    .append(" #> '{start}') = 'number' AND jsonb_typeof(");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder
+                    .append(" #> '{end}') = 'number' AND to_timestamp((");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder
+                    .append(" #>> '{start}')\\:\\:float / 1000) <= ?").append(pos).append(" AND (to_timestamp((");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder
+                    .append(" #>> '{end}')\\:\\:float / 1000) > ?").append(pos+1).append(" OR jsonb_typeof(");
+                valuePathInserter.accept(attributeBuilder, binders);
+                attributeBuilder
                     .append(" #> '{recurrence}') = 'string'))");
-                binders.add(st -> st.setParameter(pos, when));
-                binders.add(st -> st.setParameter(pos+1, when));
+                binders.add((em, st) -> st.setParameter(pos, when));
+                binders.add((em, st) -> st.setParameter(pos+1, when));
             } else {
                 throw new UnsupportedOperationException("Attribute value predicate is not supported: " + nameValuePredicate.value);
             }
         }
 
+        if (nameValuePredicate.negated) {
+            attributeBuilder.append(")");
+        }
+
         return attributeBuilder.toString();
     }
 
-    protected static String buildOperatorFilter(AssetQuery.Operator operator, boolean negate) {
+    protected static String buildOperatorFilter(AssetQuery.Operator operator, boolean negate, int pos) {
         switch (operator) {
             case EQUALS:
                 if (negate) {
-                    return " <> ? ";
+                    return " <> ?" + pos + " ";
                 }
-                return " = ? ";
+                return " = ?" + pos + " ";
             case GREATER_THAN:
                 if (negate) {
-                    return " <= ? ";
+                    return " <= ?" + pos + " ";
                 }
-                return " > ? ";
+                return " > ?" + pos + " ";
             case GREATER_EQUALS:
                 if (negate) {
-                    return " < ? ";
+                    return " < ?" + pos + " ";
                 }
-                return " >= ? ";
+                return " >= ?" + pos + " ";
             case LESS_THAN:
                 if (negate) {
-                    return " >= ? ";
+                    return " >= ?" + pos + " ";
                 }
-                return " < ? ";
+                return " < ?" + pos + " ";
             case LESS_EQUALS:
                 if (negate) {
-                    return " > ? ";
+                    return " > ?" + pos + " ";
                 }
-                return " <= ? ";
+                return " <= ?" + pos + " ";
             case BETWEEN:
                 if (negate) {
-                    return " NOT BETWEEN ? AND ? ";
+                    return " NOT BETWEEN ?" + pos + " AND ?" + (pos+1) + " ";
                 }
-                return " BETWEEN ? AND ? ";
+                return " BETWEEN ?" + pos + " AND ?" + (pos+1) + " ";
         }
 
         throw new IllegalArgumentException("Unsupported operator: " + operator);
     }
 
-    protected static String buildMatchFilter(StringPredicate predicate) {
+    protected static String buildMatchFilter(StringPredicate predicate, int pos) {
         switch (predicate.match) {
             case BEGIN:
             case END:
             case CONTAINS:
                 if (predicate.negate) {
-                    return " not like ? ";
+                    return " not like ?" + pos + " ";
                 }
-                return " like ? ";
+                return " like ?" + pos + " ";
             default:
                 if (predicate.negate) {
-                    return " <> ? ";
+                    return " <> ?" + pos + " ";
                 }
-                return " = ? ";
+                return " = ?" + pos + " ";
         }
     }
 }

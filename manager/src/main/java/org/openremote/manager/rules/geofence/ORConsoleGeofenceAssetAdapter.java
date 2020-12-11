@@ -36,9 +36,7 @@ import org.openremote.model.console.ConsoleProvider;
 import org.openremote.model.notification.Notification;
 import org.openremote.model.notification.PushNotificationMessage;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.query.filter.GeofencePredicate;
-import org.openremote.model.query.filter.ObjectValueKeyPredicate;
-import org.openremote.model.query.filter.RadialGeofencePredicate;
+import org.openremote.model.query.filter.*;
 import org.openremote.model.rules.geofence.GeofenceDefinition;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.Values;
@@ -105,8 +103,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
                 .select(new AssetQuery.Select().excludePath(true)
                     .attributes(ConsoleAsset.CONSOLE_PROVIDERS.getName()))
                 .types(ConsoleAsset.class)
-                .attributeValue(ConsoleAsset.CONSOLE_PROVIDERS.getName(),
-                    new ObjectValueKeyPredicate("geofence")))
+                .attributes(new AttributePredicate(ConsoleAsset.CONSOLE_PROVIDERS, new ValueNotEmptyPredicate(), false, new NameValuePredicate.Path("geofence"))))
             .stream()
             .map(asset -> (ConsoleAsset)asset)
             .filter(ORConsoleGeofenceAssetAdapter::isLinkedToORConsoleGeofenceAdapter)

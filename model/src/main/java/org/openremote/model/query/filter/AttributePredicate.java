@@ -20,6 +20,7 @@
 package org.openremote.model.query.filter;
 
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.value.NameHolder;
 
 import java.util.Arrays;
 
@@ -36,21 +37,28 @@ public class AttributePredicate extends NameValuePredicate {
     public AttributePredicate() {
     }
 
-    public AttributePredicate(String name) {
-        this(new StringPredicate(name));
+    public AttributePredicate(NameHolder nameHolder, ValuePredicate value) {
+        super(nameHolder, value);
     }
 
-    public AttributePredicate(StringPredicate name) {
-        this.name = name;
-    }
-
-    public AttributePredicate(ValuePredicate value) {
-        this.value = value;
+    public AttributePredicate(String name, ValuePredicate value) {
+        super(name, value);
     }
 
     public AttributePredicate(StringPredicate name, ValuePredicate value) {
-        this.name = name;
-        this.value = value;
+        super(name, value);
+    }
+
+    public AttributePredicate(NameHolder nameHolder, ValuePredicate value, boolean negated, Path path) {
+        super(nameHolder, value, negated, path);
+    }
+
+    public AttributePredicate(String name, ValuePredicate value, boolean negated, Path path) {
+        super(name, value, negated, path);
+    }
+
+    public AttributePredicate(StringPredicate name, ValuePredicate value, boolean negated, Path path) {
+        super(name, value, negated, path);
     }
 
     @Override
@@ -66,8 +74,14 @@ public class AttributePredicate extends NameValuePredicate {
     }
 
     @Override
-    public AttributePredicate mustNotExist() {
-        this.mustNotExist = true;
+    public AttributePredicate negate() {
+        super.negate();
+        return this;
+    }
+
+    @Override
+    public AttributePredicate path(Path path) {
+        super.path(path);
         return this;
     }
 
@@ -85,8 +99,9 @@ public class AttributePredicate extends NameValuePredicate {
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name=" + name +
-            ", mustNotExist=" + mustNotExist +
             ", value=" + value +
+            ", negated=" + negated +
+            ", path=" + (path == null ? "null" : Arrays.toString(path.paths)) +
             ", meta=" + Arrays.toString(meta) +
             ", previousValue=" + previousValue +
             '}';

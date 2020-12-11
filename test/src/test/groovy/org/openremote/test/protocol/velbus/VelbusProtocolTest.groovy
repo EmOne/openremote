@@ -67,7 +67,7 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
 
         and: "a device asset is created"
         def device = new ThingAsset("VELBUS Demo VMBGPOD")
-            .setParent(agent)
+            .setRealm(MASTER_REALM)
             .addOrReplaceAttributes(
                 new Attribute<>("ch1State", STRING)
                     .addOrReplaceMeta(

@@ -50,8 +50,10 @@ import org.openremote.model.protocol.ProtocolAssetDiscovery;
 import org.openremote.model.protocol.ProtocolAssetImport;
 import org.openremote.model.protocol.ProtocolInstanceDiscovery;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.query.LogicGroup;
-import org.openremote.model.query.filter.*;
+import org.openremote.model.query.filter.AttributePredicate;
+import org.openremote.model.query.filter.NameValuePredicate;
+import org.openremote.model.query.filter.PathPredicate;
+import org.openremote.model.query.filter.StringPredicate;
 import org.openremote.model.util.Pair;
 import org.openremote.model.util.TextUtil;
 
@@ -421,12 +423,12 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
             LOG.fine("Linking attributes to protocol instance: " + protocol);
 
-            // Get all assets that have attributes with agent link meta to this agent
+            // Get all assets that have attributes with agent link meta for this agent
             List<Asset<?>> assets = assetStorageService.findAll(
                 new AssetQuery()
                     .attributes(
                         new AttributePredicate().meta(
-                            new NameValuePredicate(new StringPredicate(AGENT_LINK.getName()), new ObjectValueKeyPredicate("id", new StringPredicate(agent.getId()), false))
+                            new NameValuePredicate(AGENT_LINK, new StringPredicate(agent.getId()), false, new NameValuePredicate.Path("id"))
                         )
                     )
             );

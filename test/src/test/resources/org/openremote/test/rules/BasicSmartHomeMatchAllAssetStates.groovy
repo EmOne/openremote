@@ -2,7 +2,6 @@ package org.openremote.test.rules
 
 import org.openremote.manager.rules.RulesBuilder
 import org.openremote.model.query.AssetQuery
-import org.openremote.model.attribute.AttributeValueType
 
 RulesBuilder rules = binding.rules
 
@@ -36,7 +35,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("Kitchen Number Attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery().names("Kitchen 1"))
-                            .filter({ assetState -> assetState.attributeValueType == NUMBER })
+                            .filter({ assetState -> assetState.valueType == NUMBER })
                             .findFirst().isPresent()
         })
         .then(
@@ -50,7 +49,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("Boolean attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery())
-                            .filter({ assetState -> assetState.attributeValueType == BOOLEAN })
+                            .filter({ assetState -> assetState.valueType == BOOLEAN })
                             .findFirst().isPresent()
         })
         .then(
@@ -64,7 +63,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("String Attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery())
-                            .filter({ assetState -> assetState.attributeValueType == STRING })
+                            .filter({ assetState -> assetState.valueType == STRING })
                             .findFirst().isPresent()
         })
         .then(

@@ -6,7 +6,6 @@ import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.AttributePredicate
 import org.openremote.model.query.filter.StringPredicate
 import org.openremote.model.rules.AssetState
-import org.openremote.model.value.Values
 
 import java.time.Instant
 import java.time.LocalDateTime
@@ -34,17 +33,17 @@ enum SmartSwitchMode {
     }
 }
 
-Closure<Stream<AssetState>> smartSwitchAttributesMatch = { RulesFacts facts, SmartSwitchAttribute attribute ->
+Closure<Stream<AssetState<?>>> smartSwitchAttributesMatch = { RulesFacts facts, SmartSwitchAttribute attribute ->
     facts.matchAssetState(
             new AssetQuery().types(ROOM).attributes(new AttributePredicate(new StringPredicate(BEGIN, "smartSwitch" + attribute.name())))
     )
 }
 
 Closure<Character> getSmartSwitchName = { AssetState attribute ->
-    attribute.attributeName.charAt(attribute.attributeName.length() - 1)
+    attribute.name.charAt(attribute.name.length() - 1)
 }
 
-Closure<Optional<AssetState>> smartSwitchAttributeMatch = { RulesFacts facts, AssetState smartSwitch, SmartSwitchAttribute attribute ->
+Closure<Optional<AssetState<?>>> smartSwitchAttributeMatch = { RulesFacts facts, AssetState smartSwitch, SmartSwitchAttribute attribute ->
     facts.matchFirstAssetState(
             new AssetQuery().types(ROOM).attributeName("smartSwitch" + attribute.name() + getSmartSwitchName(smartSwitch))
     )

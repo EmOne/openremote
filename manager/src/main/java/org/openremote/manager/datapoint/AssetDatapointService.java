@@ -338,8 +338,8 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
         List<Asset<?>> assets = assetStorageService.findAll(
                 new AssetQuery()
                     .attributes(new AttributePredicate().meta(
-                        new NameValuePredicate(MetaItemType.DATA_POINTS_MAX_AGE_DAYS),
-                        new NameValuePredicate(STORE_DATA_POINTS)
+                        new NameValuePredicate(MetaItemType.DATA_POINTS_MAX_AGE_DAYS, null),
+                        new NameValuePredicate(STORE_DATA_POINTS, null)
                     ))
                     .select(AssetQuery.Select.selectExcludePathAndParentInfo()));
 

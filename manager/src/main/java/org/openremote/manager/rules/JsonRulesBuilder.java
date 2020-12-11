@@ -79,10 +79,10 @@ public class JsonRulesBuilder extends RulesBuilder {
         AssetQuery.OrderBy orderBy;
         int limit;
         LogicGroup<AttributePredicate> attributePredicates = null;
-        Predicate<AssetState> assetStatePredicate = null;
-        Set<AssetState> unfilteredAssetStates = new HashSet<>();
-        Set<AssetState> previouslyMatchedAssetStates = new HashSet<>();
-        Set<AssetState> previouslyUnmatchedAssetStates;
+        Predicate<AssetState<?>> assetStatePredicate = null;
+        Set<AssetState<?>> unfilteredAssetStates = new HashSet<>();
+        Set<AssetState<?>> previouslyMatchedAssetStates = new HashSet<>();
+        Set<AssetState<?>> previouslyUnmatchedAssetStates;
         Predicate<Long> timePredicate;
         RuleConditionEvaluationResult lastEvaluationResult;
 
@@ -142,7 +142,8 @@ public class JsonRulesBuilder extends RulesBuilder {
                     // Only supports a single level or logic group for attributes (i.e. cannot nest groups in the UI so
                     // don't support it here either)
                     attributePredicates.groups = null;
-                    assetStatePredicate = AssetQueryPredicate.asPredicate(timerService::getCurrentTimeMillis, attributePredicates);
+                    //noinspection unchecked
+                    assetStatePredicate = (Predicate<AssetState<?>>)(Predicate)AssetQueryPredicate.asPredicate(timerService::getCurrentTimeMillis, attributePredicates);
                 }
                 ruleCondition.assets.orderBy = null;
                 ruleCondition.assets.limit = 0;
@@ -213,29 +214,29 @@ public class JsonRulesBuilder extends RulesBuilder {
                 return;
             }
 
-            List<AssetState> matchedAssetStates;
-            List<AssetState> unmatchedAssetStates = Collections.emptyList();
+            List<AssetState<?>> matchedAssetStates;
+            List<AssetState<?>> unmatchedAssetStates = Collections.emptyList();
             Collection<String> unmatchedAssetIds = Collections.emptyList();
 
             if (attributePredicates == null) {
                 matchedAssetStates = new ArrayList<>(unfilteredAssetStates);
             } else {
 
-                Map<Boolean, List<AssetState>> results;
+                Map<Boolean, List<AssetState<?>>> results;
                 boolean isAndGroup = attributePredicates.operator == null || attributePredicates.operator == LogicGroup.Operator.AND;
 
                 if (isAndGroup) {
 
                     // ANDs need to be applied in the context of an entire asset as don't make any sense otherwise
                     results = new HashMap<>();
-                    ArrayList<AssetState> matched = new ArrayList<>();
-                    ArrayList<AssetState> unmatched = new ArrayList<>();
+                    ArrayList<AssetState<?>> matched = new ArrayList<>();
+                    ArrayList<AssetState<?>> unmatched = new ArrayList<>();
                     results.put(true, matched);
                     results.put(false, unmatched);
 
                     unfilteredAssetStates.stream().collect(Collectors.groupingBy(AssetState::getId)).forEach((id, states) -> {
 
-                        Map<Boolean, List<AssetState>> assetResults = states.stream().collect(Collectors.groupingBy(assetStatePredicate::test));
+                        Map<Boolean, List<AssetState<?>>> assetResults = states.stream().collect(Collectors.groupingBy(assetStatePredicate::test));
                         matched.addAll(assetResults.getOrDefault(true, Collections.emptyList()));
                         unmatched.addAll(assetResults.getOrDefault(false, Collections.emptyList()));
                     });
@@ -280,7 +281,7 @@ public class JsonRulesBuilder extends RulesBuilder {
             matchedAssetStates.removeIf(previouslyMatchedAssetStates::contains);
 
             // Select unique asset states based on asset id
-            Stream<AssetState> matchedAssetStateStream = matchedAssetStates.stream().filter(distinctByKey(AssetState::getId));
+            Stream<AssetState<?>> matchedAssetStateStream = matchedAssetStates.stream().filter(distinctByKey(AssetState::getId));
 
             // Order asset states before applying limit
             if (orderBy != null) {
@@ -294,7 +295,7 @@ public class JsonRulesBuilder extends RulesBuilder {
 
             if (trackUnmatched) {
                 // Select unique asset states based on asset id
-                Stream<AssetState> unmatchedAssetStateStream = unmatchedAssetStates.stream().filter(distinctByKey(AssetState::getId));
+                Stream<AssetState<?>> unmatchedAssetStateStream = unmatchedAssetStates.stream().filter(distinctByKey(AssetState::getId));
 
                 // Filter out unmatched asset ids that are in the matched list
                 unmatchedAssetIds = unmatchedAssetStateStream
@@ -329,12 +330,12 @@ public class JsonRulesBuilder extends RulesBuilder {
      */
     static class RuleConditionEvaluationResult {
         boolean matches;
-        Collection<AssetState> matchedAssetStates;
-        Collection<AssetState> unmatchedAssetStates;
+        Collection<AssetState<?>> matchedAssetStates;
+        Collection<AssetState<?>> unmatchedAssetStates;
         Collection<String> matchedAssetIds;
         Collection<String> unmatchedAssetIds;
 
-        public RuleConditionEvaluationResult(boolean matches, Collection<AssetState> matchedAssetStates, Collection<String> matchedAssetIds, Collection<AssetState> unmatchedAssetStates, Collection<String> unmatchedAssetIds) {
+        public RuleConditionEvaluationResult(boolean matches, Collection<AssetState<?>> matchedAssetStates, Collection<String> matchedAssetIds, Collection<AssetState<?>> unmatchedAssetStates, Collection<String> unmatchedAssetIds) {
             this.matches = matches;
             this.matchedAssetStates = matchedAssetStates;
             this.matchedAssetIds = matchedAssetIds;
@@ -858,12 +859,12 @@ public class JsonRulesBuilder extends RulesBuilder {
             }
 
             // Look for the current value within the asset state facts (asset/attribute has to be in scope of this rule engine and have a rule state meta item)
-            List<AssetState> matchingAssetStates = matchingAssetIds
+            List<AssetState<?>> matchingAssetStates = matchingAssetIds
                 .stream()
                 .map(assetId ->
                         facts.getAssetStates()
                                 .stream()
-                                .filter(state -> state.getId().equals(assetId) && state.getAttributeName().equals(attributeUpdateAction.attributeName))
+                                .filter(state -> state.getId().equals(assetId) && state.getName().equals(attributeUpdateAction.attributeName))
                                 .findFirst().orElseGet(() -> {
                                     log(Level.WARNING, "Failed to find attribute in rule states for attribute update: " + new AttributeRef(assetId, attributeUpdateAction.attributeName));
                                     return null;
@@ -880,7 +881,7 @@ public class JsonRulesBuilder extends RulesBuilder {
 
                 matchingAssetStates.forEach(assetState -> {
                     Object value = assetState.getValue().orElse(null);
-                    Class<?> valueType = assetState.getAttributeValueType().getType();
+                    Class<?> valueType = assetState.getValueType().getType();
                     boolean isArray = Values.isArray(valueType);
 
                     if (!isArray && !Values.isObject(valueType)) {
@@ -958,10 +959,10 @@ public class JsonRulesBuilder extends RulesBuilder {
         }
 
         // Extract asset states for matched asset IDs
-        Map<String, Set<AssetState>> assetStates = ruleEvaluationResult.conditionStateMap.values().stream()
+        Map<String, Set<AssetState<?>>> assetStates = ruleEvaluationResult.conditionStateMap.values().stream()
             .filter(conditionState -> conditionState.lastEvaluationResult.matches)
             .flatMap(conditionState -> {
-                Collection<AssetState> as = useUnmatched
+                Collection<AssetState<?>> as = useUnmatched
                     ? conditionState.lastEvaluationResult.unmatchedAssetStates
                     : conditionState.lastEvaluationResult.matchedAssetStates;
                 return as.stream();
@@ -977,9 +978,9 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("<tr><td>");
                 sb.append(assetState.getId());
                 sb.append("</td><td>");
-                sb.append(assetState.getName());
+                sb.append(assetState.getAssetName());
                 sb.append("</td><td>");
-                sb.append(assetState.getAttributeName());
+                sb.append(assetState.getName());
                 sb.append("</td><td>");
                 sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
                 sb.append("</td></tr>");
@@ -990,9 +991,9 @@ public class JsonRulesBuilder extends RulesBuilder {
             assetStates.forEach((key, value) -> value.forEach(assetState -> {
                 sb.append(assetState.getId());
                 sb.append("\t\t");
-                sb.append(assetState.getName());
+                sb.append(assetState.getAssetName());
                 sb.append("\t\t");
-                sb.append(assetState.getAttributeName());
+                sb.append(assetState.getName());
                 sb.append("\t\t");
                 sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
             }));

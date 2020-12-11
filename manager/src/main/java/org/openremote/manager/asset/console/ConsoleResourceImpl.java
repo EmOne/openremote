@@ -162,7 +162,7 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
                 .parents(new ParentPredicate(true))
                 .types(GroupAsset.class)
                 .tenant(new TenantPredicate(tenant.getRealm()))
-                .attributes(new AttributePredicate("childAssetType").value(new StringPredicate(ConsoleAsset.DESCRIPTOR.getName())))
+                .attributes(new AttributePredicate("childAssetType", new StringPredicate(ConsoleAsset.DESCRIPTOR.getName())))
         );
 
         if (consoleParent == null) {

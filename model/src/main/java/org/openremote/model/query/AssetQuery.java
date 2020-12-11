@@ -27,7 +27,6 @@ import org.openremote.model.value.NameHolder;
 
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -394,13 +393,13 @@ public class AssetQuery {
     }
 
     public AssetQuery attributeNames(String... attributeNames) {
-        LogicGroup<AttributePredicate> predicateLogicGroup = new LogicGroup<>(Arrays.stream(attributeNames).map(AttributePredicate::new).collect(Collectors.toList()));
+        LogicGroup<AttributePredicate> predicateLogicGroup = new LogicGroup<>(Arrays.stream(attributeNames).map(name -> new AttributePredicate(name, null)).collect(Collectors.toList()));
         predicateLogicGroup.operator = LogicGroup.Operator.OR;
         return attributes(predicateLogicGroup);
     }
 
     public AssetQuery attributeName(String attributeName) {
-        return attributes(new AttributePredicate(attributeName));
+        return attributes(new AttributePredicate(attributeName, null));
     }
 
     public AssetQuery attributeValue(String name, ValuePredicate valuePredicate) {

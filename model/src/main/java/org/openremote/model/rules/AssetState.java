@@ -25,7 +25,7 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.MetaList;
-import org.openremote.model.value.ValueDescriptor;
+import org.openremote.model.value.*;
 
 import java.util.Date;
 import java.util.Objects;
@@ -38,29 +38,29 @@ import java.util.Optional;
  * are equal if they have the same asset ID and attribute name (the same attribute
  * reference).
  */
-public class AssetState implements Comparable<AssetState> {
+public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder<T>, MetaHolder {
 
     final protected String attributeName;
 
     @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
-    final protected ValueDescriptor<?> attributeValueType;
+    final protected ValueDescriptor<T> attributeValueType;
 
-    final protected Object value;
+    final protected T value;
 
     final protected long timestamp;
 
     final protected AttributeEvent.Source source;
 
-    final protected Object oldValue;
+    final protected T oldValue;
 
     final protected long oldValueTimestamp;
 
     final protected String id;
 
-    final protected String name;
+    final protected String assetName;
 
-    final protected String type;
+    final protected String assetType;
 
     final protected Date createdOn;
 
@@ -76,17 +76,17 @@ public class AssetState implements Comparable<AssetState> {
 
     final protected MetaList meta;
 
-    public AssetState(Asset<?> asset, Attribute<?> attribute, AttributeEvent.Source source) {
+    public AssetState(Asset<?> asset, Attribute<T> attribute, AttributeEvent.Source source) {
         this.attributeName = attribute.getName();
         this.attributeValueType = attribute.getValueType();
         this.value = attribute.getValue().orElse(null);
         this.timestamp = attribute.getTimestamp().orElse(-1L);
         this.source = source;
-        this.oldValue = asset.getAttributes().get(attributeName).flatMap(Attribute::getValue).orElse(null);
+        this.oldValue = asset.getAttribute(attributeName, attribute.getValueType().getType()).flatMap(Attribute::getValue).orElse(null);
         this.oldValueTimestamp = asset.getAttributes().get(attributeName).flatMap(Attribute::getTimestamp).orElse(-1L);
         this.id = asset.getId();
-        this.name = asset.getName();
-        this.type = asset.getType();
+        this.assetName = asset.getName();
+        this.assetType = asset.getType();
         this.createdOn = asset.getCreatedOn();
         this.path = asset.getPath();
         this.parentId = asset.getParentId();
@@ -96,16 +96,28 @@ public class AssetState implements Comparable<AssetState> {
         this.meta = attribute.getMeta();
     }
 
-    public String getAttributeName() {
+    @Override
+    public String getName() {
         return attributeName;
     }
 
-    public ValueDescriptor<?> getAttributeValueType() {
+    @Override
+    public ValueDescriptor<T> getValueType() {
         return attributeValueType;
     }
 
-    public Optional<Object> getValue() {
+    public Optional<T> getValue() {
         return Optional.ofNullable(value);
+    }
+
+    @Override
+    public <U> Optional<U> getValueAs(Class<U> valueType) {
+        return Optional.empty();
+    }
+
+    @Override
+    public void setValue(Object value) {
+        throw new UnsupportedOperationException("Cannot set value of Asset State");
     }
 
     public long getTimestamp() {
@@ -132,12 +144,12 @@ public class AssetState implements Comparable<AssetState> {
         return createdOn;
     }
 
-    public String getName() {
-        return name;
+    public String getAssetName() {
+        return assetName;
     }
 
-    public String getType() {
-        return type;
+    public String getAssetType() {
+        return assetType;
     }
 
     public String[] getPath() {
@@ -176,7 +188,7 @@ public class AssetState implements Comparable<AssetState> {
      */
     public boolean matches(AttributeEvent event, AttributeEvent.Source source, boolean ignoreTimestamp) {
         return getId().equals(event.getAssetId())
-            && getAttributeName().equals(event.getAttributeName())
+            && getName().equals(event.getAttributeName())
             && getValue().equals(event.getValue())
             && (ignoreTimestamp || getTimestamp() == event.getTimestamp())
             && (source == null || getSource() == source);
@@ -186,7 +198,7 @@ public class AssetState implements Comparable<AssetState> {
     public int compareTo(AssetState that) {
         int result = getId().compareTo(that.getId());
         if (result == 0)
-            result = getAttributeName().compareTo(that.getAttributeName());
+            result = getName().compareTo(that.getName());
         if (result == 0)
             result = Long.compare(getTimestamp(), that.getTimestamp());
         return result;
@@ -196,25 +208,26 @@ public class AssetState implements Comparable<AssetState> {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        AssetState that = (AssetState) o;
-        return Objects.equals(attributeName, that.attributeName) &&
-            Objects.equals(id, that.id);
+        AssetState<?> that = (AssetState<?>) o;
+        return Objects.equals(attributeName, that.attributeName)
+            && Objects.equals(timestamp, that.timestamp)
+            && Objects.equals(id, that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(attributeName, id);
+        return Objects.hash(attributeName, id, timestamp);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "id='" + getId() + '\'' +
-            ", name='" + getName() + '\'' +
+            ", name='" + getAssetName() + '\'' +
             ", parentName='" + getParentName() + '\'' +
-            ", type='" + getType() + '\'' +
-            ", attributeName='" + getAttributeName() + '\'' +
-            ", attributeValueDescriptor=" + getAttributeValueType() +
+            ", type='" + getAssetType() + '\'' +
+            ", attributeName='" + getName() + '\'' +
+            ", attributeValueDescriptor=" + getValueType() +
             ", value=" + getValue() +
             ", timestamp=" + getTimestamp() +
             ", oldValue=" + getOldValue() +
