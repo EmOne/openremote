@@ -44,10 +44,12 @@ import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TextUtil;
 
 import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.model.value.MetaItemType.ACCESS_PUBLIC_WRITE;
@@ -89,10 +91,10 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
             throw new BadRequestException(Response.status(Response.Status.BAD_REQUEST).build());
         }
 
-        ConstraintViolation<?>[] constraintViolations = AssetModelUtil.validate(consoleRegistration);
+        Set<ConstraintViolation<ConsoleRegistration>> constraintViolations = AssetModelUtil.validate(consoleRegistration);
 
-        if (constraintViolations.length > 0) {
-            throw new BadRequestException(Response.status(Response.Status.BAD_REQUEST).entity(constraintViolations).build());
+        if (!constraintViolations.isEmpty()) {
+            throw new ConstraintViolationException(constraintViolations);
         }
 
         ConsoleAsset consoleAsset = null;

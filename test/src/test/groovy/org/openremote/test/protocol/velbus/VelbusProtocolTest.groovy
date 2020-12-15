@@ -5,13 +5,13 @@ import org.openremote.agent.protocol.velbus.VelbusAgent
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.agent.AgentResource
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.file.FileInfo
 import org.openremote.model.util.TextUtil
+import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -145,21 +145,22 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
             !TextUtil.isNullOrEmpty(it.asset.id) &&
                 !TextUtil.isNullOrEmpty(it.asset.getName()) &&
                 !it.asset.getAttributes().isEmpty() &&
-                it.asset.getAttributesStream().allMatch({attr ->
-                    AgentLink.getAgentLink(attr)
-                        .map({agentLink -> agentLink.assetId == agent.id && agentLink.attributeName == "protocolConfig"})
-                        .orElse(false)
-                })
-
+                it.asset.getAttributes().every {attr ->
+                    attr.getMetaValue(AGENT_LINK).map{
+                        Values.getValue(it, VelbusAgent.VelbusAgentLink.class)
+                                .map({agentLink -> agentLink.id == agent.id && agentLink.deviceAddress.isPresent() && agentLink.deviceValueLink.isPresent()})
+                                .orElse(false)
+                    }.orElse(true)
+                }
         }
 
         and: "a given asset should have the correct attributes (VMBGPOD)"
         def asset = assets.find {it.asset.name == "VMBGPOD"}
         assert asset != null
-        assert asset.asset.getAttributes().size() == 303
-        def memoTextAttribute = asset.asset.getAttributes().find {VelbusConfiguration.getVelbusDevicePropertyLink(it) == "MEMO_TEXT"}
+        assert asset.asset.getAttributes().size() == 304
+        def memoTextAttribute = asset.asset.getAttributes().find {it.getMetaValue(AGENT_LINK).map{(it as VelbusAgent.VelbusAgentLink).deviceValueLink.orElse(null) == "MEMO_TEXT"}.orElse(false)}
         assert memoTextAttribute != null
-        assert VelbusConfiguration.getVelbusDeviceAddress(memoTextAttribute) == 24
+        assert memoTextAttribute.getMetaValue(AGENT_LINK).flatMap(){(it as VelbusAgent.VelbusAgentLink).deviceAddress}.orElse(null) == 24
 
         cleanup: "remove agent"
         if (agent != null) {

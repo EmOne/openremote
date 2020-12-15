@@ -84,20 +84,23 @@ public class AttributeList extends NamedList<Attribute<?>> {
     }
 
     public <S> Attribute<S> getOrCreate(AttributeDescriptor<S> attributeDescriptor) {
-        Attribute<S> attribute = get(attributeDescriptor).orElse(new Attribute<>(attributeDescriptor));
-        addOrReplace(attribute);
-        return attribute;
+        return get(attributeDescriptor).orElseGet(() -> {
+            Attribute<S> attr = new Attribute<>(attributeDescriptor);
+            addSilent(attr);
+            return attr;
+        });
     }
 
     @SuppressWarnings("unchecked")
     public <S> Attribute<S> getOrCreate(String attributeName, ValueDescriptor<S> valueDescriptor) {
-        Attribute<S> attribute = (Attribute<S>) get(attributeName).orElse(new Attribute<>(attributeName, valueDescriptor));
-        addOrReplace(attribute);
-        return attribute;
+        return (Attribute<S>) get(attributeName).orElseGet(() -> {
+            Attribute<S> attr = new Attribute<>(attributeName, valueDescriptor);
+            addSilent(attr);
+            return attr;
+        });
     }
 
-    public <T> void set(AttributeDescriptor<T> descriptor, T value) {
-        Attribute<T> attribute = get(descriptor).orElse(new Attribute<>(descriptor, null));
-        attribute.setValue(value);
+    public <T> void setValue(AttributeDescriptor<T> descriptor, T value) {
+        getOrCreate(descriptor).setValue(value);
     }
 }

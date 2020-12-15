@@ -58,7 +58,6 @@ import org.openremote.model.util.Pair;
 import org.openremote.model.util.TextUtil;
 
 import javax.persistence.EntityManager;
-import javax.ws.rs.NotSupportedException;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -705,8 +704,14 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
     public Future<Void> doProtocolAssetDiscovery(Agent<?, ?, ?> agent, Consumer<AssetTreeNode[]> onDiscovered) throws RuntimeException {
 
-        if (!(agent instanceof ProtocolAssetDiscovery)) {
-            throw new NotSupportedException("Agent protocol doesn't support asset discovery");
+        Protocol<?> protocol = getProtocolInstance(agent.getId());
+
+        if (protocol == null) {
+            throw new UnsupportedOperationException("Agent protocol is disabled or is being deleted");
+        }
+
+        if (!(protocol instanceof ProtocolAssetDiscovery)) {
+            throw new UnsupportedOperationException("Agent protocol doesn't support asset discovery");
         }
 
         LOG.fine("Initiating protocol asset discovery: Agent = " + agent);
@@ -721,7 +726,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                         return;
                     }
 
-                    ProtocolAssetDiscovery assetDiscovery = (ProtocolAssetDiscovery) agent;
+                    ProtocolAssetDiscovery assetDiscovery = (ProtocolAssetDiscovery) protocol;
                     Future<Void> discoveryFuture = assetDiscovery.startAssetDiscovery(onDiscovered);
                     discoveryFuture.get();
                 } catch (InterruptedException e) {
@@ -742,8 +747,14 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
     public Future<Void> doProtocolAssetImport(Agent<?, ?, ?> agent, byte[] fileData, Consumer<AssetTreeNode[]> onDiscovered) throws RuntimeException {
 
-        if (!(agent instanceof ProtocolAssetImport)) {
-            throw new NotSupportedException("Agent protocol doesn't support asset import");
+        Protocol<?> protocol = getProtocolInstance(agent.getId());
+
+        if (protocol == null) {
+            throw new UnsupportedOperationException("Agent protocol is disabled or is being deleted");
+        }
+
+        if (!(protocol instanceof ProtocolAssetImport)) {
+            throw new UnsupportedOperationException("Agent protocol doesn't support asset import");
         }
 
         LOG.fine("Initiating protocol asset import: Agent = " + agent);
@@ -757,7 +768,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                         return;
                     }
 
-                    ProtocolAssetImport assetImport = (ProtocolAssetImport) agent;
+                    ProtocolAssetImport assetImport = (ProtocolAssetImport) protocol;
                     Future<Void> discoveryFuture = assetImport.startAssetImport(fileData, onDiscovered);
                     discoveryFuture.get();
                 } catch (InterruptedException e) {

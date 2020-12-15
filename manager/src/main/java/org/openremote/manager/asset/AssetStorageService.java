@@ -19,12 +19,10 @@
  */
 package org.openremote.manager.asset;
 
-import com.vladmihalcea.hibernate.type.array.ListArrayType;
 import com.vladmihalcea.hibernate.type.array.StringArrayType;
 import org.apache.camel.builder.RouteBuilder;
 import org.hibernate.Session;
 import org.hibernate.jdbc.AbstractReturningWork;
-import org.hibernate.type.CustomType;
 import org.openremote.agent.protocol.ProtocolClientEventService;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
@@ -60,18 +58,17 @@ import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.Pair;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.Values;
-import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
 
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
-import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 import java.lang.reflect.Field;
 import java.sql.*;
-import java.util.*;
 import java.util.Date;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -559,7 +556,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
      * @return The current stored asset state.
      * @throws IllegalArgumentException if the realm or parent is illegal, or other asset constraint is violated.
      */
-    public <T extends Asset<?>> T merge(T asset) {
+    public <T extends Asset<?>> T merge(T asset) throws IllegalStateException, ConstraintViolationException {
         return merge(asset, false);
     }
 
@@ -569,7 +566,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
      * @return The current stored asset state.
      * @throws IllegalArgumentException if the realm or parent is illegal, or other asset constraint is violated.
      */
-    public <T extends Asset<?>> T merge(T asset, boolean overrideVersion) {
+    public <T extends Asset<?>> T merge(T asset, boolean overrideVersion) throws IllegalStateException, ConstraintViolationException {
         return merge(asset, overrideVersion, false, null);
     }
 
@@ -578,7 +575,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
      * @return The current stored asset state.
      * @throws IllegalArgumentException if the realm or parent is illegal, or other asset constraint is violated.
      */
-    public <T extends Asset<?>> T merge(T asset, String userName) {
+    public <T extends Asset<?>> T merge(T asset, String userName) throws IllegalStateException, ConstraintViolationException {
         return merge(asset, false, false, userName);
     }
 
@@ -593,31 +590,32 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
      * @return The current stored asset state.
      * @throws IllegalArgumentException if the realm or parent is illegal, or other asset constraint is violated.
      */
-    public <T extends Asset<?>> T merge(T asset, boolean overrideVersion, boolean skipGatewayCheck, String userName) {
+    @SuppressWarnings("unchecked")
+    public <T extends Asset<?>> T merge(T asset, boolean overrideVersion, boolean skipGatewayCheck, String userName) throws IllegalStateException, ConstraintViolationException {
         return persistenceService.doReturningTransaction(em -> {
 
-            T existingAsset = null;
+            T existingAsset = TextUtil.isNullOrEmpty(asset.getId()) ? null : (T)em.find(Asset.class, asset.getId());
 
-            if (asset.getId() != null) {
+            // Do standard JSR-380 validation on the asset (includes custom validation)
+            Set<ConstraintViolation<Asset<?>>> validationFailures = AssetModelUtil.validate(asset);
 
-                // At least some sanity check, we must hope that the client has set a unique ID
-                if (asset.getId().length() != 22) {
-                    String msg = "Asset ID must be 22 characters: asset=" + asset;
-                    LOG.info(msg);
-                    throw new IllegalStateException(msg);
-                }
+            if (validationFailures.size() > 0) {
+                String msg = "Asset merge failed as asset has failed constraint validation: asset=" + asset;
+                ConstraintViolationException ex = new ConstraintViolationException(validationFailures);
+                LOG.log(Level.WARNING, msg + ", exception=" + ex.getMessage(), ex);
+                throw ex;
+            }
 
-                //noinspection unchecked
-                existingAsset = (T)em.find(Asset.class, asset.getId());
+            if (existingAsset != null) {
 
                 // Verify type has not been changed
-                if (existingAsset != null && !existingAsset.getType().equals(asset.getType())) {
+                if (!existingAsset.getType().equals(asset.getType())) {
                     String msg = "Asset type cannot be changed: asset=" + asset;
                     LOG.info(msg);
                     throw new IllegalStateException(msg);
                 }
 
-                if (existingAsset != null && !existingAsset.getRealm().equals(asset.getRealm())) {
+                if (!existingAsset.getRealm().equals(asset.getRealm())) {
                     String msg = "Asset realm cannot be changed: asset=" + asset;
                     LOG.info(msg);
                     throw new IllegalStateException(msg);
@@ -626,7 +624,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 // If this is real merge and desired, copy the persistent version number over the detached
                 // version, so the detached state always wins and this update will go through and ignore
                 // concurrent updates
-                if (existingAsset != null && overrideVersion) {
+                if (overrideVersion) {
                     asset.setVersion(existingAsset.getVersion());
                 }
             }
@@ -651,13 +649,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
 
                 // .. the parent should be in the same realm
-                if (asset.getRealm() != null && !parent.getRealm().equals(asset.getRealm())) {
+                if (!parent.getRealm().equals(asset.getRealm())) {
                     String msg = "Asset parent must be in the same realm: asset=" + asset;
                     LOG.info(msg);
                     throw new IllegalStateException(msg);
-                } else if (asset.getRealm() == null) {
-                    // ... and if we don't have a realm identifier, use the parent's
-                    asset.setRealm(parent.getRealm());
                 }
 
                 // if parent is of type group then this child asset must have the correct type
@@ -685,18 +680,6 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
             if (!identityService.getIdentityProvider().tenantExists(asset.getRealm())) {
                 String msg = "Asset realm not found or is inactive: asset=" + asset;
-                LOG.info(msg);
-                throw new IllegalStateException(msg);
-            }
-
-            // Validate attributes
-            ConstraintViolation<?>[] validationFailures = AssetModelUtil.validate(asset);
-
-            for (ConstraintViolation<?> validationFailure : validationFailures) {
-                LOG.warning("Validation failure for asset '" + asset + "': " + validationFailure);
-            }
-            if (validationFailures.length > 0) {
-                String msg = "Asset has one or more invalid attributes: asset=" + asset;
                 LOG.info(msg);
                 throw new IllegalStateException(msg);
             }

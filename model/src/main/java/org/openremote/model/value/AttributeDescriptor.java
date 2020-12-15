@@ -43,6 +43,7 @@ import java.util.Objects;
 public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T> implements MetaHolder {
 
     protected MetaList meta;
+    protected boolean required;
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
         this(name, valueDescriptor, (MetaList) null);
@@ -64,6 +65,20 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     @Override
     public Collection<MetaItem<?>> getMeta() {
         return meta;
+    }
+
+    public AttributeDescriptor<T> setMeta(MetaList meta) {
+        this.meta = meta;
+        return this;
+    }
+
+    public boolean isRequired() {
+        return required;
+    }
+
+    public AttributeDescriptor<T> setRequired(boolean required) {
+        this.required = required;
+        return this;
     }
 
     @Override

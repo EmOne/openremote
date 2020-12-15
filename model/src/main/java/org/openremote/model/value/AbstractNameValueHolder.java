@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openremote.model.util.TextUtil;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,7 +37,9 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T> {
     @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
     protected ValueDescriptor<T> type;
+    @Valid
     protected T value;
+    @NotBlank(message = "{Asset.valueHolder.name.NotBlank}")
     protected String name;
 
     protected AbstractNameValueHolder() {

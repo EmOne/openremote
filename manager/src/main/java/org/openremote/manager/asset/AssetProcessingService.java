@@ -241,7 +241,6 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                     if (asset == null)
                         throw new AssetProcessingException(ASSET_NOT_FOUND);
 
-
                     Attribute<?> oldAttribute = asset.getAttributes().get(event.getAttributeName()).orElse(null);
                     if (oldAttribute == null)
                         throw new AssetProcessingException(ATTRIBUTE_NOT_FOUND);

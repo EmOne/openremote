@@ -31,8 +31,8 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * A named value whose name must match the name of a {@link MetaItemDescriptor} and whose value must match the value type of
- * the {@link MetaItemDescriptor}.
+ * A named value whose name must match the name of a {@link MetaItemDescriptor} and whose value must match the value
+ * type of the {@link MetaItemDescriptor}.
  */
 @JsonSerialize(using = MetaItem.MetaItemSerializer.class)
 public class MetaItem<T> extends AbstractNameValueHolder<T> {
@@ -40,6 +40,7 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
     /**
      * Serialise the meta item as just the value
      */
+    @SuppressWarnings("rawtypes")
     public static class MetaItemSerializer extends StdSerializer<MetaItem> {
 
         protected MetaItemSerializer() {
@@ -52,12 +53,13 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
         }
     }
 
-    MetaItem() {}
+    MetaItem() {
+    }
 
     @SuppressWarnings("unchecked")
     public MetaItem(MetaItemDescriptor<T> metaDescriptor) {
         // If it's a boolean meta descriptor assume the caller wants it to be true as a default
-        this(metaDescriptor, (T)(Boolean.valueOf(metaDescriptor.getValueType().getType() == Boolean.class)));
+        this(metaDescriptor, (T) (Boolean.valueOf(metaDescriptor.getValueType().getType() == Boolean.class)));
     }
 
     public MetaItem(MetaItemDescriptor<T> metaDescriptor, T value) {

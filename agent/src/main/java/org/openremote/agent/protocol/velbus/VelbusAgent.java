@@ -30,6 +30,7 @@ import org.openremote.model.value.ValueType;
 import javax.persistence.Entity;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
@@ -37,8 +38,7 @@ public abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends Abstrac
 
     public static class VelbusAgentLink extends AgentLink<VelbusAgentLink> {
 
-        @NotNull
-        @Min(1)
+        @NotBlank
         protected String deviceValueLink;
 
         @Min(1)

@@ -84,7 +84,7 @@ public abstract class AbstractManagerSetup implements Setup {
     protected BuildingAsset createDemoApartment(Asset<?> parent, String name, GeoJSONPoint location) {
         BuildingAsset apartment = new BuildingAsset(name);
 
-        apartment.setParentId(parent.getParentId());
+        apartment.setParent(parent);
         apartment.setAttributes(
             new Attribute<>("alarmEnabled", BOOLEAN)
                 .addMeta(
@@ -142,7 +142,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected RoomAsset createDemoApartmentRoom(Asset<?> apartment, String name) {
         RoomAsset room = new RoomAsset(name);
-        room.setParentId(apartment.getId());
+        room.setParent(apartment);
         return room;
     }
 
@@ -396,7 +396,7 @@ public abstract class AbstractManagerSetup implements Setup {
         MacroAgent createSceneAgent(BuildingAsset apartment, RoomAsset... rooms) {
             MacroAgent sceneAgent = new MacroAgent("Scene agent " + sceneName);
             sceneAgent.setId(UniqueIdentifierGenerator.generateId());
-            sceneAgent.setParentId(apartment.getId());
+            sceneAgent.setParent(apartment);
 
             List<MacroAction> actions = new ArrayList<>();
             actions.add(new MacroAction(new AttributeState(new AttributeRef(apartment.getId(), "alarmEnabled"), alarmEnabled)));
@@ -427,7 +427,7 @@ public abstract class AbstractManagerSetup implements Setup {
                 // "0 0 7 ? *" => "0 0 7 ? * MON *"
                 String timePattern = startTime + " " + dayOfWeek.name().substring(0, 3).toUpperCase(Locale.ROOT) + " *";
                 TimerAgent timerAgent = new TimerAgent("Timer agent " + sceneName + " " + dayOfWeek.name());
-                timerAgent.setParentId(apartment.getId());
+                timerAgent.setParent(apartment);
                 timerAgent.setId(UniqueIdentifierGenerator.generateId());
                 timerAgent.setTimerAction(
                     new AttributeState(macroAgentId, MacroAgent.MACRO_STATUS.getName(), "REQUEST_START")
@@ -462,9 +462,9 @@ public abstract class AbstractManagerSetup implements Setup {
         List<MacroAction> enableActions = new ArrayList<>();
         List<MacroAction> disableActions = new ArrayList<>();
 
-        enableSceneAgent.setParentId(apartment.getId());
+        enableSceneAgent.setParent(apartment);
         enableSceneAgent.setId(UniqueIdentifierGenerator.generateId());
-        disableSceneAgent.setParentId(apartment.getId());
+        disableSceneAgent.setParent(apartment);
         disableSceneAgent.setId(UniqueIdentifierGenerator.generateId());
 
         for (Scene scene : scenes) {
@@ -573,7 +573,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected PeopleCounterAsset createDemoPeopleCounterAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         PeopleCounterAsset peopleCounterAsset = new PeopleCounterAsset(name);
-        peopleCounterAsset.setParentId(area.getId());
+        peopleCounterAsset.setParent(area);
         peopleCounterAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -628,7 +628,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected MicrophoneAsset createDemoMicrophoneAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         MicrophoneAsset microphoneAsset = new MicrophoneAsset(name);
-        microphoneAsset.setParentId(area.getId());
+        microphoneAsset.setParent(area);
         microphoneAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -648,7 +648,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected EnvironmentSensorAsset createDemoEnvironmentAsset(String name, Asset<?> area, GeoJSONPoint location, Supplier<AgentLink<?>> agentLinker) {
         EnvironmentSensorAsset environmentAsset = new EnvironmentSensorAsset(name);
-        environmentAsset.setParentId(area.getId());
+        environmentAsset.setParent(area);
         environmentAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -670,7 +670,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected LightAsset createDemoLightAsset(String name, Asset<?> area, GeoJSONPoint location) {
         LightAsset lightAsset = new LightAsset(name);
-        lightAsset.setParentId(area.getId());
+        lightAsset.setParent(area);
         lightAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location).addMeta(new MetaItem<>(SHOW_ON_DASHBOARD, true))
         );
@@ -699,7 +699,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected LightAsset createDemoLightControllerAsset(String name, Asset<?> area, GeoJSONPoint location) {
         LightAsset lightAsset = new LightAsset(name);
-        lightAsset.setParentId(area.getId());
+        lightAsset.setParent(area);
         lightAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -724,7 +724,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ElectricityStorageAsset createDemoElectricityStorageAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ElectricityStorageAsset electricityStorageAsset = new ElectricityStorageAsset(name);
-        electricityStorageAsset.setParentId(area.getId());
+        electricityStorageAsset.setParent(area);
         electricityStorageAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -734,7 +734,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ElectricityProducerAsset createDemoElectricityProducerAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ElectricityProducerAsset electricityProducerAsset = new ElectricityProducerAsset(name);
-        electricityProducerAsset.setParentId(area.getId());
+        electricityProducerAsset.setParent(area);
         electricityProducerAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -744,7 +744,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ElectricityConsumerAsset createDemoElectricityConsumerAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ElectricityConsumerAsset electricityConsumerAsset = new ElectricityConsumerAsset(name);
-        electricityConsumerAsset.setParentId(area.getId());
+        electricityConsumerAsset.setParent(area);
         electricityConsumerAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -754,7 +754,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ElectricityChargerAsset createDemoElectricityChargerAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ElectricityChargerAsset electricityChargerAsset = new ElectricityChargerAsset(name);
-        electricityChargerAsset.setParentId(area.getId());
+        electricityChargerAsset.setParent(area);
         electricityChargerAsset.getAttributes().addOrReplace(
                 new Attribute<>(Asset.LOCATION, location)
         );
@@ -764,7 +764,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected GroundwaterSensorAsset createDemoGroundwaterAsset(String name, Asset<?> area, GeoJSONPoint location) {
         GroundwaterSensorAsset groundwaterAsset = new GroundwaterSensorAsset(name);
-        groundwaterAsset.setParentId(area.getId());
+        groundwaterAsset.setParent(area);
         groundwaterAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -774,7 +774,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ParkingAsset createDemoParkingAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ParkingAsset parkingAsset = new ParkingAsset(name);
-        parkingAsset.setParentId(area.getId());
+        parkingAsset.setParent(area);
         parkingAsset.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, location)
         );
@@ -784,7 +784,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected ShipAsset createDemoShipAsset(String name, Asset<?> area, GeoJSONPoint location) {
         ShipAsset shipAsset = new ShipAsset(name);
-        shipAsset.setParentId(area.getId());
+        shipAsset.setParent(area);
         shipAsset.getAttributes().addOrReplace(
                 new Attribute<>(Asset.LOCATION, location)
         );

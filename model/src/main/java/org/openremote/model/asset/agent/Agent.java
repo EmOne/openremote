@@ -38,11 +38,11 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  */
 public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink<?>> extends Asset<T> {
 
-    public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("agentDisabled", ValueType.BOOLEAN);
+    public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("agentDisabled", ValueType.BOOLEAN).setRequired(true);
 
     public static final AttributeDescriptor<ConnectionStatus> STATUS = new AttributeDescriptor<>("agentStatus", ValueType.CONNECTION_STATUS,
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setRequired(true);
 
     /**
      * Can be used by protocols that support it to indicate that string values should be converted to/from bytes from/to

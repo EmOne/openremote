@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.*;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
@@ -131,6 +132,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         }
     }
 
+    @Valid
     protected MetaList meta;
     @JsonIgnore
     protected long timestamp;

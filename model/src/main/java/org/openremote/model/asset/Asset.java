@@ -30,12 +30,14 @@ import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeList;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.jackson.AssetTypeIdResolver;
+import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.validation.AssetValid;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.*;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import javax.validation.Valid;
+import javax.validation.constraints.*;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -237,15 +239,18 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @Check(constraints = "ID != PARENT_ID")
 @JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = ThingAsset.class)
 @JsonTypeIdResolver(AssetTypeIdResolver.class)
+@AssetValid
 @SuppressWarnings("unchecked")
 public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
+
+    public static final String ASSET_ID_REGEX = "^[0-9A-Za-z]{22}$";
 
     /*
      * ATTRIBUTE DESCRIPTORS DESCRIBING FIXED NAME ATTRIBUTES AND THEIR VALUE TYPE - ALL SUB TYPES OF THIS ASSET TYPE
      * WILL INHERIT THESE DESCRIPTORS ALSO; IT IS REQUIRED THAT EACH DESCRIPTOR HAS CORRESPONDING GETTER WITH OPTIONAL
      * SETTER, THIS ENSURES BASIC COMPILE TIME CHECKING OF CONFLICTS BUT JUST MAKES GOOD SENSE FOR CONSUMERS
     */
-    public static final AttributeDescriptor<GeoJSONPoint> LOCATION = new AttributeDescriptor<>("location", ValueType.GEO_JSON_POINT);
+    public static final AttributeDescriptor<GeoJSONPoint> LOCATION = new AttributeDescriptor<>("location", ValueType.GEO_JSON_POINT).setRequired(true);
 
     public static final AttributeDescriptor<String> EMAIL = new AttributeDescriptor<>("email", ValueType.EMAIL);
 
@@ -257,10 +262,12 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     @Id
     @Column(name = "ID", length = 22, columnDefinition = "char(22)")
+    @Pattern(regexp = ASSET_ID_REGEX, message = "{Asset.id.Pattern}")
     @GeneratedValue(generator = PERSISTENCE_UNIQUE_ID_GENERATOR)
     protected String id;
 
     @Version
+    @Min(value = 0L, message = "{Asset.version.Min}")
     @Column(name = "VERSION", nullable = false)
     protected long version;
 
@@ -269,22 +276,20 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     @org.hibernate.annotations.CreationTimestamp
     protected Date createdOn;
 
-    @NotNull(message = "{Asset.name.NotNull}")
+    @NotBlank(message = "{Asset.name.NotBlank}")
     @Size(min = 1, max = 1023, message = "{Asset.name.Size}")
     @Column(name = "NAME", nullable = false, length = 1023)
     protected String name;
 
-    @NotNull(message = "{Asset.type.NotNull}")
-    @Size(min = 3, max = 255, message = "{Asset.type.Size}")
-    @Column(name = "TYPE", nullable = false, updatable = false, insertable = false)
-    protected String type;
-
     @Column(name = "ACCESS_PUBLIC_READ", nullable = false)
     protected boolean accessPublicRead;
 
-    @Column(name = "PARENT_ID", length = 36)
+    @Column(name = "PARENT_ID", length = 22, columnDefinition = "char(22)")
+    @Pattern(regexp = ASSET_ID_REGEX, message = "{Asset.parentId.Pattern}")
     protected String parentId;
 
+    @NotBlank(message = "{Asset.realm.NotBlank}")
+    @Size(min = 1, max = 255, message = "{Asset.realm.Size}")
     @Column(name = "REALM", nullable = false)
     protected String realm;
 
@@ -294,6 +299,12 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     @Transient
     protected String parentType;
 
+
+    @NotBlank(message = "{Asset.type.NotBlank}")
+    @Size(min = 1, max = 255, message = "{Asset.type.Size}")
+    @Transient
+    protected String type = getClass().getSimpleName();
+
     // The following are expensive to query, so if they are null, they might not have been loaded
     @Formula("get_asset_tree_path(ID)")
     @org.hibernate.annotations.Type(type = Constants.PERSISTENCE_STRING_ARRAY_TYPE)
@@ -301,6 +312,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
 
     @Column(name = "ATTRIBUTES", columnDefinition = "jsonb")
     @org.hibernate.annotations.Type(type = PERSISTENCE_JSON_VALUE_TYPE)
+    @Valid
     protected AttributeList attributes;
 
     /**
@@ -316,12 +328,14 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     protected Asset(String name, AssetDescriptor<? extends T> descriptor) {
         setName(name);
         this.type = descriptor.getName();
+
+        // Initialise required attributes
+        AssetModelUtil.initialiseAssetAttributes(this);
     }
 
     public String getId() {
         return id;
     }
-
     
     public T setId(String id) {
         this.id = id;
@@ -382,6 +396,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
             parentId = parent.id;
             parentName = parent.name;
             parentType = parent.type;
+            realm = parent.realm;
         }
         return (T)this;
     }

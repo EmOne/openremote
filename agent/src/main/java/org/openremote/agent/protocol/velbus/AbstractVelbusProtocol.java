@@ -40,6 +40,8 @@ import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -155,7 +157,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
         return executorService.submit(() -> {
             Document xmlDoc;
             try {
-                String xmlStr = new String(fileData);
+                String xmlStr = new String(fileData, StandardCharsets.UTF_8);
                 LOG.info("Parsing VELBUS project file");
 
                 xmlDoc = DocumentBuilderFactory
@@ -195,7 +197,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
                 // TODO: Use device specific asset types
                 Asset<?> device = new ThingAsset(name);
 
-                device.setAttributes(
+                device.addAttributes(
                     new Attribute<>("build", ValueType.STRING, build)
                         .addMeta(
                             new MetaItem<>(MetaItemType.LABEL, "Build"),
@@ -208,7 +210,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
                         )
                 );
 
-                device.getAttributes().addAll(
+                device.addAttributes(
                     deviceType.flatMap(type -> Optional.ofNullable(type.getFeatureProcessors())
                         .map(processors ->
                             Arrays.stream(processors).flatMap(processor ->

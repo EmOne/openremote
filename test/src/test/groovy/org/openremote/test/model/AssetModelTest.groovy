@@ -33,7 +33,7 @@ class AssetModelTest extends Specification {
         AssetModelUtil.initialiseOrThrow()
 
         then: "the asset model should be available"
-        def thingAssetInfo = AssetModelUtil.getAssetInfo(ThingAsset.class).orElse(null)
+        def thingAssetInfo = AssetModelUtil.getAssetModelInfo(ThingAsset.class).orElse(null)
         thingAssetInfo != null
         thingAssetInfo.assetDescriptor != null
         thingAssetInfo.attributeDescriptors != null

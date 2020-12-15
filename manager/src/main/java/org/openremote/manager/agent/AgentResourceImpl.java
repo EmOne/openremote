@@ -40,6 +40,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -154,11 +156,19 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
             throw new BadRequestException(msg);
         }
 
-        agentService.doProtocolAssetImport(agent, fileData, assets -> {
-            if (assets != null) {
-                foundAssets.addAll(Arrays.asList(assets));
-            }
-        });
+        try {
+            Future<Void> future = agentService.doProtocolAssetImport(agent, fileData, assets -> {
+                if (assets != null) {
+                    foundAssets.addAll(Arrays.asList(assets));
+                }
+            });
+
+            future.get();
+        } catch (UnsupportedOperationException e) {
+            throw new NotAllowedException(e);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new ProcessingException(e);
+        }
 
         AssetTreeNode[] foundAssetsArr = foundAssets.toArray(new AssetTreeNode[0]);
         persistAssets(foundAssetsArr, agent, realm);
