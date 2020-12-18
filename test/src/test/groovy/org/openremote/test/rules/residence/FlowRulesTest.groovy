@@ -54,7 +54,7 @@ class FlowRulesTest extends Specification implements ManagerContainerTrait {
         String json = getClass().getResource("/org/openremote/test/rules/BasicFlowRules.json").text
         json = json.replaceAll("%LIVING ROOM ID%", managerTestSetup.apartment1LivingroomId)
         json = json.replaceAll("%BEDROOM ID%", managerTestSetup.apartment1Bedroom1Id)
-        NodeCollection realCollection = container.JSON.readValue(json, NodeCollection.class)
+        NodeCollection realCollection = Values.JSON.readValue(json, NodeCollection.class)
         def ruleset = (new GlobalRuleset(
                 realCollection.name,
                 Ruleset.Lang.FLOW,

@@ -19,9 +19,9 @@
  */
 package org.openremote.model.rules.json;
 
-import org.openremote.model.value.ValueType;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class JsonRulesetDefinition {
     public JsonRule[] rules;
-    public ValueType.ObjectMap meta;
+    public ObjectNode meta;
 }

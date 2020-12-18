@@ -22,6 +22,8 @@ package org.openremote.model.value;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.io.Serializable;
+
 /**
  * Interface for a filter that can be applied to a value, the filter can return a different value type to the supplied
  * value (i.e. value conversion as well as filtering). Filters can be chained and if a null value is supplied to a
@@ -34,7 +36,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(value = JsonPathFilter.class)
 })
 // TODO: Standardise inbound/outbound value processing as ordered list of filters and/or converters
-public abstract class ValueFilter {
+public abstract class ValueFilter implements Serializable {
 
     public abstract Object filter(Object value);
 }

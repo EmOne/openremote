@@ -810,27 +810,9 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         then: "the update should be ignored"
         assert !testAsset.getAttribute("presenceDetected").get().getValue().isPresent()
 
-        when: "a non-writable attribute's meta item value is updated"
-        testAsset = assetResource.get(null, managerTestSetup.apartment1KitchenId)
-        testAsset.getAttribute("presenceDetected").orElse(null).getMetaItem(STORE_DATA_POINTS).orElse(null).setValue(false)
-        assetResource.update(null, testAsset.id, testAsset)
-
-        then: "the update should be ignored"
-        assert testAsset.getAttribute("presenceDetected").get().getMetaItem(STORE_DATA_POINTS).get().getValue().get()
-
-        when: "a non-writable attribute's meta item value is added"
-        testAsset = assetResource.get(null, managerTestSetup.apartment1KitchenId)
-        testAsset.getAttribute("presenceDetected").orElse(null).addMeta(new MetaItem<>(UNIT_TYPE, "Ignored"))
-        assetResource.update(null, testAsset.id, testAsset)
-        testAsset = assetResource.get(null, managerTestSetup.apartment1KitchenId)
-
-        then: "the update should be ignored"
-        assert !testAsset.getAttribute("presenceDetected").get().getMetaItem(UNIT_TYPE).isPresent()
-        assert testAsset.getAttribute("presenceDetected").get().getMetaValue(UNIT_TYPE).orElse(null) == "Ignored"
-
         when: "a new attribute is added on a user asset"
         testAsset = assetResource.get(null, managerTestSetup.apartment1KitchenId)
-        testAsset.addAttributes(new Attribute<>("myCustomAttribute", NUMBER, 123d))
+        testAsset.addAttributes(new Attribute<>("myCustomAttribute", NUMBER, 123d).addMeta(new MetaItem<>(LABEL, "Label")))
         assetResource.update(null, testAsset.id, testAsset)
         testAsset = assetResource.get(null, managerTestSetup.apartment1KitchenId)
 

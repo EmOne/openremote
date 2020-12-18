@@ -49,8 +49,7 @@ import static org.openremote.model.query.AssetQuery.Access;
 import static org.openremote.model.query.AssetQuery.Select.selectExcludeAll;
 import static org.openremote.model.query.AssetQuery.Select.selectExcludePathAndAttributes;
 import static org.openremote.model.util.TextUtil.isNullOrEmpty;
-import static org.openremote.model.value.MetaItemType.ACCESS_RESTRICTED_READ;
-import static org.openremote.model.value.MetaItemType.ACCESS_RESTRICTED_WRITE;
+import static org.openremote.model.value.MetaItemType.*;
 
 public class AssetResourceImpl extends ManagerWebResource implements AssetResource {
 
@@ -289,6 +288,23 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
                         // Merge updated with existing meta items (modifying a copy)
                         MetaList updatedMetaItems = updatedAttribute.getMeta();
+                        // Ensure access meta is not modified
+                        updatedMetaItems.removeIf(mi -> {
+                            if (mi.getName().equals(ACCESS_RESTRICTED_READ.getName())) {
+                                return true;
+                            }
+                            if (mi.getName().equals(ACCESS_RESTRICTED_WRITE.getName())) {
+                                return true;
+                            }
+                            if (mi.getName().equals(ACCESS_PUBLIC_READ.getName())) {
+                                return true;
+                            }
+                            if (mi.getName().equals(ACCESS_PUBLIC_WRITE.getName())) {
+                                return true;
+                            }
+                            return false;
+                        });
+
                         MetaList existingMetaItems = Values.clone(existingAttribute.getMeta());
 
                         existingMetaItems.addOrReplace(updatedMetaItems);

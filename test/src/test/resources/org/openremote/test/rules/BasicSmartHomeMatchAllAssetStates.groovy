@@ -1,6 +1,8 @@
 package org.openremote.test.rules
 
 import org.openremote.manager.rules.RulesBuilder
+import org.openremote.model.asset.impl.BuildingAsset
+import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.query.AssetQuery
 
 RulesBuilder rules = binding.rules
@@ -90,7 +92,7 @@ rules.add()
         .when(
         { facts ->
             !facts.matchFirst("Parent Type Residence").isPresent() &&
-                    facts.matchAssetState(new AssetQuery().parents(AssetType.RESIDENCE))
+                    facts.matchAssetState(new AssetQuery().parents(BuildingAsset))
                             .findFirst().isPresent()
         })
         .then(
@@ -103,7 +105,7 @@ rules.add()
         .when(
         { facts ->
             !facts.matchFirst("Asset Type Room").isPresent() &&
-                    facts.matchAssetState(new AssetQuery().types(AssetType.ROOM))
+                    facts.matchAssetState(new AssetQuery().types(RoomAsset))
                             .findFirst().isPresent()
         })
         .then(

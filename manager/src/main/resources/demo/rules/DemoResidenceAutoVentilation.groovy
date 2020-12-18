@@ -9,8 +9,6 @@ import org.openremote.model.rules.AssetState
 import java.util.logging.Logger
 import java.util.stream.Stream
 
-import static org.openremote.model.asset.AssetType.RESIDENCE
-import static org.openremote.model.asset.AssetType.ROOM
 import static org.openremote.model.query.AssetQuery.Operator.*
 
 Logger LOG = binding.LOG

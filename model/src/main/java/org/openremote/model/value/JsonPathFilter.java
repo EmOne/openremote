@@ -22,6 +22,7 @@ package org.openremote.model.value;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -75,7 +76,7 @@ public class JsonPathFilter extends ValueFilter {
             return null;
         }
 
-        Optional<String> valueStr = Values.getValue(value, String.class, true);
+        Optional<String> valueStr = Values.asJSON(value);
         if (!valueStr.isPresent()) {
             return null;
         }
@@ -85,17 +86,11 @@ public class JsonPathFilter extends ValueFilter {
         }
 
         Object obj = jsonPathParser.parse(valueStr.get()).read(path);
-        String pathJson = obj != null ? obj.toString() : null;
-        if (TextUtil.isNullOrEmpty(pathJson)) {
-            return null;
+
+        if ((returnFirst || returnLast) && obj != null && Values.isArray(obj.getClass())) {
+            ArrayNode arrayNode = Values.convert(obj, ArrayNode.class);
+            obj = arrayNode.get(returnFirst ? 0 : arrayNode.size() - 1);
         }
-
-        return Values.parse(pathJson).map(jsonNode -> {
-            if ((returnFirst || returnLast) && jsonNode.isArray()) {
-                jsonNode = jsonNode.get(returnFirst ? 0 : jsonNode.size() - 1);
-            }
-
-            return jsonNode;
-        }).orElse(null);
+        return obj;
     }
 }

@@ -32,6 +32,7 @@ import org.openremote.model.auth.OAuthRefreshTokenGrant
 import org.openremote.container.web.OAuthServerResponse
 import org.openremote.container.web.QueryParameterInjectorFilter
 import org.openremote.container.web.WebTargetBuilder
+import org.openremote.model.value.Values
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -244,7 +245,7 @@ class WebTargetTest extends Specification {
         String grantStr = Values.asJSON(grant)
 
         and: "deserialised again"
-        OAuthGrant grant2 = Container.JSON.readValue(grantStr, OAuthGrant.class)
+        OAuthGrant grant2 = Values.JSON.readValue(grantStr, OAuthGrant.class)
 
         then: "the two grant objects should be the same"
         assert grant2.tokenEndpointUri == grant.tokenEndpointUri

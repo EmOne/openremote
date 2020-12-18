@@ -19,6 +19,7 @@
  */
 package org.openremote.manager.setup.builtin;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.agent.protocol.simulator.SimulatorAgent;
 import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.security.UserConfiguration;
@@ -128,7 +129,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         smartOffice = assetStorageService.merge(smartOffice);
         smartOfficeId = smartOffice.getId();
 
-        Asset<?> groundFloor = new ThingAsset("Ground Floor");
+        Asset<?> groundFloor = new ThingAsset("Ground floor");
         groundFloor.setParent(smartOffice);
         groundFloor.getAttributes().addOrReplace(
                 new Attribute<>(Asset.LOCATION, SMART_OFFICE_LOCATION)
@@ -140,7 +141,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         lobby.setParent(groundFloor);
         lobby.getAttributes().addOrReplace(
             new Attribute<>(Asset.LOCATION, SMART_OFFICE_LOCATION),
-            new Attribute<>("lobbyLocations", OBJECT.asArray())
+            new Attribute<>("lobbyLocations", JSON_OBJECT.asArray())
         );
         lobby = assetStorageService.merge(lobby);
         lobbyId = lobby.getId();
@@ -383,7 +384,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         RoomAsset apartment2Livingroom = new RoomAsset("Living Room 2");
         apartment2Livingroom.setParent(apartment2);
 
-        ObjectMap objectMap = Values.createObjectMap();
+        ObjectNode objectMap = Values.createJsonObject();
         objectMap.put("cactus", 0.8);
 
         apartment2Livingroom.getAttributes().addOrReplace(
@@ -428,7 +429,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 new MetaItem<>(LABEL, "Lightswitch Trigger Times"),
                                 new MetaItem<>(RULE_STATE, true)
                         ),
-                new Attribute<>("plantsWaterLevels", OBJECT_MAP, objectMap)
+                new Attribute<>("plantsWaterLevels", JSON_OBJECT, objectMap)
                         .addMeta(
                                 new MetaItem<>(LABEL, "Water levels of the plants"),
                                 new MetaItem<>(RULE_STATE, true)

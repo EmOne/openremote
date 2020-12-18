@@ -22,6 +22,7 @@ package org.openremote.model.query.filter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.io.Serializable;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -42,7 +43,7 @@ import java.util.function.Supplier;
     use = JsonTypeInfo.Id.NAME,
     property = "predicateType"
 )
-public interface ValuePredicate {
+public interface ValuePredicate extends Serializable {
 
     static Predicate<Object> asPredicateOrTrue(Supplier<Long> currentMillisSupplier, ValuePredicate valuePredicate) {
         return obj -> Optional.ofNullable(valuePredicate).map(vp -> vp.asPredicate(currentMillisSupplier).test(obj)).orElse(true);

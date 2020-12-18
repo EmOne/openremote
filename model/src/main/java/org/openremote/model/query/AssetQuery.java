@@ -271,6 +271,15 @@ public class AssetQuery {
         return this;
     }
 
+    public AssetQuery parents(Class<? extends Asset<?>>... assetTypes) {
+        if (assetTypes == null || assetTypes.length == 0) {
+            this.names = null;
+            return this;
+        }
+        this.parents = Arrays.stream(assetTypes).map(assetType -> new ParentPredicate().type(assetType)).toArray(ParentPredicate[]::new);
+        return this;
+    }
+
     public AssetQuery parents(AssetDescriptor<?>... assetTypes) {
         if (assetTypes == null || assetTypes.length == 0) {
             this.names = null;

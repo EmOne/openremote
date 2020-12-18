@@ -77,7 +77,7 @@ public class MetaList extends NamedList<MetaItem<?>> {
                     // Get the value descriptor from the value if it isn't known
                     metaItem.setTypeInternal(valueDescriptor.orElseGet(() -> {
                         if (!metaItem.getValue().isPresent()) {
-                            return ValueType.OBJECT;
+                            return ValueDescriptor.UNKNOWN;
                         }
                         Object value = metaItem.getValue().orElse(null);
                         return AssetModelUtil.getValueDescriptorForValue(value);

@@ -22,7 +22,9 @@ package org.openremote.model.auth;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class UsernamePassword {
+import java.io.Serializable;
+
+public class UsernamePassword implements Serializable {
     protected String username;
     protected String password;
 

@@ -274,7 +274,7 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
 
         when: "the ruleset is modified to add a 4hr recurrence per asset"
         def version = ruleset.version
-        JsonRulesetDefinition jsonRules = Container.JSON.readValue(ruleset.rules, JsonRulesetDefinition.class)
+        JsonRulesetDefinition jsonRules = Values.JSON.readValue(ruleset.rules, JsonRulesetDefinition.class)
         jsonRules.rules[0].recurrence.mins = 240
         ruleset.rules = Values.asJSON(jsonRules)
         ruleset = rulesetStorageService.merge(ruleset)

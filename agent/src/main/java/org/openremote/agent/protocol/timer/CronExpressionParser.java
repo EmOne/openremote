@@ -23,6 +23,7 @@ import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
 import org.quartz.CronExpression;
 
+import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.logging.Level;
@@ -35,7 +36,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * uses all protected methods and class is final).
  *
  */
-public class CronExpressionParser {
+public class CronExpressionParser implements Serializable {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, CronExpressionParser.class);
 

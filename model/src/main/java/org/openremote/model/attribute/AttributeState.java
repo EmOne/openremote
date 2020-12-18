@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -32,7 +33,7 @@ import java.util.Optional;
  * <code>null</code> is a valid {@link #value}.
  * </p>
  */
-public class AttributeState {
+public class AttributeState implements Serializable {
 
     @JsonProperty("ref")
     protected AttributeRef attributeRef;

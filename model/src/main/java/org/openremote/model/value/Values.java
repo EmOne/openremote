@@ -274,8 +274,8 @@ public class Values {
         return (T[]) Array.newInstance(clazz, size);
     }
 
-    public static ValueType.ObjectMap createObjectMap() {
-        return new ValueType.ObjectMap();
+    public static ObjectNode createJsonObject() {
+        return Values.JSON.createObjectNode();
     }
 
     public static List<Object> createObjectList() {
@@ -481,15 +481,21 @@ public class Values {
             return null;
         }
 
-        try {
+        if (object instanceof Serializable) {
+            try {
+                return (T) SerializationHelper.clone((Serializable) object);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Failed to clone using standard java serialisation, falling back to jackson object of type: " + object.getClass(), e);
+            }
+        }
 
-            return object instanceof Serializable ?
-                (T) SerializationHelper.clone((Serializable) object) :
-                JSON.readValue(JSON.writeValueAsBytes(object), (Class<T>) object.getClass());
+        try {
+            return JSON.readValue(JSON.writeValueAsBytes(object), (Class<T>) object.getClass());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Failed to clone object of type: " + object.getClass(), e);
-            return null;
         }
+
+        return null;
     }
 
     public static <T> TypeReference<Attribute<T>> getRef(Class<T> clazz) {

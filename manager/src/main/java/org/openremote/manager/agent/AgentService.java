@@ -538,11 +538,15 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             return false;
         }
 
-        AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(asset.getId(), attribute));
+        AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(asset.getId(), attribute), attribute.getTimestamp().orElseGet(timerService::getCurrentTimeMillis));
 
         if (asset instanceof Agent) {
             LOG.fine("Attribute write for agent attribute: agent=" + asset.getId() + ", attribute=" + attribute.getName());
             onAgentUpdated(getAgents().get(asset.getId()), attributeEvent);
+
+            // Update in memory agent
+            Optional.ofNullable(getAgent(asset.getId())).ifPresent(agent -> agent.addOrReplaceAttributes(attribute));
+
             // Don't consume the event as we want the agent attribute to be updated in the DB
             return false;
         }

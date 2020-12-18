@@ -16,8 +16,6 @@ import org.openremote.model.util.Pair
 
 import java.util.logging.Logger
 
-import static org.openremote.model.asset.AssetType.RESIDENCE
-import static org.openremote.model.asset.AssetType.ROOM
 import static org.openremote.model.query.AssetQuery.Operator.GREATER_THAN
 import static org.openremote.model.query.AssetQuery.Operator.LESS_THAN
 

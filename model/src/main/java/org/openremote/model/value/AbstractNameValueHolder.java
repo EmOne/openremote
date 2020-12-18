@@ -29,11 +29,12 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
 
 @JsonFilter("excludeNameFilter")
-public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T> {
+public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, Serializable {
 
     @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)

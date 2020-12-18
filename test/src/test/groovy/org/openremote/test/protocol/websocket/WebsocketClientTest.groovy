@@ -62,7 +62,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
     protected static <T> T messageFromString(String message, String prefix, Class<T> clazz) {
         try {
             message = message.substring(prefix.length())
-            return Container.JSON.readValue(message, clazz)
+            return Values.JSON.readValue(message, clazz)
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to parse message")
         }

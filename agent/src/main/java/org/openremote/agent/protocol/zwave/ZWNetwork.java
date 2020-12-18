@@ -319,7 +319,7 @@ public class ZWNetwork {
                             List<Attribute<?>> attributes = parameter.getChannels()
                                 .stream()
                                 .map(channel -> {
-                                    Attribute<?> attribute = new Attribute<>(channel.getName(), TypeMapper.toAttributeType(channel.getChannelType()));
+                                    Attribute<?> attribute = new Attribute<>(channel.getName(), TypeMapper.toValueType(channel.getChannelType()));
                                     addAttributeChannelMetaItems(agent.getId(), attribute, channel);
                                     addValidRangeMeta(attribute, parameter);
                                     return attribute;
@@ -356,7 +356,7 @@ public class ZWNetwork {
             .filter(channel ->
                 consumerLinkMap.values().stream().noneMatch(link -> link.getChannel() == channel))
             .map(channel -> {
-                Attribute<?> attribute = new Attribute<>(channel.getName(), TypeMapper.toAttributeType(channel.getChannelType()));
+                Attribute<?> attribute = new Attribute<>(channel.getName(), TypeMapper.toValueType(channel.getChannelType()));
                 addAttributeChannelMetaItems(agent.getId(), attribute, channel);
                 return attribute;
             })
@@ -385,7 +385,7 @@ public class ZWNetwork {
                 int endpoint = channel.getCommandClass().getContext().getDestEndPoint();
                 String attributeName = channel.getName() + (endpoint == 0 ? "" : "_" + endpoint);
                 String displayName = channel.getDisplayName() + (endpoint == 0 ? "" : " - " + endpoint);
-                Attribute<?> attribute = new Attribute<>(attributeName, TypeMapper.toAttributeType(channel.getChannelType()));
+                Attribute<?> attribute = new Attribute<>(attributeName, TypeMapper.toValueType(channel.getChannelType()));
                 addAttributeChannelMetaItems(agentId, attribute, channel);
                 attribute.addOrReplaceMeta(new MetaItem<>(MetaItemType.LABEL, displayName));
                 return attribute;
@@ -499,7 +499,7 @@ public class ZWNetwork {
             .flatMap(List<Channel>::stream)
             .map(channel -> {
                 String attributeName = channel.getName();
-                Attribute<?> attribute = new Attribute<>(attributeName, TypeMapper.toAttributeType(channel.getChannelType()));
+                Attribute<?> attribute = new Attribute<>(attributeName, TypeMapper.toValueType(channel.getChannelType()));
                 addAttributeChannelMetaItems(agentId, attribute, channel);
                 return attribute;
             })

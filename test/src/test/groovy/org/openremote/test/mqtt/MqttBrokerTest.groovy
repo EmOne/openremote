@@ -2,7 +2,6 @@ package org.openremote.test.mqtt
 
 import com.google.common.collect.Lists
 import io.moquette.BrokerConstants
-import org.openremote.container.timer.TimerService
 import org.openremote.container.util.UniqueIdentifierGenerator
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
@@ -213,7 +212,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute which is readonly"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        def payload = Values.createObjectMap().put("motionSensor", 70)
+        def payload = Values.createJsonObject().put("motionSensor", 70)
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH
@@ -232,7 +231,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        payload = Values.createObjectMap().put("lights", false)
+        payload = Values.createJsonObject().put("lights", false)
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH

@@ -23,6 +23,7 @@ import org.openremote.model.query.AssetQuery;
 import org.openremote.model.value.NameHolder;
 import org.openremote.model.value.Values;
 
+import java.io.Serializable;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Predicate;

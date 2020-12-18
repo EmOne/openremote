@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class ConsoleProvider {
+import java.io.Serializable;
+
+public class ConsoleProvider implements Serializable {
     protected String version;
     protected boolean requiresPermission;
     protected boolean hasPermission;

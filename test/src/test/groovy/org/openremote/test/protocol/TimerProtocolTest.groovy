@@ -8,6 +8,7 @@ import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.Asset
+import org.openremote.model.asset.agent.Agent
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.asset.agent.AgentLink
@@ -40,7 +41,7 @@ class TimerProtocolTest extends Specification implements ManagerContainerTrait {
             assert noEventProcessedIn(assetProcessingService, 500)
 
             apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            sceneAgent = assetStorageService.find(new AssetQuery().names("Scene Agent").types(AssetType.AGENT).parents(managerTestSetup.apartment1Id))
+            sceneAgent = assetStorageService.find(new AssetQuery().names("Scene Agent").types(Agent.class).parents(managerTestSetup.apartment1Id))
             sceneAgent = assetStorageService.find(sceneAgent.id, true)
             assert apartment1.getAttribute("daySceneTimeFRIDAY").get().getValue().orElse("") == "08:30:00"
             assert sceneAgent != null

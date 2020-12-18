@@ -19,31 +19,35 @@
  */
 package org.openremote.test.protocol.websocket
 
-import org.openremote.agent.protocol.websocket.WebsocketClientAgent
-import org.openremote.model.asset.agent.Agent
-import org.openremote.model.asset.agent.Protocol
-import org.openremote.model.asset.impl.ThingAsset
-import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
-import org.openremote.agent.protocol.websocket.WebsocketClientProtocol
+import org.openremote.agent.protocol.websocket.WebsocketClientAgent
 import org.openremote.agent.protocol.websocket.WebsocketHttpSubscription
 import org.openremote.agent.protocol.websocket.WebsocketSubscription
-import org.openremote.container.Container
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.Constants
-import org.openremote.model.asset.*
+import org.openremote.model.asset.AssetFilter
+import org.openremote.model.asset.ReadAttributeEvent
+import org.openremote.model.asset.agent.Agent
 import org.openremote.model.asset.agent.ConnectionStatus
-import org.openremote.model.attribute.*
+import org.openremote.model.asset.agent.Protocol
+import org.openremote.model.asset.impl.ThingAsset
+import org.openremote.model.attribute.Attribute
+import org.openremote.model.attribute.AttributeEvent
+import org.openremote.model.attribute.MetaItem
+import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.event.TriggeredEventSubscription
 import org.openremote.model.event.shared.EventSubscription
 import org.openremote.model.event.shared.SharedEvent
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.StringPredicate
-import org.openremote.model.value.*
+import org.openremote.model.value.JsonPathFilter
+import org.openremote.model.value.SubStringValueFilter
+import org.openremote.model.value.ValueFilter
+import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
 import spock.lang.Specification
@@ -58,10 +62,13 @@ import javax.ws.rs.core.MultivaluedHashMap
 import javax.ws.rs.core.Response
 
 import static org.openremote.container.util.MapAccess.getString
+import static org.openremote.model.value.ValueType.*
+import static org.openremote.model.value.MetaItemType.*
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.Constants.MASTER_REALM_ADMIN_USER
+
 class WebsocketClientProtocolTest extends Specification implements ManagerContainerTrait {
 
     @Shared
@@ -90,7 +97,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                         && requestContext.getHeaderString("Content-type") == MediaType.APPLICATION_JSON) {
 
                         String bodyStr = (String)requestContext.getEntity()
-                        AssetQuery assetQuery = Container.JSON.readValue(bodyStr, AssetQuery.class)
+                        AssetQuery assetQuery = Values.JSON.readValue(bodyStr, AssetQuery.class)
                         if (assetQuery != null && assetQuery.ids != null && assetQuery.ids.size() == 1) {
                             subscriptionDone = true
                             requestContext.abortWith(Response.ok().build())
@@ -112,8 +119,6 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
 
         and: "the container starts"
         def container = startContainer(defaultConfig(), defaultServices())
-        def websocketClientProtocol = container.getService(WebsocketClientProtocol.class)
-        def simulatorProtocol = container.getService(SimulatorProtocol.class)
         def assetStorageService = container.getService(AssetStorageService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
         def agentService = container.getService(AgentService.class)
@@ -254,19 +259,19 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         then: "the linked targetTemperature attribute should contain this written value (it should have been written to the target temp attribute and then read back again)"
         conditions.eventually {
             asset = assetStorageService.find(asset.getId(), true)
-            assert asset.getAttribute("readWriteTargetTemp").flatMap{it.getValueAsNumber()}.orElse(null) == 19.5d
+            assert asset.getAttribute("readWriteTargetTemp", Double.class).flatMap{it.getValue()}.orElse(null) == 19.5d
         }
 
         when: "the co2level changes"
         def co2LevelIncrement = new AttributeEvent(
             managerTestSetup.apartment1LivingroomId, "co2Level", 600
         )
-        simulatorProtocol.putValue(co2LevelIncrement)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.agentId)).updateSensor(co2LevelIncrement)
 
         then: "the linked co2Level attribute should get the new value"
         conditions.eventually {
             asset = assetStorageService.find(asset.getId(), true)
-            assert asset.getAttribute("readCo2Level").flatMap{it.getValueAsNumber()}.orElse(null) == 600d
+            assert asset.getAttribute("readCo2Level", Integer.class).flatMap{it.getValue()}.orElse(null) == 600d
         }
     }
 }

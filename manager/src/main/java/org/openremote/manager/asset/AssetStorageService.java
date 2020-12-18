@@ -77,6 +77,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.groupingBy;
 import static org.apache.camel.builder.PredicateBuilder.or;
@@ -1050,7 +1051,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         querySql.apply(em, jpql);
 
         List<Object[]> results = jpql.getResultList();
-        return results.stream().map(objArr -> {
+
+        Stream<Asset<?>> assetStream = results.stream().map(objArr -> {
             Asset<?> asset = (Asset<?>)objArr[0];
 
             if (objArr.length == 3) {
@@ -1065,7 +1067,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
             }
             return asset;
-        }).collect(Collectors.toList());
+        });
+
+        if (containsCalendarPredicate) {
+            assetStream = assetStream.filter(asset -> calendarEventPredicateMatches(timerService::getCurrentTimeMillis, query, asset));
+        }
+
+        return assetStream.collect(Collectors.toList());
     }
 
     protected boolean updateAttributeValue(EntityManager em, Asset<?> asset, Attribute<?> attribute) {
@@ -1276,14 +1284,14 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         sb.append(", A.CREATED_ON AS CREATED_ON, A.TYPE AS TYPE, A.PARENT_ID AS PARENT_ID");
         sb.append(", A.REALM AS REALM, A.VERSION as VERSION");
 
-        if (select == null || !select.excludeParentInfo) {
-            if (level == 3) {
-                sb.append(", A.PARENT_NAME as PARENT_NAME, A.PARENT_TYPE as PARENT_TYPE");
-            } else {
+        if (level == 3) {
+            sb.append(", A.PARENT_NAME as PARENT_NAME, A.PARENT_TYPE as PARENT_TYPE");
+        } else {
+            if (select == null || !select.excludeParentInfo) {
                 sb.append(", P.NAME as PARENT_NAME, P.TYPE as PARENT_TYPE");
+            } else {
+                sb.append(", NULL as PARENT_NAME, NULL as PARENT_TYPE");
             }
-        } else if (level != 3) {
-            sb.append(", NULL as PARENT_NAME, NULL as PARENT_TYPE");
         }
 
         if (!query.recursive || level == 3) {
@@ -1466,13 +1474,19 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     sb.append("A.PARENT_ID is null");
                 } else if (pred.type != null || pred.name != null) {
                     if (pred.type != null) {
+                        String[] resolvedTypes = getResolvedAssetTypes(new Class[]{pred.type});
                         final int pos = binders.size() + 1;
-                        sb.append(" and TYPE(P) = ?").append(pos);
-                        binders.add((em, st) -> st.setParameter(pos, pred.type));
+                        sb.append("P.TYPE = ANY(?")
+                            .append(pos)
+                            .append(")");
+                        binders.add((em, st) -> st.setParameter(pos, resolvedTypes, StringArrayType.INSTANCE));
                     }
                     if (pred.name != null) {
+                        if (pred.type != null) {
+                            sb.append(" and ");
+                        }
                         final int pos = binders.size() + 1;
-                        sb.append(" and P.NAME = ?").append(pos);
+                        sb.append("P.NAME = ?").append(pos);
                         binders.add((em, st) -> st.setParameter(pos, pred.name));
                     }
                 } else {
@@ -1497,7 +1511,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
                 final int pos = binders.size() + 1;
                 sb.append("?").append(pos).append(" <@ get_asset_tree_path(A.id)");
-                binders.add((em, st) -> st.setParameter(pos, pred.path));
+                binders.add((em, st) -> st.setParameter(pos, pred.path, StringArrayType.INSTANCE));
             }
 
             sb.append(")");

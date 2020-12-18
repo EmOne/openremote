@@ -11,7 +11,6 @@ import org.openremote.model.rules.Assets
 
 import java.util.logging.Logger
 
-import static org.openremote.model.asset.AssetType.RESIDENCE
 import static org.openremote.model.query.AssetQuery.Operator.GREATER_THAN
 import static org.openremote.model.query.AssetQuery.Operator.LESS_EQUALS
 import static org.openremote.model.attribute.AttributeExecuteStatus.REQUEST_START

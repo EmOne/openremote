@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+import java.io.Serializable;
+
 import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 
 /**
@@ -37,7 +39,7 @@ import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
  */
 @JsonFormat(shape = JsonFormat.Shape.ARRAY)
 @JsonPropertyOrder({"assetId", "attributeName"})
-public class AttributeRef {
+public class AttributeRef implements Serializable {
 
     protected String assetId;
     protected String attributeName;

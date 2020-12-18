@@ -35,6 +35,7 @@ import org.openremote.model.attribute.MetaList;
 import org.openremote.model.util.AssetModelUtil;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
@@ -55,7 +56,7 @@ import java.util.Objects;
  * {@link ValueDescriptor#getName} must be globally unique within the context of the manager it is registered with.
  */
 @JsonDeserialize(using = ValueDescriptor.ValueDescriptorDeserialiser.class)
-public class ValueDescriptor<T> implements NameHolder, MetaHolder {
+public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable {
 
     /**
      * A class that represents an array {@link ValueDescriptor} which avoids the need to explicitly define
@@ -85,7 +86,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
 
         @Override
         public ValueDescriptor<?> convert(String value) {
-            return AssetModelUtil.getValueDescriptor(value).orElse(ValueType.OBJECT);
+            return AssetModelUtil.getValueDescriptor(value).orElse(ValueDescriptor.UNKNOWN);
         }
     }
 
@@ -142,7 +143,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
             // Look for an existing value descriptor with this name
             MetaList finalMeta = meta;
             return AssetModelUtil.getValueDescriptor(name).orElseGet(() -> {
-                Class<?> typeClass = ValueType.OBJECT_MAP.type;
+                Class<?> typeClass = ValueType.JSON_OBJECT.type;
                 boolean isArray = name.endsWith("[]");
 
                 switch (type) {
@@ -156,7 +157,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
                         typeClass = ValueType.STRING.type;
                         break;
                     case "array":
-                        typeClass = ValueType.OBJECT.asArray().type;
+                        typeClass = Object[].class;
                         break;
                 }
 
@@ -166,6 +167,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder {
         }
     }
 
+    public static final ValueDescriptor<Object> UNKNOWN = new ValueDescriptor<>("Unknown", Object.class);
     protected String name;
     @JsonSerialize(converter = ValueDescriptor.ValueTypeStringConverter.class)
     protected Class<T> type;

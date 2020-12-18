@@ -45,7 +45,7 @@ public class TypeMapper {
         typeMap.put(ChannelType.NUMBER, ValueType.NUMBER);
         typeMap.put(ChannelType.STRING, ValueType.STRING);
         typeMap.put(ChannelType.BOOLEAN, ValueType.BOOLEAN);
-        typeMap.put(ChannelType.ARRAY, ValueType.OBJECT.asArray());
+        typeMap.put(ChannelType.ARRAY, ValueType.JSON_OBJECT.asArray());
 
         // COMMAND_CLASS_SENSOR_MULTILEVEL
 
@@ -207,7 +207,7 @@ public class TypeMapper {
         typeMap.put(ChannelType.DATETIME, ValueType.TIMESTAMP_ISO8601);
     }
 
-    public static ValueDescriptor<?> toAttributeType(ChannelType channelType) {
+    public static ValueDescriptor<?> toValueType(ChannelType channelType) {
 
         ValueDescriptor<?> valueType = ValueType.STRING;
 
@@ -228,7 +228,7 @@ public class TypeMapper {
                     valueType = ValueType.STRING;
                     break;
                 case ARRAY:
-                    valueType = ValueType.OBJECT.asArray();
+                    valueType = ValueDescriptor.UNKNOWN.asArray();
                     break;
             }
         }

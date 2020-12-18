@@ -32,6 +32,7 @@ import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.ValueFilter;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Optional;
 
 /**
@@ -41,7 +42,7 @@ import java.util.Optional;
  */
 @JsonTypeInfo(property = "type", use = JsonTypeInfo.Id.NAME, defaultImpl = AgentLink.Default.class)
 @JsonTypeIdResolver(AgentLink.AgentLinkTypeIdResolver.class)
-public abstract class AgentLink<T extends AgentLink<?>> {
+public abstract class AgentLink<T extends AgentLink<?>> implements Serializable {
 
     /**
      * Resolves agent link type as agent type strings using {@link org.openremote.model.util.AssetModelUtil}

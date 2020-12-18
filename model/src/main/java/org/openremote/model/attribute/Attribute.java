@@ -20,6 +20,7 @@
 package org.openremote.model.attribute;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -122,7 +123,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
             // Get the value descriptor from the value if it isn't known
             attribute.type = valueDescriptor.orElseGet(() -> {
                 if (attribute.value == null) {
-                    return ValueType.OBJECT;
+                    return ValueDescriptor.UNKNOWN;
                 }
                 Object value = attribute.value;
                 return AssetModelUtil.getValueDescriptorForValue(value);
@@ -134,7 +135,8 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
 
     @Valid
     protected MetaList meta;
-    @JsonIgnore
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     protected long timestamp;
 
     Attribute() {}
@@ -246,32 +248,18 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
     @Override
     public void setValue(T value) {
         super.setValue(value);
-        // Store system time as negative timestamp to allow simple & fast equality check using timestamp; assuming value
-        // is immutable as requested in ValueProvider then when the value is set we change the timestamp which
-        // indirectly indicates that the value has changed, we use negative value to indicate that the backend needs
-        // to set the time at the point of saving.
-        setTimestamp(-1*System.currentTimeMillis());
+        timestamp = 0L;
     }
 
     public void setValue(T value, long timestamp) {
         super.setValue(value);
-        if (timestamp <= this.timestamp) {
-            AssetModelUtil.LOG.warning("timestamp cannot be less than or equal to the current value so using system time");
-            timestamp = -1*System.currentTimeMillis();
-        }
-        setTimestamp(timestamp);
+        this.timestamp = timestamp;
     }
 
     @JsonIgnore
     public Optional<Long> getTimestamp() {
         return hasExplicitTimestamp() ? Optional.of(Math.abs(timestamp)) : Optional.empty();
     }
-
-    @JsonProperty("timestamp")
-    protected Long getTimestampInternal() {
-        return getTimestamp().orElse(null);
-    }
-
 
     public boolean hasExplicitTimestamp() {
         return timestamp > 0;

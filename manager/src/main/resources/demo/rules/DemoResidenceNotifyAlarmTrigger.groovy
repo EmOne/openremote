@@ -16,9 +16,6 @@ import org.openremote.model.rules.Users
 import java.util.logging.Logger
 import java.util.stream.Collectors
 
-import static org.openremote.model.asset.AssetType.RESIDENCE
-import static org.openremote.model.asset.AssetType.ROOM
-
 Logger LOG = binding.LOG
 RulesBuilder rules = binding.rules
 Users users = binding.users

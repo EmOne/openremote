@@ -1,13 +1,11 @@
 package org.openremote.test.assets
 
-
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.model.Constants
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.*
 import org.openremote.model.value.JsonPathFilter
-import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.ValueFilter
 import org.openremote.model.value.ValueType
 import org.openremote.model.value.Values
@@ -16,6 +14,9 @@ import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
+
+import static org.openremote.model.value.ValueType.*
+import static org.openremote.model.value.MetaItemType.*
 
 class AttributeLinkingTest extends Specification implements ManagerContainerTrait {
 
@@ -39,7 +40,7 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         asset1.setRealm(Constants.MASTER_REALM)
         asset1.addOrReplaceAttributes(
             new Attribute<>("button", STRING, "RELEASED"),
-            new Attribute<>("array", JSON_ARRAY, null)
+            new Attribute<>("array", JSON_OBJECT.asArray(), null)
         )
         asset1 = assetStorageService.merge(asset1)
 
@@ -57,13 +58,13 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         assert asset2.id != null
 
         when: "attributes from one asset is linked to attributes on the other"
-        def converterOnOff = Values.createObjectMap()
+        def converterOnOff = Values.createJsonObject()
         converterOnOff.put("PRESSED", "@TOGGLE")
         converterOnOff.put("RELEASED", "@IGNORE")
         converterOnOff.put("LONG_PRESSED", "@IGNORE")
         def attributeLinkOnOff = new AttributeLink(new AttributeRef(asset2.id, "lightOnOff"), converterOnOff, null)
 
-        def converterCounter = Values.createObjectMap()
+        def converterCounter = Values.createJsonObject()
         converterCounter.put("PRESSED", "@INCREMENT")
         converterCounter.put("RELEASED", "@DECREMENT")
         converterCounter.put("LONG_PRESSED", "@IGNORE")

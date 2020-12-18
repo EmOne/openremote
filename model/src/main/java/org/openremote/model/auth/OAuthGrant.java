@@ -28,6 +28,8 @@ import org.openremote.model.util.TextUtil;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 
+import java.io.Serializable;
+
 import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 
 @JsonTypeInfo(use=JsonTypeInfo.Id.NAME, include=JsonTypeInfo.As.EXISTING_PROPERTY, property = OAuthGrant.VALUE_KEY_GRANT_TYPE)
@@ -36,7 +38,7 @@ import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
     @JsonSubTypes.Type(name=OAuthClientCredentialsGrant.CLIENT_CREDENTIALS_GRANT_TYPE, value=OAuthClientCredentialsGrant.class),
     @JsonSubTypes.Type(name=OAuthRefreshTokenGrant.VALUE_KEY_REFRESH_TOKEN, value=OAuthRefreshTokenGrant.class),
 })
-public abstract class OAuthGrant {
+public abstract class OAuthGrant implements Serializable {
 
     public static final String VALUE_KEY_GRANT_TYPE = "grant_type";
     public static final String VALUE_KEY_CLIENT_ID = "client_id";

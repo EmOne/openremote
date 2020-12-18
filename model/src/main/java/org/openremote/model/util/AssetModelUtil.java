@@ -19,8 +19,6 @@
  */
 package org.openremote.model.util;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.openremote.model.AssetModelProvider;
 import org.openremote.model.ModelDescriptor;
 import org.openremote.model.ModelDescriptors;
@@ -43,6 +41,7 @@ import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
@@ -290,13 +289,13 @@ public final class AssetModelUtil {
 
     public static ValueDescriptor<?> getValueDescriptorForValue(Object value) {
         if (value == null) {
-            return ValueType.OBJECT;
+            return ValueDescriptor.UNKNOWN;
         }
 
         Class<?> valueClass = value.getClass();
         boolean isArray = valueClass.isArray();
         valueClass = isArray ? valueClass.getComponentType() : valueClass;
-        ValueDescriptor<?> valueDescriptor = ValueType.OBJECT;
+        ValueDescriptor<?> valueDescriptor = ValueDescriptor.UNKNOWN;
 
         if (valueClass == Boolean.class) valueDescriptor = ValueType.BOOLEAN;
         else if (valueClass == String.class) valueDescriptor = ValueType.STRING;
@@ -309,12 +308,12 @@ public final class AssetModelUtil {
         else if (Map.class.isAssignableFrom(valueClass)) {
             Object firstElem = Values.findFirstNonNullEntry((Map<?,?>)value);
 
-            if (firstElem == null) valueDescriptor = ValueType.OBJECT_MAP;
+            if (firstElem == null) valueDescriptor = ValueType.JSON_OBJECT;
             else {
                 boolean elemIsArray = firstElem.getClass().isArray();
                 Class<?> elemClass = elemIsArray ? firstElem.getClass() : firstElem.getClass().getComponentType();
                 if (elemIsArray) {
-                    valueDescriptor = elemClass == String.class ? ValueType.MULTIVALUED_STRING_MAP : ValueType.OBJECT_MAP;
+                    valueDescriptor = elemClass == String.class ? ValueType.MULTIVALUED_STRING_MAP : ValueType.JSON_OBJECT;
                 } else {
                     if (elemClass == String.class)
                         valueDescriptor = ValueType.STRING_MAP;
@@ -468,6 +467,19 @@ public final class AssetModelUtil {
                 }
             }
         });
+
+        // Check each value type implements serializable interface
+        List<ValueDescriptor<?>> nonSerializableValueDescriptors = new ArrayList<>();
+        valueDescriptors.forEach(vd -> {
+            if (!Serializable.class.isAssignableFrom(vd.getType())) {
+                nonSerializableValueDescriptors.add(vd);
+            }
+        });
+
+        if (!nonSerializableValueDescriptors.isEmpty()) {
+            String vds = nonSerializableValueDescriptors.stream().map(ValueDescriptor::toString).collect(Collectors.joining(",\n"));
+            throw new IllegalStateException("One or more value types do not implement java.io.Serializable: " + vds);
+        }
     }
 
     /**

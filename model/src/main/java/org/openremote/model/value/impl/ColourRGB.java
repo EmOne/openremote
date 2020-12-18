@@ -25,11 +25,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.awt.*;
+import java.io.Serializable;
 import java.util.Objects;
 
 @JsonFormat(shape = JsonFormat.Shape.ARRAY)
 @JsonPropertyOrder({"red", "green", "blue"})
-public class ColourRGB {
+public class ColourRGB implements Serializable {
 
     protected int red;
     protected int green;

@@ -22,13 +22,20 @@ package org.openremote.model.calendar;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
 import net.fortuna.ical4j.model.DateList;
 import net.fortuna.ical4j.model.Recur;
 import org.openremote.model.asset.Asset;
+import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.Pair;
 
+import java.io.Serializable;
+import java.text.ParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.logging.Level;
 
 /**
  * Represents an event that occurs at a point in time with a {@link #start}, {#link #end} and optional
@@ -73,11 +80,19 @@ import java.util.Date;
 }
  * }</pre></blockquote>
  */
-public class CalendarEvent {
+public class CalendarEvent implements Serializable {
     protected Date start;
     protected Date end;
-    @JsonIgnore
+    @JsonSerialize(converter = RecurStringConverter.class)
     protected Recur recurrence;
+
+    public static class RecurStringConverter extends StdConverter<Recur, String> {
+
+        @Override
+        public String convert(Recur value) {
+            return value.toString();
+        }
+    }
 
     @JsonCreator
     public CalendarEvent(@JsonProperty("start") Date start, @JsonProperty("end") Date end, @JsonProperty("recurrence") String recurrence) {
@@ -90,6 +105,10 @@ public class CalendarEvent {
         this.start = start;
         this.end = end;
         this.recurrence = recur;
+    }
+
+    public CalendarEvent(Date start, Date end) {
+        this(start, end, (Recur)null);
     }
 
     public CalendarEvent(Date start, Date end, Recur recurrence) {

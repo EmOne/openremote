@@ -19,6 +19,7 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.attribute.*;
@@ -44,7 +45,6 @@ import java.util.Map;
 public final class ValueType {
 
     /* SOME CUSTOM TYPES TO AVOID GENERIC TYPE SO THESE CAN BE CONSUMED IN VALUE DESCRIPTORS */
-    public static class ObjectMap extends HashMap<String, Object> {}
     public static class StringMap extends HashMap<String, String> {}
     public static class IntegerMap extends HashMap<String, Integer> {}
     public static class DoubleMap extends HashMap<String, Double> {}
@@ -87,9 +87,7 @@ public final class ValueType {
 
     public static final ValueDescriptor<MultivaluedStringMap> MULTIVALUED_STRING_MAP = new ValueDescriptor<>("Multivalued string map", MultivaluedStringMap.class);
 
-    public static final ValueDescriptor<ObjectMap> OBJECT_MAP = new ValueDescriptor<>("Object map", ObjectMap.class);
-
-    public static final ValueDescriptor<Object> OBJECT = new ValueDescriptor<>("Object", Object.class);
+    public static final ValueDescriptor<ObjectNode> JSON_OBJECT = new ValueDescriptor<>("JSON Object", ObjectNode.class);
 
     @Min(0)
     public static final ValueDescriptor<Integer> POSITIVE_INTEGER = new ValueDescriptor<>("Positive integer", Integer.class);

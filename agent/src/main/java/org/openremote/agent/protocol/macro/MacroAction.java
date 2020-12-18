@@ -23,13 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.openremote.model.attribute.AttributeState;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * A desired {@link AttributeState} and a delay in milli seconds before that state
  * is applied when the macro executes.
  */
-public class MacroAction {
+public class MacroAction implements Serializable {
 
     protected AttributeState attributeState;
     @JsonProperty("delay")

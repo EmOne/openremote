@@ -117,6 +117,10 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
     /**
      * Call this to simulate a sensor update
      */
+    public void updateSensor(AttributeEvent attributeEvent) {
+        updateSensor(attributeEvent.getAttributeRef(), attributeEvent.getValue(), attributeEvent.getTimestamp());
+    }
+
     public void updateSensor(AttributeRef attributeRef, Object value) {
         updateSensor(attributeRef, value, 0L);
     }

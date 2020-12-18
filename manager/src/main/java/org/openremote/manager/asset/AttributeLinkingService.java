@@ -215,8 +215,8 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
     }
 
     protected static Optional<AttributeLink.ConverterType> getSpecialConverter(Object value) {
-        if (value instanceof String) {
-            return AttributeLink.ConverterType.fromValue((String)value);
+        if (value != null && Values.isString(value.getClass())) {
+            return AttributeLink.ConverterType.fromValue(Values.getValue(value, String.class).orElse(""));
         }
         return Optional.empty();
     }
@@ -229,14 +229,19 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
             case TOGGLE:
                 // Look up current value of the linked attribute within the same database session
                 try {
-                    Object currentValue = getCurrentValue(em, assetStorageService, linkedAttributeRef);
-                    if (!(currentValue instanceof Boolean)) {
+                    Attribute<?> currentAttribute = getAttribute(em, assetStorageService, linkedAttributeRef).orElseThrow(
+                        () -> new AssetProcessingException(
+                            Reason.ATTRIBUTE_NOT_FOUND,
+                            "cannot toggle value as attribute cannot be found: " + linkedAttributeRef
+                        )
+                    );
+                    if (!Values.isBoolean(currentAttribute.getValueType().getType())) {
                         throw new AssetProcessingException(
                             Reason.LINKED_ATTRIBUTE_CONVERSION_FAILURE,
                             "cannot toggle value as attribute is not of type BOOLEAN: " + linkedAttributeRef
                         );
                     }
-                    return new Pair<>(false, !(Boolean)currentValue);
+                    return new Pair<>(false, !(Boolean)currentAttribute.getValueAs(Boolean.class).orElse(false));
                 } catch (NoSuchElementException e) {
                     LOG.fine("The attribute doesn't exist so ignoring toggle value request: " + linkedAttributeRef);
                     return new Pair<>(true, null);
@@ -245,15 +250,20 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
             case DECREMENT:
                 // Look up current value of the linked attribute within the same database session
                 try {
-                    Object currentValue = getCurrentValue(em, assetStorageService, linkedAttributeRef);
-                    if (!(currentValue instanceof Number)) {
+                    Attribute<?> currentAttribute = getAttribute(em, assetStorageService, linkedAttributeRef).orElseThrow(
+                        () -> new AssetProcessingException(
+                            Reason.ATTRIBUTE_NOT_FOUND,
+                            "cannot toggle value as attribute cannot be found: " + linkedAttributeRef
+                        )
+                    );
+                    if (!Values.isNumber(currentAttribute.getValueType().getType())) {
                         throw new AssetProcessingException(
                             Reason.LINKED_ATTRIBUTE_CONVERSION_FAILURE,
                             "cannot increment/decrement value as attribute is not of type NUMBER: " + linkedAttributeRef
                         );
                     }
                     int change = converter == AttributeLink.ConverterType.INCREMENT ? +1 : -1;
-                    return new Pair<>(false, ((Number)currentValue).doubleValue() + change);
+                    return new Pair<>(false, (Values.getValueCoerced(currentAttribute.getValue().orElse(null), Double.class).orElse(0D) + change));
                 } catch (NoSuchElementException e) {
                     LOG.fine("The attribute doesn't exist so ignoring increment/decrement value request: " + linkedAttributeRef);
                     return new Pair<>(true, null);
@@ -269,11 +279,11 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
     protected static Optional<Attribute<?>> getAttribute(EntityManager em,
                                                  AssetStorageService assetStorageService,
                                                  AttributeRef attributeRef) {
+        // Get the full asset as shared em
         Asset<?> asset = assetStorageService.find(
             em,
             new AssetQuery()
                 .ids(attributeRef.getAssetId())
-                .select(new Select().attributes(attributeRef.getAttributeName()))
         );
 
         Attribute<?> attribute = asset != null ? asset.getAttributes().get(attributeRef.getAttributeName()).orElse(null) : null;
@@ -283,13 +293,6 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
         }
 
         return Optional.ofNullable(attribute);
-    }
-
-    protected static Object getCurrentValue(EntityManager em,
-                                           AssetStorageService assetStorageService,
-                                           AttributeRef attributeRef) {
-        Optional<Attribute<?>> attribute = getAttribute(em, assetStorageService, attributeRef);
-        return attribute.flatMap(Attribute::getValue).orElse(null);
     }
 
     @Override

@@ -11,6 +11,7 @@ import org.openremote.agent.protocol.websocket.WebsocketIoClient
 import org.openremote.container.Container
 import org.openremote.container.timer.TimerService
 import org.openremote.container.util.UniqueIdentifierGenerator
+import org.openremote.manager.agent.AgentService
 import org.openremote.model.Constants
 import org.openremote.model.asset.impl.BuildingAsset
 import org.openremote.model.asset.impl.GatewayAsset
@@ -143,7 +144,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         conditions.eventually {
             assert clientReceivedMessages.size() >= 1
             assert clientReceivedMessages[0].startsWith(EventRequestResponseWrapper.MESSAGE_PREFIX)
-            def response = Container.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+            def response = Values.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
             assert response.messageId == GatewayConnector.ASSET_READ_EVENT_NAME_INITIAL
             def readAssetsEvent = response.event as ReadAssetsEvent
             assert readAssetsEvent.assetQuery != null
@@ -237,7 +238,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             assert clientReceivedMessages.size() == 1
             assert clientReceivedMessages.get(0).startsWith(EventRequestResponseWrapper.MESSAGE_PREFIX)
             assert clientReceivedMessages.get(0).contains("read-assets")
-            def response = Container.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+            def response = Values.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
             messageId = response.messageId
             readAssetsEvent = response.event as ReadAssetsEvent
             assert messageId == GatewayConnector.ASSET_READ_EVENT_NAME_BATCH + "0"
@@ -266,18 +267,18 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             assert syncedAssets.size() == sendAssets.size()
             assert syncedAssets.stream().filter{syncedAsset -> sendAssets.stream().anyMatch{mapAssetId(gateway.getId(), it.id, false) == syncedAsset.id}}.count() == sendAssets.size()
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[0]}.getName() == "Test Agent 1"
-            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[0]}.getType() == AssetType.AGENT.type
+            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[0]}.getType() == HttpClientAgent.DESCRIPTOR.name
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[0]}.getRealm() == managerTestSetup.realmBuildingTenant
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[0]}.getParentId() == gateway.getId()
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[4]}.getName() == "Test Agent 5"
-            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[4]}.getType() == AssetType.AGENT.type
+            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[4]}.getType() == HttpClientAgent.DESCRIPTOR.name
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[4]}.getRealm() == managerTestSetup.realmBuildingTenant
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == agentAssetIds[4]}.getParentId() == gateway.getId()
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getName() == "Test Building 1"
-            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getType() == BuildingAsset.DESCRIPTOR.getName().type
+            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getType() == BuildingAsset.DESCRIPTOR.name
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getRealm() == managerTestSetup.realmBuildingTenant
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getParentId() == gateway.getId()
-            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getAttribute(AttributeType.LOCATION).flatMap {GeoJSONPoint.fromValue(it.getValue().orElse(null))}.get().x == 10
+            assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getAttribute(Asset.LOCATION).flatMap {GeoJSONPoint.fromValue(it.getValue().orElse(null))}.get().x == 10
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getAttribute(AttributeType.LOCATION).flatMap {GeoJSONPoint.fromValue(it.getValue().orElse(null))}.get().y == 11
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getAttribute(AttributeType.LOCATION).flatMap{it.getMetaItem(ACCESS_PUBLIC_READ)}.isPresent()
             assert syncedAssets.find {mapAssetId(gateway.getId(), it.id, true) == assetIds[0]}.getAttribute(AttributeType.SURFACE_AREA).flatMap {it.getValueAsNumber()}.orElse(0d) == 1000
@@ -308,7 +309,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             assert clientReceivedMessages.size() == 2
             assert clientReceivedMessages.get(1).startsWith(EventRequestResponseWrapper.MESSAGE_PREFIX)
             assert clientReceivedMessages.get(1).contains("read-assets")
-            def response = Container.JSON.readValue(clientReceivedMessages[1].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+            def response = Values.JSON.readValue(clientReceivedMessages[1].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
             messageId = response.messageId
             readAssetsEvent = response.event as ReadAssetsEvent
             assert messageId == GatewayConnector.ASSET_READ_EVENT_NAME_BATCH + GatewayConnector.SYNC_ASSET_BATCH_SIZE
@@ -449,7 +450,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         def responseFuture = new AtomicReference<ScheduledFuture>()
         responseFuture.set(executorService.scheduleAtFixedRate({
             if (!clientReceivedMessages.isEmpty()) {
-                def assetAddEvent = Container.JSON.readValue(clientReceivedMessages[0].substring(SharedEvent.MESSAGE_PREFIX.length()), AssetEvent.class)
+                def assetAddEvent = Values.JSON.readValue(clientReceivedMessages[0].substring(SharedEvent.MESSAGE_PREFIX.length()), AssetEvent.class)
                 if (assetAddEvent.cause == AssetEvent.Cause.CREATE && assetAddEvent.asset.id.equals(building1Room5AssetId)) {
                     gatewayClient.sendMessage(SharedEvent.MESSAGE_PREFIX + Values.asJSON(new AssetEvent(AssetEvent.Cause.CREATE, building1Room5Asset, null)))
                     responseFuture.get().cancel(false)
@@ -471,7 +472,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         localBuilding1Room5Asset.removeAttribute("co2Level")
         responseFuture.set(executorService.scheduleAtFixedRate({
             if (!clientReceivedMessages.isEmpty()) {
-                def assetAddEvent = Container.JSON.readValue(clientReceivedMessages[0].substring(SharedEvent.MESSAGE_PREFIX.length()), AssetEvent.class)
+                def assetAddEvent = Values.JSON.readValue(clientReceivedMessages[0].substring(SharedEvent.MESSAGE_PREFIX.length()), AssetEvent.class)
                 if (assetAddEvent.cause == AssetEvent.Cause.UPDATE && assetAddEvent.asset.id.equals(building1Room5AssetId)) {
                     building1Room5Asset.setName(localBuilding1Room5Asset.name)
                     building1Room5Asset.removeAttribute("co2Level")
@@ -500,7 +501,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         and: "an asset is deleted under the gateway in the local manager and the gateway responds that it successfully deleted the asset"
         responseFuture.set(executorService.scheduleAtFixedRate({
             if (!clientReceivedMessages.isEmpty()) {
-                def request = Container.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+                def request = Values.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
                 def deleteRequest = request.event as DeleteAssetsRequestEvent
                 if (deleteRequest.assetIds.size() == 1 && deleteRequest.assetIds.get(0) == building1Room5AssetId) {
                     gatewayClient.sendMessage(EventRequestResponseWrapper.MESSAGE_PREFIX + Values.asJSON(new EventRequestResponseWrapper(request.messageId, new DeleteAssetsResponseEvent(true, deleteRequest.assetIds))))
@@ -619,7 +620,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             assert clientReceivedMessages.size() == 1
             assert clientReceivedMessages.get(0).startsWith(EventRequestResponseWrapper.MESSAGE_PREFIX)
             assert clientReceivedMessages.get(0).contains("read-assets")
-            def request = Container.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+            def request = Values.JSON.readValue(clientReceivedMessages[0].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
             messageId = request.messageId
             readAssetsEvent = request.event as ReadAssetsEvent
             assert messageId == GatewayConnector.ASSET_READ_EVENT_NAME_BATCH + "0"
@@ -674,7 +675,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             assert clientReceivedMessages.size() == 2
             assert clientReceivedMessages.get(1).startsWith(EventRequestResponseWrapper.MESSAGE_PREFIX)
             assert clientReceivedMessages.get(1).contains("read-assets")
-            def request = Container.JSON.readValue(clientReceivedMessages[1].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
+            def request = Values.JSON.readValue(clientReceivedMessages[1].substring(EventRequestResponseWrapper.MESSAGE_PREFIX.length()), EventRequestResponseWrapper.class)
             messageId = request.messageId
             readAssetsEvent = request.event as ReadAssetsEvent
             assert messageId == GatewayConnector.ASSET_READ_EVENT_NAME_BATCH + (GatewayConnector.SYNC_ASSET_BATCH_SIZE - 1)
@@ -727,7 +728,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         def assetStorageService = container.getService(AssetStorageService.class)
         def gatewayService = container.getService(GatewayService.class)
         def gatewayClientService = container.getService(GatewayClientService.class)
-        def simulatorProtocol = container.getService(SimulatorProtocol.class)
+        def agentService = container.getService(AgentService.class)
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
 
         and: "an authenticated admin user"
@@ -738,6 +739,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             MASTER_REALM_ADMIN_USER,
             getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)
         ).token
+
 
         and: "the gateway client resource"
         def gatewayClientResource = getClientApiTarget(serverUri(serverPort), MASTER_REALM, accessToken).proxy(GatewayClientResource.class)
@@ -752,7 +754,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
 
         then: "a set of credentials should have been created for this gateway and be stored against the gateway for easy reference"
         conditions.eventually {
-            gateway = assetStorageService.find(gateway.getId(), true)
+            gateway = assetStorageService.find(gateway.getId(), true) as GatewayAsset
             assert gateway.getAttribute("clientId").isPresent()
             assert !isNullOrEmpty(gateway.getAttribute("clientId", String.class).flatMap{it.getValue()}.orElse(""))
             assert !isNullOrEmpty(gateway.getAttribute("clientSecret", String.class).flatMap{it.getValue()}.orElse(""))
@@ -847,8 +849,8 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
 
         and: "the new asset microphone level should be correctly linked to the simulator protocol only on the gateway"
         conditions.eventually {
-            assert !simulatorProtocol.elements.containsKey(new AttributeRef(microphone3.id, "microphoneLevel"))
-            assert simulatorProtocol.elements.containsKey(new AttributeRef(mapAssetId(gateway.id, microphone3.id, true), "microphoneLevel"))
+            assert !((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.agentId)).linkedAttributes.containsKey(new AttributeRef(microphone3.id, "microphoneLevel"))
+            assert ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.agentId)).linkedAttributes.containsKey(new AttributeRef(mapAssetId(gateway.id, microphone3.id, true), "microphoneLevel"))
         }
 
         when: "an attribute is updated on the gateway client"

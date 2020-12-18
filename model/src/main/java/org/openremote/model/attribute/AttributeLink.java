@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.value.*;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +36,7 @@ import static java.util.Objects.requireNonNull;
  * to the linked attribute.
  */
 // TODO: Somehow combine this with flow rules
-public class AttributeLink {
+public class AttributeLink implements Serializable {
 
     public enum ConverterType {
 
@@ -57,7 +58,7 @@ public class AttributeLink {
          */
         DECREMENT("@DECREMENT");
 
-        private String value;
+        private final String value;
         // Prevents cloning of values each time fromString is called
         private static final ConverterType[] copyOfValues = values();
 

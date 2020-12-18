@@ -13,7 +13,6 @@ import java.time.ZoneId
 import java.util.logging.Logger
 import java.util.stream.Stream
 
-import static org.openremote.model.asset.AssetType.ROOM
 import static org.openremote.model.query.AssetQuery.Match.BEGIN
 
 Logger LOG = binding.LOG

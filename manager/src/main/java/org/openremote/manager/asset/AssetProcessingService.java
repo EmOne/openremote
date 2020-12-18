@@ -316,7 +316,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                     // Type coercion
                     Object value = event.getValue().map(eventValue -> {
                         Class<?> attributeValueType = oldAttribute.getValueType().getType();
-                        return Values.getValue(eventValue, attributeValueType).orElseThrow(() -> {
+                        return Values.getValueCoerced(eventValue, attributeValueType).orElseThrow(() -> {
                             LOG.info("Failed to coerce attribute event value into the correct value type: event value type=" + eventValue.getClass() + ", attribute value type=" + attributeValueType);
                             return new AssetProcessingException(INVALID_VALUE_FOR_WELL_KNOWN_ATTRIBUTE);
                         });
@@ -410,7 +410,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                                          Attribute<?> attribute,
                                          Source source) throws AssetProcessingException {
 
-        String attributeStr = attribute.toString();
+        String attributeStr = "Asset ID=" + asset.getId() + ", Asset name=" +asset.getName() + ", " + attribute;
 
         LOG.fine(">>> Processing start: " + attributeStr);
 
