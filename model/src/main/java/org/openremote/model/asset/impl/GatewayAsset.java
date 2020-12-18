@@ -45,12 +45,8 @@ public class GatewayAsset extends Asset<GatewayAsset> {
         this(null);
     }
 
-    protected GatewayAsset(String name, AssetDescriptor<? extends GatewayAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public GatewayAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getClientId() {

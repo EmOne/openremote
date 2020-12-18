@@ -31,22 +31,35 @@ import org.openremote.model.value.ValueDescriptor;
 
 public class AssetModelResourceImpl extends ManagerWebResource implements AssetModelResource {
 
-    public AssetModelResourceImpl(TimerService timerService, ManagerIdentityService identityService) {
+    protected AssetModelService assetModelService;
+
+    public AssetModelResourceImpl(TimerService timerService, ManagerIdentityService identityService, AssetModelService assetModelService) {
         super(timerService, identityService);
+        this.assetModelService = assetModelService;
     }
 
     @Override
-    public AssetDescriptor[] getAssetDescriptors(RequestParams requestParams, String parentId) {
-        return AssetModelUtil.getAssetDescriptors(parentId);
+    public AssetModelUtil.AssetModelInfo[] getAssetInfos(RequestParams requestParams, String parentId, String parentType) {
+        return assetModelService.getAssetInfos(parentId, parentType);
     }
 
     @Override
-    public ValueDescriptor<?>[] getValueDescriptors(RequestParams requestParams) {
-        return new ValueDescriptor[0];
+    public AssetModelUtil.AssetModelInfo getAssetInfo(RequestParams requestParams, String parentId, String assetType) {
+        return assetModelService.getAssetInfo(parentId, assetType);
     }
 
     @Override
-    public MetaItemDescriptor<?>[] getMetaItemDescriptors(RequestParams requestParams) {
-        return new MetaItemDescriptor[0];
+    public AssetDescriptor<?>[] getAssetDescriptors(RequestParams requestParams, String parentId, String parentType) {
+        return assetModelService.getAssetDescriptors(parentId, parentType);
+    }
+
+    @Override
+    public ValueDescriptor<?>[] getValueDescriptors(RequestParams requestParams, String parentId) {
+        return assetModelService.getValueDescriptors(parentId);
+    }
+
+    @Override
+    public MetaItemDescriptor<?>[] getMetaItemDescriptors(RequestParams requestParams, String parentId) {
+        return assetModelService.getMetaItemDescriptors(parentId);
     }
 }

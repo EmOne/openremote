@@ -77,12 +77,8 @@ public class WeatherAsset extends Asset<WeatherAsset> {
         this(null);
     }
 
-    protected WeatherAsset(String name, AssetDescriptor<? extends WeatherAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public WeatherAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Double> getTemperature() {

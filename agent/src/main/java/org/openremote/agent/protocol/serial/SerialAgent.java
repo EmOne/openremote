@@ -36,11 +36,10 @@ public class SerialAgent extends IoAgent<SerialAgent, SerialClientProtocol, Agen
      * For use by hydrators (i.e. JPA/Jackson)
      */
     SerialAgent() {
-        this(null);
     }
 
     public SerialAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

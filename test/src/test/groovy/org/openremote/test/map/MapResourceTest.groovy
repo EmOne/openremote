@@ -38,7 +38,7 @@ class MapResourceTest extends Specification implements ManagerContainerTrait {
         mapSettings != null
 
         and: "JSON content is valid"
-        def json = new JsonSlurper().parseText(mapSettings.toJson())
+        def json = new JsonSlurper().parseText(mapSettings)
         json.options != null
         json.options.default != null
         json.options.default.center.size() == 2

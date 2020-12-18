@@ -74,7 +74,7 @@ public @interface AssetValid {
         public boolean isValid(Asset<?> value, ConstraintValidatorContext context) {
 
             String type = value.getType();
-            AssetModelUtil.AssetModelInfo assetModelInfo = AssetModelUtil.getAssetModelInfo(type).orElse(null);
+            AssetModelUtil.AssetModelInfo assetModelInfo = AssetModelUtil.getAssetInfo(type).orElse(null);
 
             if (assetModelInfo == null || value.getClass() != assetModelInfo.getAssetDescriptor().getType()) {
                 context.buildConstraintViolationWithTemplate(ASSET_TYPE_INVALID).addConstraintViolation();

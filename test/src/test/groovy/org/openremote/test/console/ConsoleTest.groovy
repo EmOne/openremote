@@ -351,7 +351,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         messages.clear()
 
         and: "an authenticated user updates the location of a linked console"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console1.id, LOCATION.attributeName, new GeoJSONPoint(0d, 0d, 0d).toValue().toJson())
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console1.id, LOCATION.attributeName, new GeoJSONPoint(0d, 0d, 0d).toValue())
 
         then: "the consoles location should have been updated"
         conditions.eventually {
@@ -367,14 +367,14 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         }
 // TODO: Update once console permissions model finalised
 //        when: "an anonymous user updates the location of a console linked to users"
-//        anonymousAssetResource.writeAttributeValue(null, testUser3Console1.id, LOCATION.name, new GeoJSONPoint(0d, 0d, 0d).objectToValue().toJson())
+//        anonymousAssetResource.writeAttributeValue(null, testUser3Console1.id, LOCATION.name, new GeoJSONPoint(0d, 0d, 0d).objectToValue())
 //
 //        then: "the result should be forbidden"
 //        ex = thrown()
 //        ex.response.status == 403
 
         when: "a console's location is updated to be at the Smart Building"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue().toJson())
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue())
         long timestamp = Long.MAX_VALUE
 
         then: "a welcome home alert should be sent to the console"
@@ -389,7 +389,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "a console's location is updated to be at the Smart Building again"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue().toJson())
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue())
 
         then: "no more alerts should have been sent"
         conditions.eventually {
@@ -423,7 +423,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "a console's location is updated to be at the Smart Building again"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue().toJson())
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, LOCATION.attributeName, SMART_BUILDING_LOCATION.toValue())
 
         then: "another alert should have been sent"
         conditions.eventually {

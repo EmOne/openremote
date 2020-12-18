@@ -97,7 +97,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     protected ClientEventService clientEventService;
     protected GatewayService gatewayService;
     protected ManagerExecutorService executorService;
-    protected Map<String, Agent<?, ?, ?>> agentMap = new HashMap<>();
+    protected Map<String, Agent<?, ?, ?>> agentMap;
     protected final Map<String, Future<Void>> agentDiscoveryImportFutureMap = new HashMap<>();
     protected final Map<String, Protocol<?>> protocolInstanceMap = new HashMap<>();
     protected final Map<String, List<Consumer<PersistenceEvent<Asset<?>>>>> childAssetSubscriptions = new HashMap<>();
@@ -151,7 +151,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 LOG.fine("Agent is disabled so not starting: " + agent);
                 assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
             }
-            return isDisabled;
+            return !isDisabled;
         }).forEach(this::startAgent);
     }
 
@@ -543,7 +543,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         if (asset instanceof Agent) {
             LOG.fine("Attribute write for agent attribute: agent=" + asset.getId() + ", attribute=" + attribute.getName());
             onAgentUpdated(getAgents().get(asset.getId()), attributeEvent);
-            // Don't consume the event as we want the agent attribute to be update in the DB
+            // Don't consume the event as we want the agent attribute to be updated in the DB
             return false;
         }
 
@@ -565,7 +565,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     }
 
     /**
-     * Gets all agent link attributes and their linked protocol configuration and groups them by Protocol Configuration
+     * Gets all agent link attributes and their linked agent and groups them by agent
      */
     protected Map<Agent<?,?,?>, List<Attribute<?>>> getGroupedAgentLinkAttributes(Stream<Attribute<?>> attributes,
                                                                                       Predicate<Attribute<?>> filter) {
@@ -582,10 +582,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                     })
                     .orElse(false))
             .filter(filter)
-            .map(attribute -> new Pair<String, Attribute<?>>(attribute.getMetaValue(AGENT_LINK).map(AgentLink::getId).orElse(null), attribute))
+            .map(attribute -> new Pair<Agent<?,?,?>, Attribute<?>>(attribute.getMetaValue(AGENT_LINK).map(AgentLink::getId).map(agentId -> getAgents().get(agentId)).orElse(null), attribute))
+            .filter(agentAttribute -> agentAttribute.key != null)
             .collect(Collectors.groupingBy(
-                agentIdAttribute -> getAgents().get(agentIdAttribute.key),
-                mapping(agentIdAttribute -> agentIdAttribute.value, toList())
+                agentAttribute -> agentAttribute.key,
+                mapping(agentAttribute -> agentAttribute.value, toList())
             ));
     }
 

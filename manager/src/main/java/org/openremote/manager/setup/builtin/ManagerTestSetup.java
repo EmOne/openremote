@@ -19,7 +19,6 @@
  */
 package org.openremote.manager.setup.builtin;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.agent.protocol.simulator.SimulatorAgent;
 import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.security.UserConfiguration;
@@ -43,7 +42,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.openremote.manager.datapoint.AssetDatapointService.DATA_POINTS_MAX_AGE_DAYS_DEFAULT;
-import static org.openremote.model.Constants.MASTER_REALM;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
 

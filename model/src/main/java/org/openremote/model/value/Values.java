@@ -84,7 +84,7 @@ public class Values {
     public static final String NULL_LITERAL = "null";
 
     public static Optional<JsonNode> parse(String jsonString) {
-        if (TextUtil.isNullOrEmpty(jsonString)) {
+        if (TextUtil.isNullOrEmpty(jsonString) || NULL_LITERAL.equals(jsonString)) {
             return Optional.empty();
         }
         try {

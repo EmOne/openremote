@@ -22,10 +22,12 @@ package org.openremote.model.asset;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import org.hibernate.annotations.Check;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Formula;
 import org.openremote.model.Constants;
 import org.openremote.model.IdentifiableEntity;
 import org.openremote.model.asset.impl.ThingAsset;
+import org.openremote.model.asset.impl.UnknownAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeList;
 import org.openremote.model.geo.GeoJSONPoint;
@@ -37,7 +39,10 @@ import org.openremote.model.value.ValueType;
 
 import javax.persistence.*;
 import javax.validation.Valid;
-import javax.validation.constraints.*;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -52,31 +57,29 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 /**
  * The main model class of this software.
  * <p>
- * An asset is an identifiable item in a composite relationship with other assets. This tree
- * of assets can be managed through a <code>null</code> {@link #parentId} property for root
- * assets, and a valid parent identifier for sub-assets.
+ * An asset is an identifiable item in a composite relationship with other assets. This tree of assets can be managed
+ * through a <code>null</code> {@link #parentId} property for root assets, and a valid parent identifier for
+ * sub-assets.
  * <p>
- * The properties {@link #parentName} and {@link #parentType} are transient, not required
- * for storing assets, and only resolved and usable when the asset is loaded from storage.
+ * The properties {@link #parentName} and {@link #parentType} are transient, not required for storing assets, and only
+ * resolved and usable when the asset is loaded from storage.
  * <p>
  * An asset is stored in and therefore access-controlled through a {@link #realm}.
  * <p>
  * The {@link #createdOn} value is milliseconds since the Unix epoch.
  * <p>
- * The {@link #type} of the asset is an arbitrary string which should correspond with an {@link AssetDescriptor}
- * registered within the running instance. If the corresponding {@link AssetDescriptor} cannot be found then
- * the fallback generic {@link ThingAsset#DESCRIPTOR} will be assumed.
+ * The {@link #getType()}} of the asset is the same value as {@link Class#getSimpleName()} and should correspond with an
+ * {@link AssetDescriptor} registered within the running instance. If the corresponding {@link AssetDescriptor} cannot
+ * be found then the fallback generic {@link ThingAsset#DESCRIPTOR} will be assumed.
  * <p>
- * The {@link #path} is a list of parent asset identifiers, starting with the identifier of
- * this asset, followed by parent asset identifiers, and ending with the identifier of the
- * root asset in the tree. This is a transient property and only resolved and usable when
- * the asset is loaded from storage and as calculating it is costly, might be empty when
- * certain optimized loading operations are used.
- * An asset may have 0-N {@link #attributes}; the {@link AssetDescriptor} associated with an
- * asset type describes the standard {@link Attribute}s that can be found and what the value type of these
- * {@link Attribute}s should be but additional {@link Attribute}s can also be added but obviously no validation
- * can be performed on such dynamic {@link Attribute}s. Use the {@link Attribute} etc. class to work with this API.
- * This property can be empty when certain optimized loading operations are used.
+ * The {@link #path} is a list of parent asset identifiers, starting with the identifier of this asset, followed by
+ * parent asset identifiers, and ending with the identifier of the root asset in the tree. This is a transient property
+ * and only resolved and usable when the asset is loaded from storage and as calculating it is costly, might be empty
+ * when certain optimized loading operations are used. An asset may have 0-N {@link #attributes}; the {@link
+ * AssetDescriptor} associated with an asset type describes the standard {@link Attribute}s that can be found and what
+ * the value type of these {@link Attribute}s should be but additional {@link Attribute}s can also be added but
+ * obviously no validation can be performed on such dynamic {@link Attribute}s. Use the {@link Attribute} etc. class to
+ * work with this API. This property can be empty when certain optimized loading operations are used.
  * <p>
  * For more details on restricted access of user-assigned assets, see {@link UserAsset}.
  * </p>
@@ -235,13 +238,15 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @Entity
 @Table(name = "ASSET")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name="TYPE", discriminatorType=STRING)
+@DiscriminatorColumn(name = "TYPE", discriminatorType = STRING)
 @Check(constraints = "ID != PARENT_ID")
-@JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = ThingAsset.class)
+@JsonTypeInfo(include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true, use = JsonTypeInfo.Id.CUSTOM, defaultImpl = UnknownAsset.class)
 @JsonTypeIdResolver(AssetTypeIdResolver.class)
-@AssetValid
+@AssetValid(groups = Asset.AssetSave.class)
 @SuppressWarnings("unchecked")
 public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
+
+    public interface AssetSave {}
 
     public static final String ASSET_ID_REGEX = "^[0-9A-Za-z]{22}$";
 
@@ -249,7 +254,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
      * ATTRIBUTE DESCRIPTORS DESCRIBING FIXED NAME ATTRIBUTES AND THEIR VALUE TYPE - ALL SUB TYPES OF THIS ASSET TYPE
      * WILL INHERIT THESE DESCRIPTORS ALSO; IT IS REQUIRED THAT EACH DESCRIPTOR HAS CORRESPONDING GETTER WITH OPTIONAL
      * SETTER, THIS ENSURES BASIC COMPILE TIME CHECKING OF CONFLICTS BUT JUST MAKES GOOD SENSE FOR CONSUMERS
-    */
+     */
     public static final AttributeDescriptor<GeoJSONPoint> LOCATION = new AttributeDescriptor<>("location", ValueType.GEO_JSON_POINT).setRequired(true);
 
     public static final AttributeDescriptor<String> EMAIL = new AttributeDescriptor<>("email", ValueType.EMAIL);
@@ -299,10 +304,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     @Transient
     protected String parentType;
 
-
-    @NotBlank(message = "{Asset.type.NotBlank}")
-    @Size(min = 1, max = 255, message = "{Asset.type.Size}")
-    @Transient
+    @Column(name = "TYPE", nullable = false, updatable = false, insertable = false)
     protected String type = getClass().getSimpleName();
 
     // The following are expensive to query, so if they are null, they might not have been loaded
@@ -321,13 +323,8 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     protected Asset() {
     }
 
-    protected Asset(String id) {
-        this.id = id;
-    }
-
-    protected Asset(String name, AssetDescriptor<? extends T> descriptor) {
+    protected Asset(String name) {
         setName(name);
-        this.type = descriptor.getName();
 
         // Initialise required attributes
         AssetModelUtil.initialiseAssetAttributes(this);
@@ -336,7 +333,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
     public String getId() {
         return id;
     }
-    
+
     public T setId(String id) {
         this.id = id;
         return (T) this;
@@ -346,30 +343,28 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return version;
     }
 
-    
     public T setVersion(long version) {
         this.version = version;
-        return (T)this;
+        return (T) this;
     }
 
     public Date getCreatedOn() {
         return createdOn;
     }
 
-    
     public T setCreatedOn(Date createdOn) {
         this.createdOn = createdOn;
-        return (T)this;
+        return (T) this;
     }
 
     public String getName() {
         return name;
     }
 
-    
+
     public T setName(String name) throws IllegalArgumentException {
         this.name = name;
-        return (T)this;
+        return (T) this;
     }
 
     public String getType() {
@@ -380,13 +375,11 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return accessPublicRead;
     }
 
-    
     public T setAccessPublicRead(boolean accessPublicRead) {
         this.accessPublicRead = accessPublicRead;
-        return (T)this;
+        return (T) this;
     }
 
-    
     public T setParent(Asset<?> parent) {
         if (parent == null) {
             parentId = null;
@@ -395,20 +388,20 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         } else {
             parentId = parent.id;
             parentName = parent.name;
-            parentType = parent.type;
+            parentType = parent.getType();
             realm = parent.realm;
         }
-        return (T)this;
+        return (T) this;
     }
 
     public String getParentId() {
         return parentId;
     }
 
-    
+
     public T setParentId(String parentId) {
         this.parentId = parentId;
-        return (T)this;
+        return (T) this;
     }
 
     /**
@@ -429,33 +422,31 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return realm;
     }
 
-    
     public T setRealm(String realm) {
         this.realm = realm;
-        return (T)this;
+        return (T) this;
     }
 
     /**
      * NOTE: This is a transient and optional property, set only in database query results.
      * <p>
-     * The identifiers of all parents representing the path in the tree. The first element
-     * is the identifier of this instance, the last is the root asset without a parent.
+     * The identifiers of all parents representing the path in the tree. The first element is the identifier of this
+     * instance, the last is the root asset without a parent.
      */
     public String[] getPath() {
         return path;
     }
 
-    
     public T setPath(String[] path) {
         this.path = path;
-        return (T)this;
+        return (T) this;
     }
 
     /**
      * NOTE: This is a transient and optional property, set only in database query results.
      * <p>
-     * The identifiers of all parents representing the path in the tree. The first element
-     * is the root asset without a parent, the last is the identifier of this instance.
+     * The identifiers of all parents representing the path in the tree. The first element is the root asset without a
+     * parent, the last is the identifier of this instance.
      */
     public String[] getReversePath() {
         if (path == null)
@@ -481,23 +472,21 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return attributes;
     }
 
-    
     public T setAttributes(AttributeList attributes) {
         if (attributes == null) {
             attributes = new AttributeList();
         }
         this.attributes = attributes;
-        return (T)this;
+        return (T) this;
     }
 
-    public Asset<?> setAttributes(Attribute<?>...attributes) {
+    public Asset<?> setAttributes(Attribute<?>... attributes) {
         return setAttributes(Arrays.asList(attributes));
     }
 
-    
     public T setAttributes(Collection<Attribute<?>> attributes) {
         this.attributes = new AttributeList(attributes);
-        return (T)this;
+        return (T) this;
     }
 
     public <T> Optional<Attribute<T>> getAttribute(AttributeDescriptor<T> descriptor) {
@@ -508,11 +497,10 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().get(attributeName);
     }
 
-    
     public <U> Optional<Attribute<U>> getAttribute(String attributeName, Class<U> valueType) {
         return getAttributes().get(attributeName).map(attribute -> {
             if (attribute.getValueType().getType() == valueType) {
-                return (Attribute<U>)attribute;
+                return (Attribute<U>) attribute;
             } else {
                 return null;
             }
@@ -527,16 +515,15 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().has(attributeName);
     }
 
-    
-    public T addAttributes(Attribute<?>...attributes) {
+
+    public T addAttributes(Attribute<?>... attributes) {
         getAttributes().addAll(attributes);
-        return (T)this;
+        return (T) this;
     }
 
-    
-    public T addOrReplaceAttributes(Attribute<?>...attributes) {
+    public T addOrReplaceAttributes(Attribute<?>... attributes) {
         getAttributes().addOrReplace(attributes);
-        return (T)this;
+        return (T) this;
     }
 
     @Override
@@ -573,59 +560,59 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return getAttributes().getValue(LOCATION);
     }
 
-    
+
     public T setLocation(GeoJSONPoint location) {
         getAttributes().addOrReplace(new Attribute<>(LOCATION, location));
-        return (T)this;
+        return (T) this;
     }
 
     public Optional<String[]> getTags() {
         return getAttributes().getValue(TAGS);
     }
 
-    
+
     public T setTags(String[] tags) {
         getAttributes().getOrCreate(TAGS).setValue(tags);
-        return (T)this;
+        return (T) this;
     }
 
     public Optional<String> getEmail() {
         return getAttributes().getValue(EMAIL);
     }
 
-    
+
     public T setEmail(String email) {
         getAttributes().getOrCreate(EMAIL).setValue(email);
-        return (T)this;
+        return (T) this;
     }
 
     public Optional<String> getNotes() {
         return getAttributes().getValue(NOTES);
     }
 
-    
+
     public T setNotes(String notes) {
         getAttributes().getOrCreate(NOTES).setValue(notes);
-        return (T)this;
+        return (T) this;
     }
 
     public Optional<String> getManufacturer() {
         return getAttributes().getValue(MANUFACTURER);
     }
 
-    
+
     public T setManufacturer(String manufacturer) {
         getAttributes().getOrCreate(MANUFACTURER).setValue(manufacturer);
-        return (T)this;
+        return (T) this;
     }
 
     public Optional<String> getModel() {
         return getAttributes().getValue(MODEL);
     }
 
-    
+
     public T setModel(String model) {
         getAttributes().getOrCreate(MODEL).setValue(model);
-        return (T)this;
+        return (T) this;
     }
 }

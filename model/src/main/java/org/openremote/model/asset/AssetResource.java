@@ -82,7 +82,7 @@ public interface AssetResource {
     @Path("user/current")
     @Produces(APPLICATION_JSON)
     @RolesAllowed({Constants.READ_ASSETS_ROLE})
-    Asset[] getCurrentUserAssets(@BeanParam RequestParams requestParams);
+    Asset<?>[] getCurrentUserAssets(@BeanParam RequestParams requestParams);
 
     /**
      * Retrieve links between assets and users.
@@ -208,7 +208,7 @@ public interface AssetResource {
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @RolesAllowed({Constants.WRITE_ASSETS_ROLE})
-    <T extends Asset<?>> T create(@BeanParam RequestParams requestParams, @Valid T asset);
+    Asset<?> create(@BeanParam RequestParams requestParams, @Valid Asset<?> asset);
 
     /**
      * Deletes an asset. Regular users can only delete assets in their authenticated realm, the superuser can delete
@@ -234,7 +234,7 @@ public interface AssetResource {
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @RolesAllowed({Constants.READ_ASSETS_ROLE})
-    Asset[] queryAssets(@BeanParam RequestParams requestParams, AssetQuery query);
+    Asset<?>[] queryAssets(@BeanParam RequestParams requestParams, AssetQuery query);
 
     /**
      * Retrieve public assets using an {@link AssetQuery}.
@@ -245,7 +245,7 @@ public interface AssetResource {
     @Path("public/query")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-    Asset[] queryPublicAssets(@BeanParam RequestParams requestParams, AssetQuery query);
+    Asset<?>[] queryPublicAssets(@BeanParam RequestParams requestParams, AssetQuery query);
 
     /**
      * Retrieve public assets using an {@link AssetQuery} as a JSON serialized query parameter.
@@ -255,5 +255,5 @@ public interface AssetResource {
     @GET
     @Path("public/query")
     @Produces(APPLICATION_JSON)
-    Asset[] getPublicAssets(@BeanParam RequestParams requestParams, @QueryParam("q") String q);
+    Asset<?>[] getPublicAssets(@BeanParam RequestParams requestParams, @QueryParam("q") String q);
 }

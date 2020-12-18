@@ -20,7 +20,6 @@
 package org.openremote.agent.protocol.http;
 
 import org.openremote.model.asset.agent.Agent;
-import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
@@ -39,8 +38,8 @@ public abstract class AbstractHttpServerAgent<T extends AbstractHttpServerAgent<
 
     protected AbstractHttpServerAgent() {}
 
-    protected AbstractHttpServerAgent(String name, AgentDescriptor<T, U, V> descriptor) {
-        super(name, descriptor);
+    protected AbstractHttpServerAgent(String name) {
+        super(name);
     }
 
     public Optional<String> getDeploymentPath() {

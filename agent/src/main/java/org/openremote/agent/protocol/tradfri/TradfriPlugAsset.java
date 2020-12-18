@@ -26,11 +26,7 @@ public class TradfriPlugAsset extends PlugAsset implements TradfriAsset {
     }
 
     public TradfriPlugAsset(String name) {
-        this(name, DESCRIPTOR);
-    }
-
-    protected <T extends TradfriPlugAsset> TradfriPlugAsset(String name, AssetDescriptor<T> descriptor) {
-        super(name, descriptor);
+        super(name);
     }
 
     @Override

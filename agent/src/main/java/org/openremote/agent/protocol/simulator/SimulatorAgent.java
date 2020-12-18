@@ -23,10 +23,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.simulator.SimulatorReplayDatapoint;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.ValueDescriptor;
 
 import javax.persistence.Entity;
 import java.util.Optional;
@@ -69,7 +66,7 @@ public class SimulatorAgent extends Agent<SimulatorAgent, SimulatorProtocol, Sim
     }
 
     public SimulatorAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

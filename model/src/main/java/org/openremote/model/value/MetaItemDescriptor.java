@@ -36,24 +36,10 @@ import java.util.Objects;
  */
 public class MetaItemDescriptor<T> extends AbstractNameValueDescriptorHolder<T> {
 
+    MetaItemDescriptor() {}
+
     public MetaItemDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
         super(name, valueDescriptor);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(name);
-    }
-
-    /**
-     * Meta item descriptor names are unique identifiers so can use this for equality purposes
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        MetaItemDescriptor<?> that = (MetaItemDescriptor<?>)obj;
-        return Objects.equals(name, that.name);
     }
 
     @Override

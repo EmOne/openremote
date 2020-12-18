@@ -90,6 +90,8 @@ import static org.openremote.model.query.AssetQuery.Access.PRIVATE;
 import static org.openremote.model.query.AssetQuery.Access.PROTECTED;
 import static org.openremote.model.query.filter.ValuePredicate.asPredicateOrTrue;
 import static org.openremote.model.util.TextUtil.isNullOrEmpty;
+import static org.openremote.model.value.MetaItemType.ACCESS_PUBLIC_READ;
+import static org.openremote.model.value.MetaItemType.ACCESS_RESTRICTED_READ;
 
 public class AssetStorageService extends RouteBuilder implements ContainerService {
 
@@ -309,13 +311,6 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
             return assetEventAuthorizer.apply(auth, subscription);
         });
-
-        container.getService(ManagerWebService.class).getApiSingletons().add(
-            new AssetModelResourceImpl(
-                container.getService(TimerService.class),
-                identityService
-            )
-        );
 
         container.getService(ManagerWebService.class).getApiSingletons().add(
             new AssetResourceImpl(
@@ -597,7 +592,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             T existingAsset = TextUtil.isNullOrEmpty(asset.getId()) ? null : (T)em.find(Asset.class, asset.getId());
 
             // Do standard JSR-380 validation on the asset (includes custom validation)
-            Set<ConstraintViolation<Asset<?>>> validationFailures = AssetModelUtil.validate(asset);
+            Set<ConstraintViolation<Asset<?>>> validationFailures = AssetModelUtil.validate(asset, Asset.AssetSave.class);
 
             if (validationFailures.size() > 0) {
                 String msg = "Asset merge failed as asset has failed constraint validation: asset=" + asset;
@@ -1044,7 +1039,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         PreparedAssetQuery querySql = queryAndContainsCalendarPredicate.key;
         boolean containsCalendarPredicate = queryAndContainsCalendarPredicate.value;
 
-        if (containsCalendarPredicate && (query.select != null && (query.select.excludeAttributes || query.select.excludeAttributeValue || query.select.excludeAttributeType))) {
+        if (containsCalendarPredicate && (query.select != null && (query.select.excludeAttributes))) {
             LOG.info("Asset query contains a calendar event predicate which requires the attribute values and types to be included in the select (as calendar event predicate is applied post DB query)");
             throw new IllegalArgumentException("Asset query contains a calendar event predicate which requires the attribute values and types to be included in the select (as calendar event predicate is applied post DB query)");
         }
@@ -1073,9 +1068,16 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         }).collect(Collectors.toList());
     }
 
-    public boolean updateAttributeValue(EntityManager em, String assetId, String attributeName, Object value, String timestamp) {
+    protected boolean updateAttributeValue(EntityManager em, Asset<?> asset, Attribute<?> attribute) {
 
         try {
+
+            // Detach the asset from the em so we can manually update the attribute
+            em.detach(asset);
+            String attributeName = attribute.getName();
+            Object value = attribute.getValue();
+            long timestamp = attribute.getTimestamp().orElseGet(timerService::getCurrentTimeMillis);
+
             return em.unwrap(Session.class).doReturningWork(connection -> {
                 String jpql = "update Asset" +
                     " set attributes = jsonb_set(jsonb_set(attributes, ?, ?, true), ?, ?, true)" +
@@ -1102,15 +1104,15 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     statement.setArray(3, attributeValueTimestampPath);
                     PGobject pgJsonValueTimestamp = new PGobject();
                     pgJsonValueTimestamp.setType("jsonb");
-                    pgJsonValueTimestamp.setValue(timestamp);
+                    pgJsonValueTimestamp.setValue(Long.toString(timestamp));
                     statement.setObject(4, pgJsonValueTimestamp);
 
                     // Bind asset ID and attribute name
-                    statement.setString(5, assetId);
+                    statement.setString(5, asset.getId());
                     statement.setString(6, attributeName);
 
                     int updatedRows = statement.executeUpdate();
-                    LOG.fine("Stored asset '" + assetId
+                    LOG.fine("Stored asset '" + asset.getId()
                         + "' attribute '" + attributeName
                         + "' (affected rows: " + updatedRows + ") value: "
                         + (value != null ? Values.asJSON(value) : "null"));
@@ -1242,18 +1244,18 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         StringBuilder sb = new StringBuilder();
         boolean recursive = query.recursive;
         List<ParameterBinder> binders = new ArrayList<>();
-        sb.append(buildSelectString(query, 1, binders));
+        sb.append(buildSelectString(query, 1, binders, timeProvider));
         sb.append(buildFromString(query, 1));
         boolean containsCalendarPredicate = appendWhereClause(sb, query, 1, binders, timeProvider);
 
         if (recursive) {
             sb.insert(0, "WITH RECURSIVE top_level_assets AS ((");
             sb.append(") UNION (");
-            sb.append(buildSelectString(query, 2, binders));
+            sb.append(buildSelectString(query, 2, binders, timeProvider));
             sb.append(buildFromString(query, 2));
             containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 2, binders, timeProvider);
             sb.append("))");
-            sb.append(buildSelectString(query, 3, binders));
+            sb.append(buildSelectString(query, 3, binders, timeProvider));
             sb.append(buildFromString(query, 3));
             containsCalendarPredicate = !containsCalendarPredicate && appendWhereClause(sb, query, 3, binders, timeProvider);
         }
@@ -1263,7 +1265,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         return new Pair<>(new PreparedAssetQuery(sb.toString(), binders), containsCalendarPredicate);
     }
 
-    protected static String buildSelectString(AssetQuery query, int level, List<ParameterBinder> binders) {
+    protected static String buildSelectString(AssetQuery query, int level, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
         // level = 1 is main query select
         // level = 2 is union select
         // level = 3 is CTE select
@@ -1296,7 +1298,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             if (query.recursive && level != 3) {
                 sb.append(", A.ATTRIBUTES as ATTRIBUTES");
             } else {
-                sb.append(buildAttributeSelect(query, binders));
+                sb.append(buildAttributeSelect(query, binders, timeProvider));
             }
         } else {
             sb.append(", NULL as ATTRIBUTES");
@@ -1305,91 +1307,33 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         return sb.toString();
     }
 
-    protected static String buildAttributeSelect(AssetQuery query, List<ParameterBinder> binders) {
+    protected static String buildAttributeSelect(AssetQuery query, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
 
         Select select = query.select;
-        boolean hasMetaFilter = select != null && !select.excludeAttributeMeta && select.meta != null && select.meta.length > 0;
-        boolean fullyPopulateAttributes = select == null || !(select.excludeAttributeMeta || select.excludeAttributeValue || select.excludeAttributeTimestamp || select.meta != null);
+        boolean hasAttributeFilter = select != null && select.attributes != null && select.attributes.length > 0;
 
-        if ((select == null || select.attributes == null) && query.access == PRIVATE && fullyPopulateAttributes) {
+        if (!hasAttributeFilter && query.access == PRIVATE) {
             return ", A.ATTRIBUTES as ATTRIBUTES";
-        }
-
-        StringBuilder attributeBuilder = new StringBuilder();
-
-        if (select != null && select.excludeAttributeMeta) {
-            attributeBuilder.append(" - 'meta'");
-        }
-        if (select != null && select.excludeAttributeTimestamp) {
-            attributeBuilder.append(" - 'timestamp'");
-        }
-        if (select != null && select.excludeAttributeValue) {
-            attributeBuilder.append(" - 'value'");
-        }
-        if (select != null && select.excludeAttributeType) {
-            attributeBuilder.append(" - 'type'");
         }
 
         StringBuilder sb = new StringBuilder();
         sb.append(", (");
-
-        if (select != null && select.excludeAttributeMeta) {
-            sb.append("select json_object_agg(AX.key, AX.value");
-            sb.append(attributeBuilder);
-            sb.append(") from jsonb_each(A.attributes) as AX");
-            if (query.access != PRIVATE) {
-                // Use implicit inner join on meta array set to only select non-private attributes
-                sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            }
-        } else if (query.access != PRIVATE || hasMetaFilter) {
-            // Use sub-select for processing the attributes the meta inside each attribute is replaced with filtered meta
-            // (coalesce null to empty array because jsonb_set() with null will clear the whole object)
-            sb.append(
-                "select json_object_agg(AX.key, jsonb_set(AX.value, '{meta}', coalesce(AMF.VALUE, jsonb_build_array()), false)) from jsonb_each(A.attributes) as AX");
-            // Use implicit inner join on meta array set to only select attributes with a non-private access meta item
-            sb.append(", jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            // Use subquery to filter out meta items not marked as non-private access
-            sb.append(" INNER JOIN LATERAL (");
-            sb.append("select jsonb_agg(AM.value) AS VALUE from jsonb_array_elements(AX.VALUE #> '{meta}') as AM");
-            sb.append(" where AM.VALUE #>> '{name}' IN");
-
-            if (hasMetaFilter) {
-                sb.append(" ('");
-                sb.append(String.join("','", select.meta));
-                sb.append("')");
-            }
-
-            sb.append(") as AMF ON true");
-        } else {
-            sb.append("select json_object_agg(AX.key, AX.value) from jsonb_each(A.attributes) as AX");
-        }
-
+        sb.append("select json_object_agg(AX.key, AX.value) from jsonb_each(A.attributes) as AX");
         sb.append(" where true");
 
         // Filter attributes
         if (select != null && select.attributes != null && select.attributes.length > 0) {
-            sb.append(" AND AX.key IN (");
-            for (int i = 0; i < select.attributes.length; i++) {
-                final int pos = binders.size() + 1;
-                sb.append("?").append(pos);
-                if (i < select.attributes.length - 1) {
-                    sb.append(",");
-                }
-                final String attributeName = select.attributes[i];
-                binders.add((em, st) -> st.setParameter(pos, attributeName));
-            }
-            sb.append(")");
+            final int pos = binders.size() + 1;
+            sb.append(" AND AX.key = ANY(")
+                .append("?")
+                .append(pos)
+                .append(")");
+            binders.add((em, st) -> st.setParameter(pos, select.attributes, StringArrayType.INSTANCE));
         }
 
         if (query.access != PRIVATE) {
-            // TODO: Filter attributes based on access meta
-//            query.att
-//            // Filter non-private access attributes
-//            MetaPredicate accessPredicate =
-//                new MetaPredicate()
-//                    .itemName(query.access == PROTECTED ? ACCESS_RESTRICTED_READ : MetaItemType.ACCESS_PUBLIC_READ)
-//                    .itemValue(new BooleanPredicate(true));
-//            sb.append(buildAttributeMetaFilter(binders, accessPredicate));
+            String metaName = query.access == PROTECTED ? ACCESS_RESTRICTED_READ.getName() : ACCESS_PUBLIC_READ.getName();
+            sb.append(" AND AX.VALUE #>> '{meta,").append(metaName).append("}' = 'true'");
         }
 
         sb.append(") AS ATTRIBUTES");
@@ -1417,7 +1361,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         }
 
         if ((!recursive || level == 3) && query.userIds != null && query.userIds.length > 0) {
-            sb.append("right join UserAsset UA on A.ID = UA.ASSET_ID ");
+            sb.append("right join USER_ASSET UA on A.ID = UA.ASSET_ID ");
         }
 
         return sb.toString();
@@ -1477,16 +1421,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
         if (level == 1 && query.ids != null && query.ids.length > 0) {
             final int pos = binders.size() + 1;
-            sb.append(" and A.ID IN (?").append(pos);
-            binders.add((em, st) -> st.setParameter(pos, query.ids[0]));
-
-            for (int i = 1; i < query.ids.length; i++) {
-                final int pos2 = binders.size() + 1;
-                sb.append(",?").append(pos2);
-                final int index = i;
-                binders.add((em, st) -> st.setParameter(pos2, query.ids[index]));
-            }
-            sb.append(")");
+            sb.append(" and A.ID = ANY(?")
+                .append(pos)
+                .append(")");
+            binders.add((em, st) -> st.setParameter(pos, query.ids, StringArrayType.INSTANCE));
         }
 
         if (level == 1 && query.names != null && query.names.length > 0) {
@@ -1522,14 +1460,14 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
                 if (level == 1 && pred.id != null) {
                     final int pos = binders.size() + 1;
-                    sb.append(" and A.PARENT_ID = ?").append(pos);
+                    sb.append("A.PARENT_ID = ?").append(pos);
                     binders.add((em, st) -> st.setParameter(pos, pred.id));
                 } else if (level == 1 && pred.noParent) {
                     sb.append("A.PARENT_ID is null");
                 } else if (pred.type != null || pred.name != null) {
                     if (pred.type != null) {
                         final int pos = binders.size() + 1;
-                        sb.append(" and P.TYPE = ?").append(pos);
+                        sb.append(" and TYPE(P) = ?").append(pos);
                         binders.add((em, st) -> st.setParameter(pos, pred.type));
                     }
                     if (pred.name != null) {
@@ -1574,16 +1512,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
             if (query.userIds != null && query.userIds.length > 0) {
                 final int pos = binders.size() + 1;
-                sb.append(" and UA.USER_ID IN (?").append(pos);
-                binders.add((em, st) -> st.setParameter(pos, query.userIds[0]));
-
-                for (int i = 1; i < query.userIds.length; i++) {
-                    final int pos2 = binders.size() + 1;
-                    sb.append(",?").append(pos2);
-                    final int index = i;
-                    binders.add((em, st) -> st.setParameter(pos2, query.userIds[index]));
-                }
-                sb.append(")");
+                sb.append(" and UA.USER_ID = ANY(?")
+                    .append(pos)
+                    .append(")");
+                binders.add((em, st) -> st.setParameter(pos, query.userIds, StringArrayType.INSTANCE));
             }
 
             if (level == 1 && query.access == Access.PUBLIC) {
@@ -1591,21 +1523,12 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             }
 
             if (query.types != null && query.types.length > 0) {
-                sb.append(" and A.TYPE IN (");
-                boolean isFirst = true;
-
-                for (Class<? extends Asset<?>> type : query.types) {
-                    if (!isFirst) {
-                        sb.append(",");
-                    }
-                    isFirst = false;
-
-                    final int pos = binders.size() + 1;
-                    sb.append("?").append(pos);
-                    binders.add((em, st) -> st.setParameter(pos, type.getSimpleName()));
-                }
-
-                sb.append(")");
+                String[] resolvedTypes = getResolvedAssetTypes(query.types);
+                final int pos = binders.size() + 1;
+                sb.append(" and A.TYPE = ANY(?")
+                    .append(pos)
+                    .append(")");
+                binders.add((em, st) -> st.setParameter(pos, resolvedTypes, StringArrayType.INSTANCE));
             }
 
             if (query.attributes != null) {
@@ -1620,6 +1543,18 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         return containsCalendarPredicate;
     }
 
+    /**
+     * Resolves the concrete {@link Asset} types that are covered by the supplied asset types
+     */
+    protected static String[] getResolvedAssetTypes(Class<? extends Asset<?>>[] assetClasses) {
+        return Arrays.stream(assetClasses)
+            .flatMap(assetClass ->
+                Arrays.stream(AssetModelUtil.getAssetClasses(null)).filter(assetClass::isAssignableFrom))
+            .map(Class::getSimpleName)
+            .distinct()
+            .toArray(String[]::new);
+    }
+
     protected static boolean addAttributePredicateGroupQuery(StringBuilder sb, List<ParameterBinder> binders, int groupIndex, Consumer<String> selectInserter, LogicGroup<AttributePredicate> attributePredicateGroup, Supplier<Long> timeProvider) {
 
         boolean containsCalendarPredicate = false;
@@ -1628,7 +1563,6 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         if (operator == null) {
             operator = LogicGroup.Operator.AND;
         }
-
 
         sb.append("(");
 
@@ -1676,7 +1610,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         boolean containsCalendarPredicate = false;
 
         boolean isFirst = true;
-
+        int metaIndex = 0;
         for (NameValuePredicate nameValuePredicate : nameValuePredicates) {
             if (!containsCalendarPredicate && nameValuePredicate.value instanceof CalendarEventPredicate) {
                 containsCalendarPredicate = true;
@@ -1694,10 +1628,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 AttributePredicate attributePredicate = (AttributePredicate)nameValuePredicate;
 
                 if (attributePredicate.meta != null && attributePredicate.meta.length > 0) {
-                    String metaJsonObjName = jsonObjName + "_AM";
+                    String metaJsonObjName = jsonObjName + "_AM" + metaIndex++;
                     selectInserter.accept(", jsonb_each(" + jsonObjName + ".VALUE #> '{meta}') as " + metaJsonObjName);
                     sb.append(" and (");
-                    addNameValuePredicates(Arrays.asList(attributePredicate.meta.clone()), sb, binders, metaJsonObjName, selectInserter, false, timeProvider);
+                    addNameValuePredicates(Arrays.asList(attributePredicate.meta.clone()), sb, binders, metaJsonObjName, selectInserter, true, timeProvider);
                     sb.append(")");
                 }
             }
@@ -1787,7 +1721,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     attributeBuilder.append("upper(");
                 }
                 valuePathInserter.accept(attributeBuilder, binders);
-                attributeBuilder.append("\\:\\:text");
+                attributeBuilder.append(" #>> '{}'");
                 if (!stringPredicate.caseSensitive) {
                     attributeBuilder.append(")");
                 }
@@ -1803,9 +1737,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     .append(")");
             } else if (nameValuePredicate.value instanceof DateTimePredicate) {
                 DateTimePredicate dateTimePredicate = (DateTimePredicate) nameValuePredicate.value;
+                attributeBuilder.append("(");
                 valuePathInserter.accept(attributeBuilder, binders);
                 attributeBuilder
-                    .append("\\:\\:text)\\:\\:timestamp");
+                    .append(" #>> '{}')\\:\\:timestamp");
 
                 Pair<Long, Long> fromAndTo = dateTimePredicate.asFromAndTo(timeProvider.get());
 
@@ -1819,9 +1754,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
             } else if (nameValuePredicate.value instanceof NumberPredicate) {
                 NumberPredicate numberPredicate = (NumberPredicate) nameValuePredicate.value;
+                attributeBuilder.append("(");
                 valuePathInserter.accept(attributeBuilder, binders);
                 attributeBuilder
-                    .append("\\:\\:text)\\:\\:numeric");
+                    .append(" #>> '{}')\\:\\:numeric");
                 final int pos = binders.size() + 1;
                 attributeBuilder.append(buildOperatorFilter(numberPredicate.operator, numberPredicate.negate, pos));
                 binders.add((em, st) -> st.setParameter(pos, numberPredicate.value));

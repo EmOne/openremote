@@ -45,6 +45,8 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     protected MetaList meta;
     protected boolean required;
 
+    AttributeDescriptor() {}
+
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
         this(name, valueDescriptor, (MetaList) null);
     }
@@ -79,22 +81,6 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     public AttributeDescriptor<T> setRequired(boolean required) {
         this.required = required;
         return this;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(name);
-    }
-
-    /**
-     * Attribute descriptor names are unique identifiers so can use this for equality purposes
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        AttributeDescriptor<?> that = (AttributeDescriptor<?>)obj;
-        return Objects.equals(name, that.name);
     }
 
     @Override

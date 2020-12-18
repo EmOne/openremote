@@ -22,8 +22,6 @@ package org.openremote.agent.protocol.zwave;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
@@ -72,7 +70,7 @@ public class ZWAgent extends Agent<ZWAgent, ZWProtocol, ZWAgent.ZWAgentLink> {
     }
 
     public ZWAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

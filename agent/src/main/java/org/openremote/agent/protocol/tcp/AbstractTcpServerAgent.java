@@ -20,12 +20,13 @@
 package org.openremote.agent.protocol.tcp;
 
 import org.openremote.model.asset.agent.Agent;
-import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
 public abstract class AbstractTcpServerAgent<T extends AbstractTcpServerAgent<T, U, V>, U extends AbstractTcpServerProtocol<?, ?, U, T, V>, V extends AgentLink<?>> extends Agent<T, U, V> {
 
-    protected AbstractTcpServerAgent(String name, AgentDescriptor<T, U, V> descriptor) {
-        super(name, descriptor);
+    protected AbstractTcpServerAgent() {}
+
+    protected AbstractTcpServerAgent(String name) {
+        super(name);
     }
 }

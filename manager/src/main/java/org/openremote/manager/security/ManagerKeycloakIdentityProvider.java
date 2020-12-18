@@ -295,8 +295,13 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
     @Override
     public Tenant getTenant(String realm) {
-        RealmRepresentation realmRepresentation = getRealms().realm(realm).toRepresentation();
-        return convert(realmRepresentation, Tenant.class);
+        try {
+            RealmRepresentation realmRepresentation = getRealms().realm(realm).toRepresentation();
+            return convert(realmRepresentation, Tenant.class);
+        } catch (Exception ex) {
+            LOG.log(Level.INFO, "Failed to get tenant for realm: " + realm, ex);
+        }
+        return null;
     }
 
     @Override

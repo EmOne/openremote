@@ -42,12 +42,8 @@ public class CityAsset extends Asset<CityAsset> {
         this(null);
     }
 
-    protected CityAsset(String name, AssetDescriptor<? extends CityAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public CityAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getCity() {

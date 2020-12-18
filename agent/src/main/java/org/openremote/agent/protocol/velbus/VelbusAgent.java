@@ -22,12 +22,10 @@ package org.openremote.agent.protocol.velbus;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.openremote.model.asset.agent.Agent;
-import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
-import javax.persistence.Entity;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
@@ -77,8 +75,11 @@ public abstract class VelbusAgent<T extends VelbusAgent<T, U>, U extends Abstrac
 
     public static final AttributeDescriptor<Integer> TIME_INJECTION_INTERVAL_SECONDS = new AttributeDescriptor<>("timeInjectionInterval", ValueType.POSITIVE_INTEGER);
 
-    protected VelbusAgent(String name, AgentDescriptor<T, U, VelbusAgentLink> descriptor) {
-        super(name, descriptor);
+    // For Hydrators
+    protected VelbusAgent() {}
+
+    protected VelbusAgent(String name) {
+        super(name);
     }
 
     public Optional<Integer> getTimeInjectionInterval() {

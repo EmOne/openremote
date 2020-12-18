@@ -132,11 +132,6 @@ public class StringPredicate implements ValuePredicate {
 
     @Override
     public boolean equals(Object obj) {
-        boolean eq = Objects.equals(this, obj);
-
-        if (eq) {
-             return true;
-        }
 
         if (!(obj instanceof StringPredicate)) {
             return false;

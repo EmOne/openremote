@@ -35,7 +35,7 @@ public class HttpServerTestAgent extends AbstractHttpServerAgent<HttpServerTestA
     HttpServerTestAgent() {}
 
     public HttpServerTestAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

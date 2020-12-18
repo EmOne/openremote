@@ -74,7 +74,7 @@ public class TimerAgent extends Agent<TimerAgent, TimerProtocol, TimerAgent.Time
     }
 
     public TimerAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

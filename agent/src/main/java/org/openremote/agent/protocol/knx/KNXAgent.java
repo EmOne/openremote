@@ -22,7 +22,6 @@ package org.openremote.agent.protocol.knx;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.impl.ShipAsset;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
@@ -104,7 +103,7 @@ public class KNXAgent extends Agent<KNXAgent, KNXProtocol, KNXAgent.KNXAgentLink
     }
 
     public KNXAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getMessageSourceAddress() {

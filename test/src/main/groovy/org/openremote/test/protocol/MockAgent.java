@@ -67,7 +67,7 @@ public class MockAgent extends Agent<MockAgent, MockProtocol, MockAgent.MockAgen
     }
 
     public MockAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Boolean> getRequired() {

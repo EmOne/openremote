@@ -50,12 +50,8 @@ public class GroundwaterSensorAsset extends Asset<GroundwaterSensorAsset> {
         this(null);
     }
 
-    protected GroundwaterSensorAsset(String name, AssetDescriptor<? extends GroundwaterSensorAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public GroundwaterSensorAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Double> getTemperature() {

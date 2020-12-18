@@ -35,12 +35,8 @@ public class ArtnetLightAsset extends LightAsset {
         this(null);
     }
 
-    public ArtnetLightAsset(String name) {
-        this(name, DESCRIPTOR);
-    }
-
-    protected ArtnetLightAsset(String name, AssetDescriptor<? extends ArtnetLightAsset> descriptor) {
-        super(name, descriptor);
+    protected ArtnetLightAsset(String name) {
+        super(name);
     }
 
     public Optional<Integer> getLightId() {

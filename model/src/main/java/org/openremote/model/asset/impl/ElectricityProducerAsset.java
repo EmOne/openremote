@@ -64,10 +64,6 @@ public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
 
     public static final AssetDescriptor<ElectricityProducerAsset> DESCRIPTOR = new AssetDescriptor<>("ev-station", "8A293D", ElectricityProducerAsset.class);
 
-    protected ElectricityProducerAsset(String name, AssetDescriptor<? extends ElectricityProducerAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
@@ -76,7 +72,7 @@ public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
     }
 
     public ElectricityProducerAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getStatus() {

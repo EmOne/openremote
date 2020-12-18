@@ -76,7 +76,7 @@ public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.Macr
     }
 
     public MacroAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

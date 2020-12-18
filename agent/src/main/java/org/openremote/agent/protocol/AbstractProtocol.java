@@ -104,7 +104,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
                     @Override
                     public void configure() throws Exception {
                         from(ACTUATOR_TOPIC)
-                            .routeId("Actuator-" + getProtocolName())
+                            .routeId("Actuator-" + getProtocolName() + getAgent().getId())
                             .process(exchange -> {
                                 Protocol<?> protocolInstance = exchange.getIn().getHeader(ACTUATOR_TOPIC_TARGET_PROTOCOL, Protocol.class);
                                 if (protocolInstance != AbstractProtocol.this) {

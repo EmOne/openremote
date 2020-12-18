@@ -22,7 +22,6 @@ package org.openremote.agent.protocol.event;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.security.ClientRole;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueDescriptor;
@@ -52,7 +51,7 @@ public class ClientEventAgent extends Agent<ClientEventAgent, ClientEventProtoco
 
 
     public ClientEventAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

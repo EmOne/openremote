@@ -46,12 +46,8 @@ public class PeopleCounterAsset extends Asset<PeopleCounterAsset> {
         this(null);
     }
 
-    protected <T extends PeopleCounterAsset> PeopleCounterAsset(String name, AssetDescriptor<? extends PeopleCounterAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public PeopleCounterAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Integer> getCountIn() {

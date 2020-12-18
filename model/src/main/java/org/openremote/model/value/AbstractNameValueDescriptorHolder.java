@@ -22,12 +22,16 @@ package org.openremote.model.value;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.util.Objects;
+
 public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescriptorHolder<T>, NameHolder {
 
     protected String name;
     @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
     protected ValueDescriptor<T> valueDescriptor;
+
+    AbstractNameValueDescriptorHolder() {}
 
     public AbstractNameValueDescriptorHolder(String name, ValueDescriptor<T> valueDescriptor) {
         this.name = name;
@@ -42,5 +46,21 @@ public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescr
     @Override
     public ValueDescriptor<T> getValueType() {
         return valueDescriptor;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(name);
+    }
+
+    /**
+     * Descriptor names are unique identifiers so can use this for equality purposes
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        AbstractNameValueDescriptorHolder<?> that = (AbstractNameValueDescriptorHolder<?>)obj;
+        return Objects.equals(name, that.name);
     }
 }

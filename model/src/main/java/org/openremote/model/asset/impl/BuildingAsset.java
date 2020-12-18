@@ -42,12 +42,8 @@ public class BuildingAsset extends CityAsset {
         this(null);
     }
 
-    protected BuildingAsset(String name, AssetDescriptor<? extends BuildingAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public BuildingAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getStreet() {

@@ -22,8 +22,6 @@ package org.openremote.model.query;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.query.filter.*;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.NameHolder;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -38,22 +36,13 @@ public class AssetQuery {
     public static class Select {
 
         public String[] attributes;
-        public String[] meta;
         public boolean excludePath;
-        public boolean excludeAttributeMeta;
         public boolean excludeAttributes;
-        public boolean excludeAttributeValue;
-        public boolean excludeAttributeTimestamp;
-        public boolean excludeAttributeType;
         public boolean excludeParentInfo;
 
         public static Select selectExcludePathAndParentInfo() {
             return new Select()
                     .excludeAttributes(false)
-                    .excludeAttributeMeta(false)
-                    .excludeAttributeType(false)
-                    .excludeAttributeTimestamp(false)
-                    .excludeAttributeValue(false)
                     .excludePath(true)
                     .excludeParentInfo(true);
         }
@@ -67,10 +56,6 @@ public class AssetQuery {
         public static Select selectExcludeAll() {
             return new Select()
                     .excludeAttributes(true)
-                    .excludeAttributeMeta(true)
-                    .excludeAttributeType(true)
-                    .excludeAttributeValue(true)
-                    .excludeAttributeTimestamp(true)
                     .excludePath(true)
                     .excludeParentInfo(true);
         }
@@ -80,42 +65,8 @@ public class AssetQuery {
             return this;
         }
 
-        public Select meta(String... metaUrns) {
-            this.meta = metaUrns;
-            return this;
-        }
-
-        public Select meta(MetaItemDescriptor<?>... meta) {
-            if (meta == null) {
-                this.meta = null;
-                return this;
-            }
-
-            return meta(Arrays.stream(meta).map(NameHolder::getName).toArray(String[]::new));
-        }
-
         public Select excludeAttributes(boolean exclude) {
             this.excludeAttributes = exclude;
-            return this;
-        }
-
-        public Select excludeAttributeMeta(boolean exclude) {
-            this.excludeAttributeMeta = exclude;
-            return this;
-        }
-
-        public Select excludeAttributeType(boolean exclude) {
-            this.excludeAttributeType = exclude;
-            return this;
-        }
-
-        public Select excludeAttributeValue(boolean exclude) {
-            this.excludeAttributeValue = exclude;
-            return this;
-        }
-
-        public Select excludeAttributeTimestamp(boolean exclude) {
-            this.excludeAttributeTimestamp = exclude;
             return this;
         }
 
@@ -133,10 +84,6 @@ public class AssetQuery {
         public String toString() {
             return getClass().getSimpleName() + "{" +
                     "excludeAttributes=" + excludeAttributes +
-                    ", excludeAttributeMeta=" + excludeAttributeMeta +
-                    ", excludeAttributeValue=" + excludeAttributeValue +
-                    ", excludeAttributeTimestamp=" + excludeAttributeTimestamp +
-                    ", excludeAttributeType=" + excludeAttributeType +
                     ", excludePath=" + excludePath +
                     ", excludeParentInfo=" + excludeParentInfo +
                     ", attributeNames=" + Arrays.toString(attributes) +

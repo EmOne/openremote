@@ -19,7 +19,6 @@
  */
 package org.openremote.model.asset.impl;
 
-import javafx.scene.effect.Light;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
@@ -60,12 +59,8 @@ public class LightAsset extends Asset<LightAsset> {
         this(null);
     }
 
-    protected LightAsset(String name, AssetDescriptor<? extends LightAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public LightAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Boolean> getOnOff() {

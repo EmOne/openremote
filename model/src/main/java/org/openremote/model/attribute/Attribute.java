@@ -239,6 +239,10 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         return getMeta().has(metaItemName);
     }
 
+    public <U> Optional<MetaItem<U>> getMetaItem(MetaItemDescriptor<U> metaItemDescriptor) {
+        return getMeta().get(metaItemDescriptor);
+    }
+
     @Override
     public void setValue(T value) {
         super.setValue(value);

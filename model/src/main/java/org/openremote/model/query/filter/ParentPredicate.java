@@ -19,12 +19,13 @@
  */
 package org.openremote.model.query.filter;
 
+import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 
 public class ParentPredicate {
 
     public String id;
-    public String type;
+    public Class<? extends Asset<?>> type;
     public String name;
     public boolean noParent;
 
@@ -44,13 +45,13 @@ public class ParentPredicate {
         return this;
     }
 
-    public ParentPredicate type(String type) {
+    public ParentPredicate type(Class<? extends Asset<?>> type) {
         this.type = type;
         return this;
     }
 
     public ParentPredicate type(AssetDescriptor<?> type) {
-        return type(type.getName());
+        return type(type.getType());
     }
 
     public ParentPredicate name(String name) {

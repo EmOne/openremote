@@ -46,12 +46,8 @@ public class PlugAsset extends Asset<PlugAsset> {
         this(null);
     }
 
-    protected PlugAsset(String name, AssetDescriptor<? extends PlugAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public PlugAsset(String name) {
-        this(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Boolean> getOnOff() {

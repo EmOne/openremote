@@ -20,14 +20,17 @@
 package org.openremote.model.query.filter;
 
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.query.LogicGroup;
 import org.openremote.model.value.NameHolder;
 
 import java.util.Arrays;
 
 /**
- * Adds additional predicate logic to {@link NameValuePredicate}, allowing predicating on
- * {@link Attribute#getMeta} presence/absence and/or values. Can also predicate on the previous value of the
- * {@link Attribute} which is only relevant when applied to {@link org.openremote.model.rules.AssetState}.
+ * Adds additional predicate logic to {@link NameValuePredicate}, allowing predicating on {@link Attribute#getMeta}
+ * presence/absence and/or values; there is an implicit OR between meta predicates (and condition can be achieved by
+ * creating multiple {@link AttributePredicate}s in an {@link LogicGroup.Operator#AND} {@link LogicGroup}. Can also
+ * predicate on the previous value of the {@link Attribute} which is only relevant when applied to {@link
+ * org.openremote.model.rules.AssetState}.
  */
 public class AttributePredicate extends NameValuePredicate {
 
@@ -90,7 +93,7 @@ public class AttributePredicate extends NameValuePredicate {
         return this;
     }
 
-    public AttributePredicate meta(NameValuePredicate...meta) {
+    public AttributePredicate meta(NameValuePredicate... meta) {
         this.meta = meta;
         return this;
     }

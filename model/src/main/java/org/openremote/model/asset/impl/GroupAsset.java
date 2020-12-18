@@ -43,11 +43,11 @@ public class GroupAsset extends Asset<GroupAsset> {
      * For use by hydrators (i.e. JPA/Jackson)
      */
     GroupAsset() {
-        super(null, DESCRIPTOR);
+        super(null);
     }
 
     protected GroupAsset(String name, AssetDescriptor<? extends GroupAsset> descriptor, String childAssetType) {
-        super(name, descriptor);
+        super(name);
         setChildAssetType(childAssetType);
     }
 
@@ -56,7 +56,7 @@ public class GroupAsset extends Asset<GroupAsset> {
     }
 
     public GroupAsset(String name, String childAssetType) {
-        super(name, DESCRIPTOR);
+        super(name);
         setChildAssetType(childAssetType);
     }
 

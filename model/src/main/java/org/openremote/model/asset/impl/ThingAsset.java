@@ -28,7 +28,6 @@ import javax.persistence.Entity;
 /**
  * Generic asset i.e. "Thing"
  */
-@DiscriminatorValue("non null")
 @Entity
 public class ThingAsset extends Asset<ThingAsset> {
 
@@ -38,14 +37,9 @@ public class ThingAsset extends Asset<ThingAsset> {
      * For use by hydrators (i.e. JPA/Jackson)
      */
     ThingAsset() {
-        this(null);
-    }
-
-    protected ThingAsset(String name, AssetDescriptor<? extends ThingAsset> descriptor) {
-        super(name, descriptor);
     }
 
     public ThingAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 }

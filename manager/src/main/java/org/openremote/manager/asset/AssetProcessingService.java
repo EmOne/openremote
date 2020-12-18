@@ -484,14 +484,8 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
     }
 
     protected void storeAttributeValue(EntityManager em, Asset<?> asset, Attribute<?> attribute) throws AssetProcessingException {
-        String attributeName = attribute.getName();
-        Object value = attribute.getValue().orElse(null);
 
-        // If there is no timestamp, use system time (0 or -1 are "no timestamp")
-        Long timestamp = attribute.getTimestamp().orElse(timerService.getCurrentTimeMillis());
-        String valueTimestamp = Long.toString(timestamp);
-
-        if (!assetStorageService.updateAttributeValue(em, asset.getId(), attributeName, value, valueTimestamp)) {
+        if (!assetStorageService.updateAttributeValue(em, asset, attribute)) {
             throw new AssetProcessingException(
                 STATE_STORAGE_FAILED, "database update failed, no rows updated"
             );

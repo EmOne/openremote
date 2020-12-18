@@ -19,9 +19,22 @@
  */
 package org.openremote.model.asset;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.openremote.model.asset.agent.AgentDescriptor;
+import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.NameHolder;
+
+import java.io.IOException;
 
 /**
  * Describes an {@link Asset} that can be added to this instance; the {@link #getName()} must match the {@link Asset#type}
@@ -34,12 +47,39 @@ import org.openremote.model.value.NameHolder;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "descriptorType")
 @JsonTypeName("asset")
+@JsonSubTypes({
+    @JsonSubTypes.Type(AgentDescriptor.class)
+})
+@JsonDeserialize(using = AssetDescriptor.AssetDescriptorDeserialiser.class)
 public class AssetDescriptor<T extends Asset<?>> implements NameHolder {
 
-    protected final String name;
-    protected final Class<T> type;
-    protected final String icon;
-    protected final String colour;
+    public static class AssetDescriptorDeserialiser extends StdDeserializer<AssetDescriptor<?>> {
+
+        public AssetDescriptorDeserialiser() {
+            super(AssetDescriptor.class);
+        }
+
+        @Override
+        public AssetDescriptor<?> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+            String name = null;
+            JsonNode node = p.getCodec().readTree(p);
+
+            if (node.isTextual()) {
+                name = node.asText();
+            } else if (node.isObject()) {
+                name = node.get("name").asText();
+            }
+            return AssetModelUtil.getAssetDescriptor(name).orElse(null);
+        }
+    }
+
+    protected String name;
+    @JsonIgnore
+    protected Class<T> type;
+    protected String icon;
+    protected String colour;
+
+    AssetDescriptor() {}
 
     /**
      * Construct an instance using the {@link Class#getSimpleName} value of the specified type as the descriptor name,

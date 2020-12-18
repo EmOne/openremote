@@ -47,12 +47,8 @@ public class ConsoleAsset extends Asset<ConsoleAsset> {
         this(null);
     }
 
-    protected ConsoleAsset(String name, AssetDescriptor<? extends ConsoleAsset> descriptor) {
-        super(name, descriptor);
-    }
-
-    public <T extends ConsoleAsset> ConsoleAsset(String name) {
-        super(name, DESCRIPTOR);
+    public ConsoleAsset(String name) {
+        super(name);
     }
 
     public Optional<String> getConsoleName() {

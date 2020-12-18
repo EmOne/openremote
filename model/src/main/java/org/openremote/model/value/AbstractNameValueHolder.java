@@ -28,6 +28,7 @@ import org.openremote.model.util.TextUtil;
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -40,6 +41,7 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T> {
     @Valid
     protected T value;
     @NotBlank(message = "{Asset.valueHolder.name.NotBlank}")
+    @Pattern(regexp = "^\\w+$")
     protected String name;
 
     protected AbstractNameValueHolder() {

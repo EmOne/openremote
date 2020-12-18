@@ -25,11 +25,7 @@ public class TradfriLightAsset extends LightAsset implements TradfriAsset {
     }
 
     public TradfriLightAsset(String name) {
-        this(name, DESCRIPTOR);
-    }
-
-    protected TradfriLightAsset(String name, AssetDescriptor<? extends TradfriLightAsset> descriptor) {
-        super(name, descriptor);
+        super(name);
     }
 
     @Override

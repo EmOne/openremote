@@ -53,12 +53,8 @@ public class ParkingAsset extends Asset<ParkingAsset> {
         this(null);
     }
 
-    protected ParkingAsset(String name, AssetDescriptor<? extends ParkingAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public ParkingAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Integer> getSpacesTotal() {

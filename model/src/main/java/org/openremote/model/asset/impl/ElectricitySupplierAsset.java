@@ -113,12 +113,8 @@ public class ElectricitySupplierAsset extends Asset<ElectricitySupplierAsset> {
         this(null);
     }
 
-    protected ElectricitySupplierAsset(String name, AssetDescriptor<? extends ElectricitySupplierAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public ElectricitySupplierAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getStatus() {

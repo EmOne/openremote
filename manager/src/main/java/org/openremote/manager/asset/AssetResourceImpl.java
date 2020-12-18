@@ -37,6 +37,7 @@ import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.Values;
 
 import javax.persistence.OptimisticLockException;
+import javax.validation.ConstraintViolationException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
 import java.util.*;
@@ -87,7 +88,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
             List<Asset<?>> assets = assetStorageService.findAll(
                 new AssetQuery()
-                    .select(selectExcludePathAndAttributes().meta(ACCESS_RESTRICTED_READ))
+                    .select(selectExcludePathAndAttributes())
                     .userIds(getUserId())
             );
 
@@ -329,6 +330,8 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             assetStorageService.merge(storageAsset, isRestrictedUser ? getUsername() : null);
 
         } catch (IllegalStateException ex) {
+            throw new WebApplicationException(ex, FORBIDDEN);
+        } catch (ConstraintViolationException ex) {
             throw new WebApplicationException(ex, BAD_REQUEST);
         } catch (OptimisticLockException opEx) {
             throw new WebApplicationException("Refresh the asset from the server and try to update the changes again", opEx, CONFLICT);
@@ -384,7 +387,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public <T extends Asset<?>> T create(RequestParams requestParams, T asset) {
+    public Asset<?> create(RequestParams requestParams, Asset<?> asset) {
         try {
             if (isRestrictedUser()) {
                 throw new WebApplicationException(FORBIDDEN);
@@ -403,7 +406,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                 throw new WebApplicationException(FORBIDDEN);
             }
 
-            T newAsset = Values.clone(asset);
+            Asset<?> newAsset = Values.clone(asset);
 
             // Allow client to set identifier
             if (asset.getId() != null) {

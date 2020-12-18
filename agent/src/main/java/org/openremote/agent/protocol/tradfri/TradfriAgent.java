@@ -22,7 +22,6 @@ package org.openremote.agent.protocol.tradfri;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
-import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
@@ -49,7 +48,7 @@ public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink
     }
 
     public TradfriAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getSecurityCode() {

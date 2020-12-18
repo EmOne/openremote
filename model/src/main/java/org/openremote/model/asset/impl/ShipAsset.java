@@ -50,15 +50,10 @@ public class ShipAsset extends Asset<ShipAsset> {
      * For use by hydrators (i.e. JPA/Jackson)
      */
     ShipAsset() {
-        this(null);
-    }
-
-    protected ShipAsset(String name, AssetDescriptor<? extends ShipAsset> descriptor) {
-        super(name, descriptor);
     }
 
     public ShipAsset(String name) {
-        this(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Integer> getMSSINumber() {

@@ -3,8 +3,11 @@ package org.openremote.test.model
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.openremote.agent.protocol.http.HttpClientAgent
 import org.openremote.agent.protocol.simulator.SimulatorAgent
+import org.openremote.agent.protocol.velbus.VelbusTcpAgent
+import org.openremote.manager.asset.AssetModelService
 import org.openremote.model.Constants
 import org.openremote.model.asset.Asset
+import org.openremote.model.asset.AssetModelResource
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.impl.LightAsset
 import org.openremote.model.asset.impl.ThingAsset
@@ -14,26 +17,69 @@ import org.openremote.model.util.AssetModelUtil
 import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.SubStringValueFilter
 import org.openremote.model.value.ValueFilter
+import org.openremote.model.value.ValueType
 import org.openremote.model.value.Values
 import org.openremote.model.value.impl.ColourRGB
+import org.openremote.test.ManagerContainerTrait
 import org.openremote.test.protocol.http.HttpServerTestAgent
+import spock.lang.Shared
 import spock.lang.Specification
 
 import java.util.stream.Collectors
 
+import static org.openremote.model.Constants.MASTER_REALM
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes
 import static org.openremote.model.value.ValueType.BIG_NUMBER
 import static org.openremote.model.value.ValueType.STRING
 
 // TODO: Define new asset model tests (setValue - equality checking etc.)
-class AssetModelTest extends Specification {
+class AssetModelTest extends Specification implements ManagerContainerTrait {
 
-    def "Descriptors"() {
-        when: "The Asset model is explicitly initialised"
-        AssetModelUtil.initialiseOrThrow()
+    @Shared
+    static AssetModelResource assetModelResource
+
+    def setupSpec() {
+        def container = startContainer(defaultConfig(), defaultServices())
+        def assetModelService = container.getService(AssetModelService.class)
+        assetModelResource = getClientApiTarget(serverUri(serverPort), MASTER_REALM).proxy(AssetModelResource.class)
+    }
+
+    def "Retrieving all asset model info"() {
+
+        when: "an asset info is serialised"
+        def thingAssetInfo = AssetModelUtil.getAssetInfo(ThingAsset.class).orElse(null)
+        def thingAssetInfoStr = Values.asJSON(thingAssetInfo)
+
+        then: "it should contain the right information"
+        thingAssetInfoStr.isPresent()
+
+        when: "the JSON representation is deserialised"
+        def thingAssetInfo2 = Values.parse(thingAssetInfoStr.get(), AssetModelUtil.AssetModelInfo.class)
+
+        then: "it should have been successfully deserialised"
+        thingAssetInfo2.isPresent()
+        thingAssetInfo2.get().getAssetDescriptor().type == ThingAsset.class
+        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) } != null
+        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.required
+        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.valueType == ValueType.GEO_JSON_POINT
+
+        when: "All asset model infos are retrieved"
+        def assetInfos = assetModelResource.getAssetInfos(null, null, null);
+
+        then: "the asset model infos should be available"
+        assetInfos.size() > 0
+        assetInfos.size() == AssetModelUtil.assetTypeMap.size()
+        def velbusTcpAgent = assetInfos.find {it.assetDescriptor.type == VelbusTcpAgent.class}
+        velbusTcpAgent != null
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_HOST && it.required}
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_PORT && it.required}
+    }
+
+    def "Retrieving a specific asset model info"() {
+        when: "The Thing Asset model info is retrieved"
+        def thingAssetInfo = assetModelResource.getAssetInfo(null, null, ThingAsset.DESCRIPTOR.name)
 
         then: "the asset model should be available"
-        def thingAssetInfo = AssetModelUtil.getAssetModelInfo(ThingAsset.class).orElse(null)
         thingAssetInfo != null
         thingAssetInfo.assetDescriptor != null
         thingAssetInfo.attributeDescriptors != null
@@ -51,7 +97,7 @@ class AssetModelTest extends Specification {
     def "Serialize/Deserialize Asset"() {
         given: "An asset"
         def asset = new LightAsset("Test light")
-            .setRealm(Constants.MASTER_REALM)
+            .setRealm(MASTER_REALM)
             .setTemperature(100I)
             .setColourRGB(new ColourRGB(50, 100, 200))
             .addAttributes(
@@ -107,104 +153,5 @@ class AssetModelTest extends Specification {
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.orElse(null) instanceof HttpClientAgent.HttpClientAgentLink
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.path}.orElse("") == "test_path"
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.pagingMode}.orElse(false)
-    }
-
-    def "Comparing asset attributes"() {
-
-        when: "two attributes have different value timestamps"
-        def timestamp = System.currentTimeMillis()
-        def timestamp2 = timestamp + 1000
-
-        def attributeA = new Attribute<>("a", STRING, "foo", timestamp)
-        def attributeB = new Attribute<>("b", STRING, "foo", timestamp2)
-
-        then: "they should be different"
-        !attributeA.getObjectValue().equalsIgnoreKeys(attributeB.getObjectValue(), null)
-
-        and: "if we ignore the timestamp they should be equal"
-        attributeA.getObjectValue().equalsIgnoreKeys(attributeB.getObjectValue(), { key -> key == VALUE_TIMESTAMP_FIELD_NAME })
-
-        when: "an attribute has no timestamp"
-        def attributeC = new Attribute<>("c", STRING, "foo")
-
-        then: "it should be different than attributes with a timestamp"
-        !attributeA.getObjectValue().equalsIgnoreKeys(attributeC.getObjectValue(), null)
-        !attributeB.getObjectValue().equalsIgnoreKeys(attributeC.getObjectValue(), null)
-
-        and: "if we ignore the timestamp they all should be equal"
-        attributeA.getObjectValue().equalsIgnoreKeys(attributeC.getObjectValue(), { key -> key == VALUE_TIMESTAMP_FIELD_NAME })
-        attributeB.getObjectValue().equalsIgnoreKeys(attributeC.getObjectValue(), { key -> key == VALUE_TIMESTAMP_FIELD_NAME })
-    }
-
-    def "Comparing asset attribute lists"() {
-
-        when: "two lists of asset attributes are compared"
-        def timestamp = System.currentTimeMillis()
-        def attributesA = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-        ]
-        def attributesB = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-                new Attribute<>("a3", STRING, "a333", timestamp),
-        ]
-        List<Attribute> addedOrModifiedAttributes = getAddedOrModifiedAttributes(attributesA, attributesB).collect(Collectors.toList())
-
-        then: "they should be different"
-        addedOrModifiedAttributes.size() == 1
-        addedOrModifiedAttributes[0].name.get() == "a3"
-
-        when: "two lists of asset attributes are compared, ignoring some"
-        timestamp = System.currentTimeMillis()
-        attributesA = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-        ]
-        attributesB = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-                new Attribute<>("a3", STRING, "a333", timestamp),
-        ]
-        addedOrModifiedAttributes = getAddedOrModifiedAttributes(attributesA, attributesB, { name -> name == "a3" }).collect(Collectors.toList())
-
-        then: "they should be the same"
-        addedOrModifiedAttributes.size() == 0
-
-        when: "two lists of asset attributes with different value timestamp are compared"
-        timestamp = System.currentTimeMillis()
-        def timestamp2 = timestamp + 1000
-
-        attributesA = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-        ]
-        attributesB = [
-                new Attribute<>("a1", STRING, "a111", timestamp2),
-                new Attribute<>("a2", STRING, "a222", timestamp2),
-        ]
-        addedOrModifiedAttributes = getAddedOrModifiedAttributes(attributesA, attributesB).collect(Collectors.toList())
-
-        then: "they should be different"
-        addedOrModifiedAttributes.size() == 2
-        addedOrModifiedAttributes[0].name.get() == "a1"
-        addedOrModifiedAttributes[1].name.get() == "a2"
-
-        when: "two lists of asset attributes with different value timestamp are compared, ignoring timestamps"
-        timestamp = System.currentTimeMillis()
-        timestamp2 = timestamp + 1000
-
-        attributesA = [
-                new Attribute<>("a1", STRING, "a111", timestamp),
-                new Attribute<>("a2", STRING, "a222", timestamp),
-        ]
-        attributesB = [
-                new Attribute<>("a1", STRING, "a111", timestamp2),
-                new Attribute<>("a2", STRING, "a222", timestamp2),
-        ]
-        addedOrModifiedAttributes = getAddedOrModifiedAttributes(attributesA, attributesB).collect(Collectors.toList())
-
-        then: "they should be the same"
-        addedOrModifiedAttributes.size() == 0
     }
 }

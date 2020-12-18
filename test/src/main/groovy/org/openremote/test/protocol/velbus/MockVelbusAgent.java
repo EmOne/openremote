@@ -35,11 +35,10 @@ public class MockVelbusAgent extends VelbusAgent<MockVelbusAgent, MockVelbusProt
      * For use by hydrators (i.e. JPA/Jackson)
      */
     MockVelbusAgent() {
-        this(null);
     }
 
     public MockVelbusAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

@@ -20,6 +20,7 @@
 package org.openremote.model.asset;
 
 import org.openremote.model.http.RequestParams;
+import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
@@ -35,40 +36,58 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public interface AssetModelResource {
 
     /**
-     * Retrieve the asset descriptors {@link AssetDescriptor} available in the system
+     * Retrieve the {@link org.openremote.model.util.AssetModelUtil.AssetModelInfo} of each {@link Asset} type available
+     * in this system or from a {@link org.openremote.model.asset.impl.GatewayAsset} depending on whether or not a
+     * parentId is supplied, if it isn't then this instance is used, if it is and the {@link Asset} or one of its'
+     * ancestors resides on a {@link org.openremote.model.asset.impl.GatewayAsset} then that gateway instance is used.
      */
     @GET
-    @Path("asset/descriptors/{parentId}")
+    @Path("assetInfos")
     @Produces(APPLICATION_JSON)
-    AssetDescriptor<?>[] getAssetDescriptors(@BeanParam RequestParams requestParams, @PathParam("parentId") String parentId);
+    AssetModelUtil.AssetModelInfo[] getAssetInfos(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @QueryParam("parentType") String parentType);
 
     /**
-     * Retrieve value descriptors {@link ValueDescriptor}.
+     * Retrieve the specific {@link org.openremote.model.util.AssetModelUtil.AssetModelInfo} of the specified} {@link
+     * Asset} type available in this system or from a {@link org.openremote.model.asset.impl.GatewayAsset} depending on
+     * whether or not a parentId * is supplied, if it isn't then this instance is used, if it is and the {@link Asset}
+     * or one of its' ancestors resides * on a {@link org.openremote.model.asset.impl.GatewayAsset} then that gateway
+     * instance is used.
      */
     @GET
-    @Path("attribute/valueDescriptors")
+    @Path("assetInfo/{assetType}")
     @Produces(APPLICATION_JSON)
-    ValueDescriptor<?>[] getValueDescriptors(@BeanParam RequestParams requestParams);
+    AssetModelUtil.AssetModelInfo getAssetInfo(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @PathParam("assetType") String assetType);
 
     /**
-     * Retrieve meta descriptors {@link MetaItemDescriptor} present.
+     * Retrieve the asset descriptors {@link AssetDescriptor} available in this system or from a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} depending on whether or not a * parentId is supplied, if it isn't
+     * then this instance is used, if it is and the {@link Asset} or one of its' * ancestors resides on a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} then that gateway instance is used.
      */
     @GET
-    @Path("metaItem/descriptors")
+    @Path("assetDescriptors")
     @Produces(APPLICATION_JSON)
-    MetaItemDescriptor<?>[] getMetaItemDescriptors(@BeanParam RequestParams requestParams);
+    AssetDescriptor<?>[] getAssetDescriptors(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @QueryParam("parentType") String parentType);
 
+    /**
+     * Retrieve value descriptors {@link ValueDescriptor} available in this system or from a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} depending on whether or not a * parentId is supplied, if it isn't
+     * then this instance is used, if it is and the {@link Asset} or one of its' * ancestors resides on a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} then that gateway instance is used.
+     */
+    @GET
+    @Path("valueDescriptors")
+    @Produces(APPLICATION_JSON)
+    ValueDescriptor<?>[] getValueDescriptors(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId);
 
-//    /**
-//     * Ask the appropriate protocol on the specified agent to validate the supplied {@link org.openremote.model.asset.agent.ProtocolConfiguration}
-//     */
-//    @POST
-//    @Path("validate/{agentId}")
-//    @Consumes(APPLICATION_JSON)
-//    @Produces(APPLICATION_JSON)
-//    //    AttributeValidationResult validateProtocolConfiguration(
-//        @BeanParam RequestParams requestParams,
-//        @PathParam("agentId") String agentId,
-//        Attribute<?> protocolConfiguration
-//    );
+    /**
+     * Retrieve meta descriptors {@link MetaItemDescriptor} available in this system or from a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} depending on whether or not a * parentId is supplied, if it isn't
+     * then this instance is used, if it is and the {@link Asset} or one of its' * ancestors resides on a {@link
+     * org.openremote.model.asset.impl.GatewayAsset} then that gateway instance is used.
+     */
+    @GET
+    @Path("metaItemDescriptors")
+    @Produces(APPLICATION_JSON)
+    MetaItemDescriptor<?>[] getMetaItemDescriptors(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId);
 }

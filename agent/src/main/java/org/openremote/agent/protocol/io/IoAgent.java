@@ -20,7 +20,6 @@
 package org.openremote.agent.protocol.io;
 
 import org.openremote.model.asset.agent.Agent;
-import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
 
 import java.util.Optional;
@@ -29,8 +28,8 @@ public abstract class IoAgent<T extends IoAgent<T, U, V>, U extends AbstractIoCl
 
     protected IoAgent() {}
 
-    protected IoAgent(String name, AgentDescriptor<T, U, V> descriptor) {
-        super(name, descriptor);
+    protected IoAgent(String name) {
+        super(name);
     }
 
     public Optional<Boolean> getMessageConvertHex() {

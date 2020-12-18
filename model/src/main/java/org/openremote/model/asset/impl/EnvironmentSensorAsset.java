@@ -74,12 +74,8 @@ public class EnvironmentSensorAsset extends Asset<EnvironmentSensorAsset> {
         this(null);
     }
 
-    protected EnvironmentSensorAsset(String name, AssetDescriptor<? extends EnvironmentSensorAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public EnvironmentSensorAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<Double> getTemperature() {

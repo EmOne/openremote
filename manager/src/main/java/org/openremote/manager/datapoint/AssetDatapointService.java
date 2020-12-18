@@ -142,7 +142,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                 st.setString(1, asset.getId());
                 st.setString(2, attribute.getName());
                 st.setObject(3, pgJsonValue);
-                st.setTimestamp(4, attribute.getTimestamp().map(java.sql.Timestamp::new).orElse(null));
+                st.setTimestamp(4, new java.sql.Timestamp(attribute.getTimestamp().orElseGet(timerService::getCurrentTimeMillis)));
                 st.executeUpdate();
             });
         }
@@ -320,7 +320,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                             try (ResultSet rs = st.executeQuery()) {
                                 List<ValueDatapoint<?>> result = new ArrayList<>();
                                 while (rs.next()) {
-                                    Object value = rs.getObject(2) != null ? Values.convert(rs.getString(2), attributeType) : null;
+                                    Object value = rs.getObject(2) != null ? Values.convert(rs.getString(2), Double.class) : null;
                                     result.add(new ValueDatapoint<>(rs.getTimestamp(1).getTime(), value));
                                 }
                                 return result.toArray(new ValueDatapoint[0]);
@@ -337,8 +337,11 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
         // Get list of attributes that have custom durations
         List<Asset<?>> assets = assetStorageService.findAll(
                 new AssetQuery()
-                    .attributes(new AttributePredicate().meta(
-                        new NameValuePredicate(MetaItemType.DATA_POINTS_MAX_AGE_DAYS, null),
+                    .attributes(
+                        new AttributePredicate().meta(
+                        new NameValuePredicate(MetaItemType.DATA_POINTS_MAX_AGE_DAYS, null)
+                    ),
+                        new AttributePredicate().meta(
                         new NameValuePredicate(STORE_DATA_POINTS, null)
                     ))
                     .select(AssetQuery.Select.selectExcludePathAndParentInfo()));

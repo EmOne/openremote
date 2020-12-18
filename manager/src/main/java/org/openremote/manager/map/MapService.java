@@ -101,8 +101,8 @@ public class MapService implements ContainerService {
             int minZoom = Integer.parseInt(resultMap.get("minzoom"));
 
             ArrayNode vectorLayer = resultMap.containsKey("json") ? (ArrayNode)Values.JSON.readTree(resultMap.get("json")).get("vector_layers") : null;
-            ArrayNode center = resultMap.containsKey("center") ? (ArrayNode)Values.JSON.readTree(resultMap.get("center")) : null;
-            ArrayNode bounds = resultMap.containsKey("bounds") ? (ArrayNode)Values.JSON.readTree(resultMap.get("bounds")) : null;
+            ArrayNode center = resultMap.containsKey("center") ? (ArrayNode)Values.JSON.readTree("[" + resultMap.get("center") + "]") : null;
+            ArrayNode bounds = resultMap.containsKey("bounds") ? (ArrayNode)Values.JSON.readTree("[" + resultMap.get("bounds") + "]") : null;
 
             if (!TextUtil.isNullOrEmpty(attribution) && vectorLayer != null && !vectorLayer.isEmpty() && maxZoom > 0) {
                 metadata = new Metadata(attribution, vectorLayer, bounds, center, maxZoom, minZoom);

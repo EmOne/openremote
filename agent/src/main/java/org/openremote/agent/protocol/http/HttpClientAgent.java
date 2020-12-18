@@ -144,7 +144,7 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
 
 
     public HttpClientAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getBaseURI() {

@@ -63,13 +63,8 @@ public class ElectricityChargerAsset extends Asset<ElectricityChargerAsset> {
         this(null);
     }
 
-
-    protected ElectricityChargerAsset(String name, AssetDescriptor<? extends ElectricityChargerAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public ElectricityChargerAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getStatus() {

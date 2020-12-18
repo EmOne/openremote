@@ -36,11 +36,7 @@ public class RoomAsset extends Asset<RoomAsset> {
         this(null);
     }
 
-    protected RoomAsset(String name, AssetDescriptor<? extends RoomAsset> descriptor) {
-        super(name, descriptor);
-    }
-
     public RoomAsset(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 }

@@ -19,38 +19,24 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemType;
-import org.openremote.model.value.ValueType;
 
+import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
-import java.util.Optional;
 
+/**
+ * Fall back for unknown assets
+ */
+@DiscriminatorValue("non null")
 @Entity
-public class MicrophoneAsset extends Asset<MicrophoneAsset> {
+public class UnknownAsset extends Asset<UnknownAsset> {
 
-    public static final AttributeDescriptor<Double> SOUND_LEVEL = new AttributeDescriptor<>("soundLevel", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_SOUND_DECIBELS)
-    );
-
-    public static final AssetDescriptor<MicrophoneAsset> DESCRIPTOR = new AssetDescriptor<>("microphone", "47A5FF", MicrophoneAsset.class);
+    public static final AssetDescriptor<UnknownAsset> DESCRIPTOR = new AssetDescriptor<>("help-circle", null, UnknownAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    MicrophoneAsset() {
-        this(null);
-    }
-
-    public MicrophoneAsset(String name) {
-        super(name);
-    }
-
-    public Optional<Double> getSoundLevel() {
-        return getAttributes().getValue(SOUND_LEVEL);
+    UnknownAsset() {
     }
 }

@@ -87,11 +87,10 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
      * For use by hydrators (i.e. JPA/Jackson)
      */
     WebsocketClientAgent() {
-        this(null);
     }
 
     public WebsocketClientAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     public Optional<String> getConnectUri() {

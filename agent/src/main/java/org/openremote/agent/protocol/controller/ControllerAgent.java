@@ -107,7 +107,7 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
     }
 
     public ControllerAgent(String name) {
-        super(name, DESCRIPTOR);
+        super(name);
     }
 
     @Override

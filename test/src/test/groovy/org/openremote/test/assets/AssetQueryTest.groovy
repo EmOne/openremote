@@ -218,7 +218,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         asset.path.length == 2
         asset.path[0] == managerTestSetup.apartment1Id
         asset.path[1] == managerTestSetup.smartBuildingId
-        asset.attributesList.size() > 0
+        asset.attributes.size() > 0
 
         when: "a query is executed"
         asset = assetStorageService.find(
@@ -237,7 +237,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         asset.parentType == null
         asset.realm == keycloakTestSetup.masterTenant.realm
         asset.path == null
-        asset.attributesList.size() == 0
+        asset.attributes.size() == 0
 
         when: "a query is executed"
         asset = assetStorageService.find(
@@ -277,7 +277,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets.get(0).parentType == null
         assets.get(0).realm == keycloakTestSetup.masterTenant.realm
         assets.get(0).path == null
-        assets.get(0).attributesList.size() == 0
+        assets.get(0).attributes.size() == 0
 
         when: "a query is executed"
         assets = assetStorageService.findAll(
@@ -318,7 +318,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assets.get(0).parentType == BuildingAsset.DESCRIPTOR.getName().type
         assets.get(0).realm == keycloakTestSetup.tenantBuilding.realm
         assets.get(0).path == null
-        assets.get(0).attributesList.size() == 0
+        assets.get(0).attributes.size() == 0
         assets.get(1).id == managerTestSetup.apartment2Id
         assets.get(2).id == managerTestSetup.apartment3Id
 
@@ -662,25 +662,20 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
 
         then: "no assets should match"
         assert asset == null
+    }
 
-        when: "a query is executed to select an asset with multiple logic groups"
-        asset = assetStorageService.find(
-            new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
-                new LogicGroup<AttributePredicate>(LogicGroup.Operator.AND, [
-                    new LogicGroup(LogicGroup.Operator.OR, [
+    def "Query logic groups"() {
+
+        when: "a query is executed to select an asset with and conditions on the same attribute"
+        def asset = assetStorageService.find(
+                new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
                         new AttributePredicate(
-                            new StringPredicate("co2Level"), new NumberPredicate(340, Operator.GREATER_THAN, NumberType.INTEGER)
+                                new StringPredicate("co2Level"), new NumberPredicate(360, Operator.LESS_EQUALS)
                         ),
                         new AttributePredicate(
-                            new StringPredicate("co2Level"), new NumberPredicate(50, Operator.LESS_THAN, NumberType.INTEGER)
+                                new StringPredicate("co2Level"), new NumberPredicate(50, Operator.GREATER_THAN)
                         )
-                    ], null)
-                ], [
-                    new AttributePredicate(
-                        new StringPredicate("windowOpen"), new BooleanPredicate(false)
-                    )
-                ])
-            )
+                )
         )
 
         then: "result should contain an Asset with the expected values"
@@ -690,24 +685,74 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
         assert asset.getAttribute("co2Level").isPresent()
         assert asset.getAttribute("co2Level").get().value.get() == 350
 
-        when: "a query is executed to select an asset with multiple logic groups where one of the groups is false"
+        when: "a query is executed to select an asset with multiple logic groups"
         asset = assetStorageService.find(
-            new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
-                new LogicGroup<AttributePredicate>(LogicGroup.Operator.AND, [
-                    new LogicGroup(LogicGroup.Operator.OR, [
-                        new AttributePredicate(
-                            new StringPredicate("co2Level"), new NumberPredicate(360, Operator.GREATER_THAN, NumberType.INTEGER)
-                        ),
-                        new AttributePredicate(
-                            new StringPredicate("co2Level"), new NumberPredicate(50, Operator.LESS_THAN, NumberType.INTEGER)
-                        )
-                    ], null)
-                ], [
-                    new AttributePredicate(
-                        new StringPredicate("windowOpen"), new BooleanPredicate(false)
-                    )
-                ])
-            )
+                new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
+                        new LogicGroup<AttributePredicate>(LogicGroup.Operator.AND, [
+                                new LogicGroup<AttributePredicate>(LogicGroup.Operator.OR, [
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(340, Operator.GREATER_THAN)
+                                        ),
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(50, Operator.LESS_THAN)
+                                        )
+                                ])
+                        ], [
+                                new AttributePredicate(
+                                        new StringPredicate("windowOpen"), new BooleanPredicate(false)
+                                )
+                        ])
+                )
+        )
+
+        then: "result should contain an Asset with the expected values"
+        assert asset != null
+        assert asset.getAttribute("windowOpen").isPresent()
+        assert !asset.getAttribute("windowOpen").get().value.get()
+        assert asset.getAttribute("co2Level").isPresent()
+        assert asset.getAttribute("co2Level").get().value.get() == 350
+
+        when: "a query is executed to select an asset with multiple logic groups and one of the groups is false"
+        asset = assetStorageService.find(
+                new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
+                        new LogicGroup<AttributePredicate>(LogicGroup.Operator.AND, [
+                                new LogicGroup<AttributePredicate>(LogicGroup.Operator.OR, [
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(340, Operator.GREATER_THAN)
+                                        ),
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(50, Operator.LESS_THAN)
+                                        )
+                                ])
+                        ], [
+                                new AttributePredicate(
+                                        new StringPredicate("windowOpen"), new BooleanPredicate(true)
+                                )
+                        ])
+                )
+        )
+
+        then: "no assets should match"
+        assert asset == null
+
+        when: "a query is executed to select an asset with multiple logic groups where the other logic group is false"
+        asset = assetStorageService.find(
+                new AssetQuery().select(Select.selectExcludePathAndParentInfo()).attributes(
+                        new LogicGroup<AttributePredicate>(LogicGroup.Operator.AND, [
+                                new LogicGroup(LogicGroup.Operator.OR, [
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(360, Operator.GREATER_THAN)
+                                        ),
+                                        new AttributePredicate(
+                                                new StringPredicate("co2Level"), new NumberPredicate(50, Operator.LESS_THAN)
+                                        )
+                                ])
+                        ], [
+                                new AttributePredicate(
+                                        new StringPredicate("windowOpen"), new BooleanPredicate(false)
+                                )
+                        ])
+                )
         )
 
         then: "no assets should match"
