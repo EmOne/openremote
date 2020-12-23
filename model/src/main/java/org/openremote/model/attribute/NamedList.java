@@ -208,6 +208,14 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         removeIf(item -> item.getName().equals(descriptor.getName()));
     }
 
+    public <U extends ValueDescriptorHolder<T> & NameHolder> void remove(U nameHolder) {
+        removeIf(item -> item.getName().equals(nameHolder.getName()));
+    }
+
+    public void remove(String name) {
+        removeIf(item -> item.getName().equals(name));
+    }
+
     public Optional<T> get(String name) {
         return this.stream().filter(item -> item.getName().equals(name)).findFirst();
     }

@@ -3,6 +3,7 @@ package org.openremote.test.failure
 import org.openremote.manager.rules.*
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
+import org.openremote.model.attribute.MetaItem
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.RulesetStatus
@@ -139,7 +140,7 @@ class RulesExecutionFailureTest extends Specification implements ManagerContaine
             "Failure Ruleset",
             Ruleset.Lang.GROOVY,
             getClass().getResource("/org/openremote/test/failure/RulesFailureLoop.groovy").text)
-            .addMeta(Ruleset.CONTINUE_ON_ERROR, true)
+        ruleset.getMeta().addOrReplace(new MetaItem<>(Ruleset.CONTINUE_ON_ERROR, true))
         ruleset = rulesetStorageService.merge(ruleset)
 
         expect: "the rule engine should have an error (first firing after initial asset state insert)"

@@ -85,11 +85,6 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
         this(new AttributeState(new AttributeRef(assetId, attributeName)));
     }
 
-    public AttributeEvent(String assetId, String attributeName, boolean deleted) {
-        this(new AttributeState(new AttributeRef(assetId, attributeName)));
-        attributeState.deleted = deleted;
-    }
-
     public AttributeEvent(String assetId, String attributeName, Object value, long timestamp) {
         this(new AttributeState(new AttributeRef(assetId, attributeName), value), timestamp);
     }
@@ -111,7 +106,7 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
     }
 
     @JsonCreator
-    public AttributeEvent(@JsonProperty("state") AttributeState attributeState, @JsonProperty("t") long timestamp) {
+    public AttributeEvent(@JsonProperty("attributeState") AttributeState attributeState, @JsonProperty("t") long timestamp) {
         super(timestamp);
         Objects.requireNonNull(attributeState);
         this.attributeState = attributeState;
@@ -167,5 +162,11 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
             "timestamp=" + timestamp +
             ", attributeState=" + attributeState +
             "}";
+    }
+
+    public static AttributeEvent deletedAttribute(String assetId, String attributeName) {
+        AttributeEvent event = new AttributeEvent(assetId, attributeName);
+        event.attributeState.deleted = true;
+        return event;
     }
 }

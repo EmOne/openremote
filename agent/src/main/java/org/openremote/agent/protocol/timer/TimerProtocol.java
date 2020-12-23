@@ -128,10 +128,9 @@ public class TimerProtocol extends AbstractProtocol<TimerAgent, TimerAgent.Timer
                 }
                 break;
             case CRON_EXPRESSION:
-                this.expressionParser = Values.getValue(processedValue, CronExpressionParser.class)
+                this.expressionParser = Values.getValueCoerced(processedValue, CronExpressionParser.class)
                     .orElseThrow(() -> new IllegalStateException("Writing to agent cron expression attribute requires a string value"));
                 updateActive(agent.isTimerActive().orElse(true));
-
                 updateAgentAttribute(new AttributeState(agent.getId(), TimerAgent.TIMER_CRON_EXPRESSION.getName(), this.expressionParser));
                 updateLinkedAttributesTimerValues();
                 break;
@@ -183,6 +182,7 @@ public class TimerProtocol extends AbstractProtocol<TimerAgent, TimerAgent.Timer
                 );
             setConnectionStatus(ConnectionStatus.CONNECTED);
         } else {
+            getCronScheduler().removeJob(getTimerId(agent));
             setConnectionStatus(ConnectionStatus.STOPPED);
         }
     }

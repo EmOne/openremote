@@ -548,13 +548,13 @@ public class GatewayConnector {
                 }
 
                 if (mergedAsset == null) {
-                    throw new IllegalStateException("Gateway asset merge failed: Gateway ID=" + gatewayId + ", Asset<?> ID=" + asset.getId() + ", Asset<?> ID Mapped=" + id);
+                    throw new IllegalStateException("Gateway asset merge failed: Gateway ID=" + gatewayId + ", Asset ID=" + asset.getId() + ", Asset ID Mapped=" + id);
                 }
 
                 return mergedAsset;
 
             } catch (InterruptedException e) {
-                String msg = "Gateway asset merge interrupted: Gateway ID=" + gatewayId + ", Asset<?> ID=" + asset.getId() + ", Asset<?> ID Mapped=" + id;
+                String msg = "Gateway asset merge interrupted: Gateway ID=" + gatewayId + ", Asset ID=" + asset.getId() + ", Asset ID Mapped=" + id;
                 LOG.info(msg);
                 throw new IllegalStateException(msg);
             } finally {
@@ -675,12 +675,12 @@ public class GatewayConnector {
         asset.setId(mapAssetId(gatewayId, assetId, false));
         asset.setParentId(asset.getParentId() != null ? mapAssetId(gatewayId, asset.getParentId(), false) : gatewayId);
         asset.setRealm(realm);
-        LOG.fine("Creating/updating gateway asset: Gateway ID=" + gatewayId + ", Asset<?> ID=" + assetId + ", Asset<?> ID Mapped=" + asset.getId());
+        LOG.fine("Creating/updating gateway asset: Gateway ID=" + gatewayId + ", Asset ID=" + assetId + ", Asset ID Mapped=" + asset.getId());
         return assetStorageService.merge(asset, true, true, null);
     }
 
     protected boolean deleteAssetsLocally(List<String> assetIds) {
-        LOG.fine("Removing gateway asset: Gateway ID=" + gatewayId + ", Asset<?> IDs=" + Arrays.toString(assetIds.toArray()));
+        LOG.fine("Removing gateway asset: Gateway ID=" + gatewayId + ", Asset IDs=" + Arrays.toString(assetIds.toArray()));
         return assetStorageService.delete(assetIds, true);
     }
 }

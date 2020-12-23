@@ -74,7 +74,13 @@ class KNXProtocolTest extends Specification implements ManagerContainerTrait {
         knxEmulationServer.xml.additionalAddresses.put(sc2, addAddresses)
         def knxServerThread = new Thread(knxEmulationServer)
         knxServerThread.start()
-        def knxTestingNetwork = KNXTestingNetworkLink.getInstance()
+        KNXTestingNetworkLink knxTestingNetwork
+
+        expect: "the testing network to become available"
+        conditions.eventually {
+            knxTestingNetwork = KNXTestingNetworkLink.getInstance()
+            assert knxTestingNetwork != null
+        }
 
         and: "the container is started"
         def container = startContainer(defaultConfig(), defaultServices())
@@ -118,7 +124,7 @@ class KNXProtocolTest extends Specification implements ManagerContainerTrait {
 
         then: "the living room thing to be fully deployed"
         conditions.eventually {
-            assert ((KNXProtocol) agentService.getProtocol(knxAgent.getAttribute("knxConfig").get())).getAttributeActionMap().get(new AttributeRef(knxThing.id, "light1ToggleOnOff")) != null
+            assert ((KNXProtocol) agentService.getProtocolInstance(knxAgent1.id)).attributeStatusMap.get(new AttributeRef(knxThing.id, "light1ToggleOnOff")) != null
         }
         
         when: "change light1ToggleOnOff value to 'true'"
@@ -140,8 +146,14 @@ class KNXProtocolTest extends Specification implements ManagerContainerTrait {
         }
         
         cleanup: "the server should be stopped"
-        if (knxAgent != null) {
-            assetStorageService.delete([knxAgent.id, knxThing.id])
+        if (knxThing != null) {
+            assetStorageService.delete([knxThing.id])
+        }
+        if (knxAgent1 != null) {
+            assetStorageService.delete([knxAgent1.id])
+        }
+        if (knxAgent2 != null) {
+            assetStorageService.delete([knxAgent2.id])
         }
         if (knxEmulationServer != null) {
             knxEmulationServer.quit()

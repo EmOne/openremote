@@ -13,11 +13,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:microphone"
-                    }
+                    "MicrophoneAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -48,11 +44,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:microphone"
-                    }
+                    "MicrophoneAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -78,11 +70,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:peopleCounter"
-                    }
+                    "PeopleCounterAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -118,10 +106,7 @@
                 "2JA9oLQDHY0pjVHnGJMS35"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -136,10 +121,7 @@
                 "3BSvaTREZX2MLjuE8bkM16"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -154,10 +136,7 @@
                 "2motXSzult66RsYrImPTdf"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },

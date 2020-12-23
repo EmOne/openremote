@@ -66,7 +66,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         mockPushNotificationHandler.sendMessage(_ as Long, _ as Notification.Source, _ as String, _ as Notification.Target, _ as AbstractNotificationMessage) >> {
             id, source, sourceId, target, message ->
                 notificationIds << id
-                targetTypes << target.getValueType
+                targetTypes << target.type
                 targetIds << target.id
                 messages << message
                 callRealMethod()
@@ -136,7 +136,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
                                 true,
                                 true,
                                 false,
-                                ((ObjectNode) parse("{token: \"23123213ad2313b0897efd\"}").orElse(null)
+                                ((ObjectNode) parse("{\"token\": \"23123213ad2313b0897efd\"}").orElse(null)
                         )))
                     }
                 },
@@ -155,7 +155,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         then: "that value should be stored"
         conditions.eventually {
             def asset = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert asset.getAttribute("alarmEnabled").get().valueAsBoolean
+            assert asset.getAttribute("alarmEnabled", Boolean.class).get().getValue().orElse(false)
         }
 
         when: "the presence is detected in Living room of apartment 1"

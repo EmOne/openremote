@@ -29,6 +29,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.manager.asset.AssetStorageService;
+import org.openremote.manager.gateway.GatewayService;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.asset.Asset;
@@ -54,6 +55,7 @@ import java.util.stream.StreamSupport;
 
 import static org.openremote.container.concurrent.GlobalLock.withLock;
 import static org.openremote.container.persistence.PersistenceEvent.*;
+import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.notification.PushNotificationMessage.TargetType.*;
 
 public class PushNotificationHandler extends RouteBuilder implements NotificationHandler {
@@ -65,6 +67,7 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
     public static final String FCM_PROVIDER_NAME = "fcm";
 
     protected AssetStorageService assetStorageService;
+    protected GatewayService gatewayService;
     protected boolean valid;
     protected Map<String, String> consoleFCMTokenMap = new HashMap<>();
     protected List<String> fcmTokenBlacklist = new ArrayList<>();
@@ -76,6 +79,7 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
 
     public void init(Container container) throws Exception {
         this.assetStorageService = container.getService(AssetStorageService.class);
+        this.gatewayService = container.getService(GatewayService.class);
         container.getService(MessageBrokerService.class).getContext().addRoutes(this);
 
         String firebaseConfigFilePath = container.getConfig().get(FIREBASE_CONFIG_FILE);
@@ -140,14 +144,13 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
         // If any console asset was modified in the database, detect push provider changes
         from(PERSISTENCE_TOPIC)
             .routeId("PushNotificationAssetChanges")
-            .filter(isPersistenceEventForEntityType(Asset.class))
+            .filter(isPersistenceEventForEntityType(ConsoleAsset.class))
+            .filter(isNotForGateway(gatewayService))
             .process(exchange -> {
-                if (isPersistenceEventForAssetType(ConsoleAsset.class).matches(exchange)) {
-                    @SuppressWarnings("unchecked")
-                    PersistenceEvent<ConsoleAsset> persistenceEvent = (PersistenceEvent<ConsoleAsset>)exchange.getIn().getBody(PersistenceEvent.class);
-                    final ConsoleAsset console = persistenceEvent.getEntity();
-                    processConsoleAssetChange(console, persistenceEvent);
-                }
+                @SuppressWarnings("unchecked")
+                PersistenceEvent<ConsoleAsset> persistenceEvent = (PersistenceEvent<ConsoleAsset>)exchange.getIn().getBody(PersistenceEvent.class);
+                final ConsoleAsset asset = persistenceEvent.getEntity();
+                processConsoleAssetChange(asset, persistenceEvent);
             });
     }
 

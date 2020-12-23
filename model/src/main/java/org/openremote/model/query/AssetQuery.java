@@ -19,9 +19,13 @@
  */
 package org.openremote.model.query;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.query.filter.*;
+import org.openremote.model.util.AssetModelUtil;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -215,11 +219,29 @@ public class AssetQuery {
     public PathPredicate[] paths;
     public TenantPredicate tenant;
     public String[] userIds;
+    @JsonSerialize(contentConverter = AssetClassToStringConverter.class)
+    @JsonDeserialize(contentConverter = StringToAssetClassConverter.class)
     public Class<? extends Asset<?>>[] types;
     public LogicGroup<AttributePredicate> attributes;
     // Ordering
     public OrderBy orderBy;
     public int limit;
+
+    public static class AssetClassToStringConverter extends StdConverter<Class<? extends Asset<?>>, String> {
+
+        @Override
+        public String convert(Class<? extends Asset<?>> value) {
+            return value.getSimpleName();
+        }
+    }
+
+    public static class StringToAssetClassConverter extends StdConverter<String, Class<? extends Asset<?>>> {
+
+        @Override
+        public Class<? extends Asset<?>> convert(String value) {
+            return AssetModelUtil.getAssetDescriptor(value).map(AssetDescriptor::getType).orElse(null);
+        }
+    }
 
     public AssetQuery() {
     }

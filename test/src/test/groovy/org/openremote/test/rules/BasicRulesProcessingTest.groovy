@@ -55,16 +55,6 @@ class BasicRulesProcessingTest extends Specification implements ManagerContainer
             assert noRuleEngineFiringScheduled()
         }
 
-        and: "the demo attributes marked with RULE_STATE = true meta should be inserted into the engines"
-        conditions.eventually {
-            assert rulesService.assetStates.size() == DEMO_RULE_STATES_GLOBAL
-            assert rulesImport.globalEngine.assetStates.size() == DEMO_RULE_STATES_GLOBAL
-            assert rulesImport.masterEngine.assetStates.size() == DEMO_RULE_STATES_SMART_OFFICE
-            assert rulesImport.tenantBuildingEngine.assetStates.size() == DEMO_RULE_STATES_SMART_BUILDING
-            assert rulesImport.apartment2Engine.assetStates.size() == DEMO_RULE_STATES_APARTMENT_2
-            assert rulesImport.apartment3Engine.assetStates.size() == DEMO_RULE_STATES_APARTMENT_3
-        }
-
         when: "a LHS filtering test rule definition is loaded into the Smart Building asset"
         def assetRuleset = new AssetRuleset(
             managerTestSetup.smartBuildingId,

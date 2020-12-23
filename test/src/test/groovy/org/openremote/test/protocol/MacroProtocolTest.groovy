@@ -1,13 +1,12 @@
 package org.openremote.test.protocol
 
-import org.openremote.container.timer.TimerService
+
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.attribute.AttributeExecuteStatus
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -31,16 +30,16 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
             assert noEventProcessedIn(assetProcessingService, 500)
 
             def apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert apartment1.getAttribute("morningScene").get().getValue().orElse("") == AttributeExecuteStatus.READY.toString()
-            assert apartment1.getAttribute("dayScene").get().getValue().orElse("") == AttributeExecuteStatus.READY.toString()
-            assert apartment1.getAttribute("eveningScene").get().getValue().orElse("") == AttributeExecuteStatus.READY.toString()
-            assert apartment1.getAttribute("nightScene").get().getValue().orElse("") == AttributeExecuteStatus.READY.toString()
+            assert apartment1.getAttribute("morningScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.READY
+            assert apartment1.getAttribute("dayScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.READY
+            assert apartment1.getAttribute("eveningScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.READY
+            assert apartment1.getAttribute("nightScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.READY
             assert !apartment1.getAttribute("morningSceneAlarmEnabled").flatMap{it.value}.orElse(true)
-            assert apartment1.getAttribute("morningSceneTargetTemperature").get().getValueAsNumber().orElse(0d) == 21d
+            assert apartment1.getAttribute("morningSceneTargetTemperature", Double.class).get().getValue().orElse(0d) == 21d
         }
 
         when: "Apartment 1 home scene is executed"
-        def macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "morningScene", AttributeExecuteStatus.REQUEST_START.asValue())
+        def macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "morningScene", AttributeExecuteStatus.REQUEST_START)
         assetProcessingService.sendAttributeEvent(macroExecute)
 
         then: "Apartment 1 alarm enabled, last scene and living room target temp attribute values should be updated to match the scene"
@@ -49,20 +48,20 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
             def livingRoom = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
             assert !apartment1.getAttribute("alarmEnabled").flatMap{it.value}.orElse(true)
             assert apartment1.getAttribute("lastExecutedScene").get().getValue().orElse("") == "MORNING"
-            assert livingRoom.getAttribute("targetTemperature").get().getValueAsNumber().orElse(0d) == 21d
+            assert livingRoom.getAttribute("targetTemperature", Double.class).get().getValue().orElse(0d) == 21d
         }
 
         then: "Apartment 1 home scene attribute status should show as COMPLETED"
         conditions.eventually {
             def apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert apartment1.getAttribute("morningScene").get().getValue().orElse("") == AttributeExecuteStatus.COMPLETED.toString()
+            assert apartment1.getAttribute("morningScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.COMPLETED
         }
 
         when: "time advances"
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "Apartment 1 away scene is executed"
-        macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "dayScene", AttributeExecuteStatus.REQUEST_START.asValue())
+        macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "dayScene", AttributeExecuteStatus.REQUEST_START)
         assetProcessingService.sendAttributeEvent(macroExecute)
 
         then: "Apartment 1 alarm enabled, last scene and living room target temp attribute values should be update to match the scene"
@@ -71,13 +70,13 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
             def livingRoom = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
             assert apartment1.getAttribute("alarmEnabled").flatMap{it.value}.orElse(false)
             assert apartment1.getAttribute("lastExecutedScene").get().getValue().orElse("") == "DAY"
-            assert livingRoom.getAttribute("targetTemperature").get().getValueAsNumber().orElse(0d) == 15d
+            assert livingRoom.getAttribute("targetTemperature", Double.class).get().getValue().orElse(0d) == 15d
         }
 
         then: "Apartment 1 away scene attribute status should show as COMPLETED"
         conditions.eventually {
             def apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert apartment1.getAttribute("dayScene").get().getValue().orElse("") == AttributeExecuteStatus.COMPLETED.toString()
+            assert apartment1.getAttribute("dayScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.COMPLETED
         }
 
         when: "time advances"
@@ -87,11 +86,10 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
         def updateTargetTemp = new AttributeEvent(managerTestSetup.apartment1Id, "morningSceneTargetTemperature", 10d)
         assetProcessingService.sendAttributeEvent(updateTargetTemp)
 
-        then: "Apartment 1 home scene attribute status should reset to show as READY and home target temp should show new value"
+        then: "Apartment 1 home target temp should show new value"
         conditions.eventually {
             def apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert apartment1.getAttribute("morningScene").get().getValue().orElse("") == AttributeExecuteStatus.READY.toString()
-            assert apartment1.getAttribute("morningSceneTargetTemperature").get().getValueAsNumber().orElse(0d) == 10d
+            assert apartment1.getAttribute("morningSceneTargetTemperature", Double.class).get().getValue().orElse(0d) == 10d
             assert !apartment1.getAttribute("morningSceneAlarmEnabled").flatMap{it.value}.orElse(true)
         }
 
@@ -99,7 +97,7 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "Apartment 1 home scene is executed"
-        macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "morningScene", AttributeExecuteStatus.REQUEST_START.asValue())
+        macroExecute = new AttributeEvent(managerTestSetup.apartment1Id, "morningScene", AttributeExecuteStatus.REQUEST_START)
         assetProcessingService.sendAttributeEvent(macroExecute)
 
         then: "Apartment 1 alarm enabled, last scene and living room target temp attribute values should be updated to match the scene"
@@ -108,13 +106,13 @@ class MacroProtocolTest extends Specification implements ManagerContainerTrait {
             def livingRoom = assetStorageService.find(managerTestSetup.apartment1LivingroomId, true)
             assert !apartment1.getAttribute("alarmEnabled").flatMap{it.value}.orElse(true)
             assert apartment1.getAttribute("lastExecutedScene").get().getValue().orElse("") == "MORNING"
-            assert livingRoom.getAttribute("targetTemperature").get().getValueAsNumber().orElse(0d) == 10d
+            assert livingRoom.getAttribute("targetTemperature",Double.class).get().getValue().orElse(0d) == 10d
         }
 
         then: "Apartment 1 home scene attribute status should show as COMPLETED"
         conditions.eventually {
             def apartment1 = assetStorageService.find(managerTestSetup.apartment1Id, true)
-            assert apartment1.getAttribute("morningScene").get().getValue().orElse("") == AttributeExecuteStatus.COMPLETED.toString()
+            assert apartment1.getAttribute("morningScene", AttributeExecuteStatus.class).get().getValue().orElse(null) == AttributeExecuteStatus.COMPLETED
         }
     }
 }

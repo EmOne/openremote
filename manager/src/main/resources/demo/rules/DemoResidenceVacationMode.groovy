@@ -2,6 +2,7 @@ package demo.rules
 
 import groovy.transform.ToString
 import org.openremote.manager.rules.RulesBuilder
+import org.openremote.model.asset.impl.BuildingAsset
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.AttributePredicate
 import org.openremote.model.query.filter.StringPredicate
@@ -30,7 +31,7 @@ rules.add()
         .when(
         { facts ->
             facts.matchAssetState(
-                    new AssetQuery().types(RESIDENCE)
+                    new AssetQuery().types(BuildingAsset)
                             .attributeValue("vacationUntil", GREATER_THAN, facts.clock.timestamp)
             ).filter { residenceWithVacationUntil ->
                 facts.match(VacationMode).noneMatch {
@@ -62,10 +63,10 @@ rules.add()
         .when(
         { facts ->
             facts.matchAssetState(
-                    new AssetQuery().types(RESIDENCE)
+                    new AssetQuery().types(BuildingAsset)
                             .attributeValue("vacationUntil", LESS_EQUALS, facts.clock.timestamp)
             ).filter { residenceWithVacationUntilInPast ->
-                residenceWithVacationUntilInPast.getValueAsNumber().isPresent()
+                residenceWithVacationUntilInPast.getValueAs(Double.class).isPresent()
             }.filter { residenceWithVacationUntilInPast ->
                 facts.match(VacationMode).noneMatch {
                     vacationMode -> vacationMode.residenceId == residenceWithVacationUntilInPast.id
@@ -89,7 +90,7 @@ rules.add()
         { facts ->
             facts.matchFirst(VacationMode) { vacationMode ->
                 facts.matchFirstAssetState(
-                        new AssetQuery().types(RESIDENCE)
+                        new AssetQuery().types(BuildingAsset)
                                 .ids(vacationMode.residenceId)
                                 .attributes(new AttributePredicate(new StringPredicate("vacationUntil"), new ValueNotEmptyPredicate()))
                 ).map { residence ->
@@ -113,7 +114,7 @@ rules.add()
         { facts ->
             facts.matchFirst(VacationMode) { vacationMode ->
                 !facts.matchFirstAssetState(
-                        new AssetQuery().types(RESIDENCE)
+                        new AssetQuery().types(BuildingAsset)
                                 .ids(vacationMode.residenceId)
                                 .attributes(new AttributePredicate(new StringPredicate("vacationUntil"), new ValueNotEmptyPredicate()))).isPresent()
             }.map { vacationMode ->

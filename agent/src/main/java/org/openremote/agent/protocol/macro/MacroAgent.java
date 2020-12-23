@@ -58,11 +58,11 @@ public class MacroAgent extends Agent<MacroAgent, MacroProtocol, MacroAgent.Macr
 
     public static final ValueDescriptor<MacroAction> MACRO_ACTION_VALUE = new ValueDescriptor<>("Macro action", MacroAction.class);
 
-    public static final AttributeDescriptor<MacroAction[]> MACRO_ACTIONS = new AttributeDescriptor<>("macroActions", MACRO_ACTION_VALUE.asArray());
+    public static final AttributeDescriptor<MacroAction[]> MACRO_ACTIONS = new AttributeDescriptor<>("macroActions", MACRO_ACTION_VALUE.asArray()).setRequired(true);
 
-    public static final AttributeDescriptor<Boolean> MACRO_DISABLED = new AttributeDescriptor<>("macroDisabled", ValueType.BOOLEAN);
+    public static final AttributeDescriptor<Boolean> MACRO_DISABLED = new AttributeDescriptor<>("macroDisabled", ValueType.BOOLEAN).setRequired(true);
 
-    public static final AttributeDescriptor<AttributeExecuteStatus> MACRO_STATUS = new AttributeDescriptor<>("macroStatus", ValueType.EXECUTION_STATUS);
+    public static final AttributeDescriptor<AttributeExecuteStatus> MACRO_STATUS = new AttributeDescriptor<>("macroStatus", ValueType.EXECUTION_STATUS).setRequired(true);
 
     public static final AgentDescriptor<MacroAgent, MacroProtocol, MacroAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         MacroAgent.class, MacroProtocol.class, MacroAgentLink.class

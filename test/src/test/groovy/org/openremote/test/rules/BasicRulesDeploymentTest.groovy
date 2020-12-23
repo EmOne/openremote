@@ -8,6 +8,7 @@ import org.openremote.manager.security.ManagerIdentityService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
+import org.openremote.model.attribute.MetaItem
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.GlobalRuleset
 import org.openremote.model.rules.Ruleset
@@ -236,7 +237,7 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
             "Throw Failure Exception",
             GROOVY,
             getClass().getResource("/org/openremote/test/failure/RulesFailureActionThrowsException.groovy").text)
-            .addMeta(Ruleset.META_KEY_CONTINUE_ON_ERROR, true)
+        ruleset.getMeta().add(new MetaItem<>(Ruleset.CONTINUE_ON_ERROR, true))
         ruleset = rulesetStorageService.merge(ruleset)
 
         then: "the tenants A rule engine should run with one deployment as error"
@@ -255,7 +256,7 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
             "Looping error",
             GROOVY,
             getClass().getResource("/org/openremote/test/failure/RulesFailureLoop.groovy").text)
-            .addMeta(Ruleset.META_KEY_CONTINUE_ON_ERROR, true)
+        ruleset.getMeta().add(new MetaItem<>(Ruleset.CONTINUE_ON_ERROR, true))
         ruleset = rulesetStorageService.merge(ruleset)
 
         then: "the tenants A rule engine should have an error"

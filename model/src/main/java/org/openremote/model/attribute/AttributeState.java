@@ -40,6 +40,8 @@ public class AttributeState implements Serializable {
     protected Object value;
     protected boolean deleted;
 
+    AttributeState() {}
+
     public AttributeState(String assetId, Attribute<?> attribute) {
         this(assetId, attribute.getName(), attribute.getValue().orElse(null));
     }
@@ -48,7 +50,6 @@ public class AttributeState implements Serializable {
         this(new AttributeRef(assetId, attributeName), value);
     }
 
-    @JsonCreator
     public AttributeState(AttributeRef attributeRef, Object value) {
         this.attributeRef = Objects.requireNonNull(attributeRef);
         this.value = value;

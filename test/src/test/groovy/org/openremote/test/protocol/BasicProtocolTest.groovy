@@ -34,6 +34,8 @@ import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
+import java.util.regex.Pattern
+
 import static org.openremote.model.Constants.MASTER_REALM
 import static org.openremote.model.value.ValueType.*
 import static org.openremote.model.value.MetaItemType.*
@@ -79,14 +81,14 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
 
         then: "the protocol instances should have been created and the agent status attributes should be updated"
         conditions.eventually {
-            assert agentService.agentMap.size() == 3
-            assert agentService.protocolInstanceMap.size() == 2
+            assert agentService.agentMap.values().count {it instanceof MockAgent} == 3
+            assert agentService.protocolInstanceMap.values().count {it instanceof MockProtocol} == 1
             assert agentService.getAgent(mockAgent1.id) != null
             assert agentService.getAgent(mockAgent2.id) != null
             assert agentService.getAgent(mockAgent3.id) != null
             assert agentService.getProtocolInstance(mockAgent1.id) != null
             assert agentService.getProtocolInstance(mockAgent2.id) == null
-            assert agentService.getProtocolInstance(mockAgent3.id) != null
+            assert agentService.getProtocolInstance(mockAgent3.id) == null
             assert agentService.getAgent(mockAgent1.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
             assert agentService.getAgent(mockAgent2.id).getAgentStatus().orElse(null) == ConnectionStatus.DISABLED
             assert agentService.getAgent(mockAgent3.id).getAgentStatus().orElse(null) == ConnectionStatus.ERROR
@@ -102,7 +104,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent1.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("tempTarget1", NUMBER)
@@ -110,7 +112,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent1.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("invalidToggle1", BOOLEAN)
@@ -125,7 +127,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent2.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("tempTarget2", NUMBER)
@@ -133,7 +135,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent2.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("lightToggle3", BOOLEAN)
@@ -141,7 +143,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent3.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("tempTarget3", NUMBER)
@@ -149,7 +151,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent3.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("invalidToggle5", BOOLEAN, false)
@@ -157,7 +159,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink("invalid id")
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                     )
                 ),
             new Attribute<>("plainAttribute", STRING, "demo")
@@ -169,10 +171,10 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent1.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                             .setValueFilters(
                                 [
-                                    new RegexValueFilter("\\w(\\d+)", 1, 2)
+                                    new RegexValueFilter(Pattern.compile("\\w(\\d+)"), 1, 2)
                                 ] as ValueFilter[]
                             )
                     )
@@ -182,7 +184,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent1.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                         .setValueFilters(
                             [
                                 new SubStringValueFilter(10, 12)
@@ -195,11 +197,11 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                     new MetaItem<>(
                         AGENT_LINK,
                         new MockAgent.MockAgentLink(mockAgent1.id)
-                            .setRequiredValue(true)
+                            .setRequiredValue("true")
                             .setValueFilters(
                                 [
                                     new SubStringValueFilter(23),
-                                    new RegexValueFilter("[a-z|\\s]+(\\d+)%\"}", 1, 0)
+                                    new RegexValueFilter(Pattern.compile("[a-z|\\s]+(\\d+)%\"}"), 1, 0)
                                 ] as ValueFilter[]
                             )
                         )
@@ -211,8 +213,6 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         then: "the mock thing to be fully deployed"
         conditions.eventually {
             assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent1"]
-            assert agentService.getProtocolInstance(mockAgent2.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent2"]
-            assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent3"]
         }
 
         and: "the deployment should have occurred in the correct order"
@@ -248,7 +248,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         when: "a linked attribute is removed"
         mockThing = assetStorageService.find(mockThing.getId(), true)
         protocolMethodCalls.clear()
-        mockThing.removeAttribute("tempTarget3")
+        mockThing.getAttributes().remove("tempTarget3")
         mockThing = assetStorageService.merge(mockThing)
 
         then: "the protocol should not be unlinked"

@@ -13,11 +13,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:weather"
-                    }
+                    "WeatherAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -53,10 +49,7 @@
                 "54LS0LDCxIqVHnOCAVTK58"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -71,10 +64,7 @@
                 "4vHXXX1zQEB6J27Kee8Nwf"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -89,10 +79,7 @@
                 "57wYnE3LEpPLDfsBwnOHzk"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -107,10 +94,7 @@
                 "61BNFNS5vTR2SCOLDXUBvX"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -125,10 +109,7 @@
                 "6uE2d0t2SqZcXUtv9qnjq5"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },
@@ -143,10 +124,7 @@
                 "3uCPRjC6XTrx38xFG10FSb"
               ],
               "types": [
-                {
-                  "predicateType": "string",
-                  "value": "urn:openremote:asset:light"
-                }
+                "LightAsset"
               ]
             }
           },

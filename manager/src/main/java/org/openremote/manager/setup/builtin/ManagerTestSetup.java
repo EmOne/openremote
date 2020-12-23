@@ -362,7 +362,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
         apartment1Id = apartment1.getId();
 
         if (importDemoScenes) {
-            List<Agent> demoApartment1SceneAgents = createDemoApartmentScenes(
+            List<Agent<?,?,?>> demoApartment1SceneAgents = createDemoApartmentScenes(
                     assetStorageService, apartment1, DEMO_APARTMENT_SCENES, apartment1Livingroom, apartment1Kitchen, apartment1Hallway);
             apartment1SceneAgentIds = demoApartment1SceneAgents.stream().map(Asset::getId).collect(Collectors.toList());
         }

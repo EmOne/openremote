@@ -2,6 +2,8 @@ package demo.rules
 
 import org.openremote.manager.rules.RulesBuilder
 import org.openremote.manager.rules.RulesFacts
+import org.openremote.model.asset.impl.BuildingAsset
+import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.AssetQuery.Operator
 import org.openremote.model.rules.AssetState
@@ -35,7 +37,7 @@ Closure<Stream<AssetState<?>>> residenceWithVentilationAutoMatch =
         { RulesFacts facts, Operator operator, double ventilationLevelThreshold ->
             // Any residence where auto ventilation is on
             facts.matchAssetState(
-                    new AssetQuery().types(RESIDENCE).attributeValue("ventilationAuto", true)
+                    new AssetQuery().types(BuildingAsset).attributeValue("ventilationAuto", true)
             ).filter { residenceWithVentilationAuto ->
 
                 // and ventilation level is above/below/equal/etc. threshold
@@ -61,7 +63,7 @@ Closure<Boolean> roomThresholdMatch =
         { RulesFacts facts, AssetState residence, String attribute, boolean above, double threshold, String timeWindow ->
             // Any room of the residence which has a level greater than zero
             def roomWithMaxLevel = facts.matchAssetState(
-                    new AssetQuery().types(ROOM).parents(residence.id).attributeValue(attribute, GREATER_THAN, 0)
+                    new AssetQuery().types(RoomAsset).parents(residence.id).attributeValue(attribute, GREATER_THAN, 0)
             ).max { roomA, roomB ->
                 // get the room with the highest level
                 Double.compare(roomA.value.orElse(0))

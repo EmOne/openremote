@@ -67,8 +67,11 @@ public class KNXProtocol extends AbstractProtocol<KNXAgent, KNXAgent.KNXAgentLin
 
         boolean isNat = agent.isNATMode().orElse(false);
         boolean isRouting = agent.isRoutingMode().orElse(false);
-        String gatewayAddress = agent.getHost().orElseThrow(() ->
-            new IllegalArgumentException("No KNX gateway IP address provided for protocol: " + this));
+        String gatewayAddress = agent.getHost().orElseThrow(() -> {
+            String msg = "No KNX gateway IP address provided for protocol: " + this;
+            LOG.info(msg);
+            return new IllegalArgumentException(msg);
+        });
 
         String bindAddress = agent.getBindHost().orElse(null);
         Integer gatewayPort = agent.getPort().orElse(3671);

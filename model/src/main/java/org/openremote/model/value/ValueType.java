@@ -101,7 +101,7 @@ public final class ValueType {
 
     public static final ValueDescriptor<Byte> BYTE = new ValueDescriptor<>("Byte", Byte.class);
 
-    public static final ValueDescriptor<Integer> TIMESTAMP = new ValueDescriptor<>("Timestamp", Integer.class);
+    public static final ValueDescriptor<Long> TIMESTAMP = new ValueDescriptor<>("Timestamp", Long.class);
 
     @Pattern(regexp = "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:Z|[+-][01]\\d:[0-5]\\d)$")
     public static final ValueDescriptor<String> TIMESTAMP_ISO8601 = new ValueDescriptor<>("Timestamp ISO8601", String.class);

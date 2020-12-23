@@ -5,11 +5,14 @@ import org.openremote.manager.rules.RulesetStorageService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
+import org.openremote.model.attribute.MetaItem
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.GlobalRuleset
 import org.openremote.model.rules.RulesResource
+import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TemporaryFact
 import org.openremote.model.rules.TenantRuleset
+import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
@@ -804,7 +807,7 @@ class BasicRulesetResourceTest extends Specification implements ManagerContainer
             managerTestSetup.apartment1Id,
             "Test asset definition",
             GROOVY, "SomeRulesCode")
-        .addMeta("visible", true)
+        assetRuleset.getMeta().add(new MetaItem<>(MetaItemType.SHOW_ON_DASHBOARD, true))
         rulesetResource.createAssetRuleset(null, assetRuleset)
         def rulesetId = rulesetResource.getAssetRulesets(null, managerTestSetup.apartment1Id, null, false)[1].id
         assetRuleset = rulesetResource.getAssetRuleset(null, rulesetId)
@@ -818,7 +821,7 @@ class BasicRulesetResourceTest extends Specification implements ManagerContainer
         assetRuleset.name == "Test asset definition"
         assetRuleset.rules == "SomeRulesCode"
         assetRuleset.assetId == managerTestSetup.apartment1Id
-        assetRuleset.meta.getBoolean("visible").orElse(false)
+        assetRuleset.meta.getValue(MetaItemType.SHOW_ON_DASHBOARD).orElse(false)
 
         when: "an asset ruleset is updated"
         assetRuleset.name = "Renamed test asset definition"

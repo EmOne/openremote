@@ -13,11 +13,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:electricityCharger"
-                    }
+                    "ElectricityChargerAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -43,11 +39,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:electricityCharger"
-                    }
+                    "ElectricityChargerAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -73,11 +65,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:electricityCharger"
-                    }
+                    "ElectricityChargerAsset"
                   ],
                   "attributes": {
                     "items": [
@@ -103,11 +91,7 @@
               {
                 "assets": {
                   "types": [
-                    {
-                      "predicateType": "string",
-                      "match": "EXACT",
-                      "value": "urn:openremote:asset:electricityCharger"
-                    }
+                    "ElectricityChargerAsset"
                   ],
                   "attributes": {
                     "items": [

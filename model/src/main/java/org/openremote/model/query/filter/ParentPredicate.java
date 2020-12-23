@@ -19,12 +19,17 @@
  */
 package org.openremote.model.query.filter;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
+import org.openremote.model.query.AssetQuery;
 
 public class ParentPredicate {
 
     public String id;
+    @JsonSerialize(converter = AssetQuery.AssetClassToStringConverter.class)
+    @JsonDeserialize(converter = AssetQuery.StringToAssetClassConverter.class)
     public Class<? extends Asset<?>> type;
     public String name;
     public boolean noParent;

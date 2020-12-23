@@ -31,6 +31,7 @@ import org.openremote.manager.asset.AssetUpdateProcessor;
 import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.datapoint.AssetDatapointService;
 import org.openremote.manager.event.ClientEventService;
+import org.openremote.manager.gateway.GatewayService;
 import org.openremote.manager.notification.NotificationService;
 import org.openremote.manager.predicted.AssetPredictedDatapointService;
 import org.openremote.manager.rules.flow.FlowResourceImpl;
@@ -72,6 +73,7 @@ import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_TOPIC;
 import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
 import static org.openremote.container.util.MapAccess.getString;
+import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes;
 
 /**
@@ -115,6 +117,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     protected AssetDatapointService assetDatapointService;
     protected AssetPredictedDatapointService assetPredictedDatapointService;
     protected ClientEventService clientEventService;
+    protected GatewayService gatewayService;
     protected RulesEngine<GlobalRuleset> globalEngine;
     protected Tenant[] tenants;
     protected AssetLocationPredicateProcessor locationPredicateRulesConsumer;
@@ -145,6 +148,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         assetDatapointService = container.getService(AssetDatapointService.class);
         assetPredictedDatapointService = container.getService(AssetPredictedDatapointService.class);
         clientEventService = container.getService(ClientEventService.class);
+        gatewayService = container.getService(GatewayService.class);
 
         if (initDone) {
             return;
@@ -197,6 +201,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         from(PERSISTENCE_TOPIC)
             .routeId("RulesetPersistenceChanges")
             .filter(isPersistenceEventForEntityType(Ruleset.class))
+            .filter(isNotForGateway(gatewayService))
             .process(exchange -> {
                 PersistenceEvent<?> persistenceEvent = exchange.getIn().getBody(PersistenceEvent.class);
                 processRulesetChange((Ruleset) persistenceEvent.getEntity(), persistenceEvent.getCause());
@@ -207,6 +212,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         from(PERSISTENCE_TOPIC)
             .routeId("RuleEngineTenantChanges")
             .filter(isPersistenceEventForEntityType(Tenant.class))
+            .filter(isNotForGateway(gatewayService))
             .process(exchange -> {
                 PersistenceEvent<?> persistenceEvent = exchange.getIn().getBody(PersistenceEvent.class);
                 Tenant tenant = (Tenant) persistenceEvent.getEntity();
@@ -341,6 +347,30 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         return false;
     }
 
+    public boolean isRulesetKnown(Ruleset ruleset) {
+        if (ruleset instanceof GlobalRuleset) {
+            return globalEngine != null
+                && globalEngine.deployments != null
+                && globalEngine.deployments.containsKey(ruleset.getId())
+                && globalEngine.deployments.get(ruleset.getId()).ruleset.getRules().equals(ruleset.getRules());
+        }
+        if (ruleset instanceof TenantRuleset) {
+            TenantRuleset tenantRuleset = (TenantRuleset) ruleset;
+            return tenantEngines.get(tenantRuleset.getRealm()) != null
+                && tenantEngines.get(tenantRuleset.getRealm()).deployments != null
+                && tenantEngines.get(tenantRuleset.getRealm()).deployments.containsKey(ruleset.getId())
+                && tenantEngines.get(tenantRuleset.getRealm()).deployments.get(ruleset.getId()).ruleset.getRules().equals(ruleset.getRules());
+        }
+        if (ruleset instanceof AssetRuleset) {
+            AssetRuleset assetRuleset = (AssetRuleset) ruleset;
+            return assetEngines.get(assetRuleset.getAssetId()) != null
+                && assetEngines.get(assetRuleset.getAssetId()).deployments != null
+                && assetEngines.get(assetRuleset.getAssetId()).deployments.containsKey(ruleset.getId())
+                && assetEngines.get(assetRuleset.getAssetId()).deployments.get(ruleset.getId()).ruleset.getRules().equals(ruleset.getRules());
+        }
+        return false;
+    }
+
     public GeofenceDefinition[] getAssetGeofences(String assetId) {
         return withLockReturning(getClass().getSimpleName() + "::getAssetGeofences", () -> {
 
@@ -361,7 +391,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     protected void processTenantChange(Tenant tenant, PersistenceEvent.Cause cause) {
         withLock(getClass().getSimpleName() + "::processTenantChange", () -> {
             // Check if enabled status has changed
-            boolean wasEnabled = Arrays.stream(tenants).anyMatch(t -> tenant.getRealm().equals(t.getRealm()));
+            boolean wasEnabled = Arrays.stream(tenants).anyMatch(t -> tenant.getRealm().equals(t.getRealm()) && tenant.getId().equals(t.getId()));
             boolean isEnabled = tenant.getEnabled() && cause != PersistenceEvent.Cause.DELETE;
             tenants = identityService.getIdentityProvider().getTenants();
 

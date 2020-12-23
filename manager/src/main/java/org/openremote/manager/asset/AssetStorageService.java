@@ -1194,7 +1194,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     ))
                     .forEach(obsoleteAttribute ->
                         clientEventService.publishEvent(
-                            new AttributeEvent(asset.getId(), obsoleteAttribute.getName(), true)
+                            AttributeEvent.deletedAttribute(asset.getId(), obsoleteAttribute.getName())
                     ));
 
                 // Get new or modified attributes
@@ -1220,7 +1220,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 AttributeList deletedAttributes = asset.getAttributes();
                 deletedAttributes.forEach(obsoleteAttribute ->
                     clientEventService.publishEvent(
-                        new AttributeEvent(asset.getId(), obsoleteAttribute.getName(), true)
+                        AttributeEvent.deletedAttribute(asset.getId(), obsoleteAttribute.getName())
                     ));
                 break;
         }

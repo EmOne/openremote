@@ -430,7 +430,7 @@ public abstract class AbstractManagerSetup implements Setup {
                 timerAgent.setParent(apartment);
                 timerAgent.setId(UniqueIdentifierGenerator.generateId());
                 timerAgent.setTimerAction(
-                    new AttributeState(macroAgentId, MacroAgent.MACRO_STATUS.getName(), "REQUEST_START")
+                    new AttributeState(apartment.getId(), attributeName, "REQUEST_START")
                 );
                 timerAgent.setTimerCronExpression(new CronExpressionParser(timePattern));
                 agents.add(timerAgent);
@@ -439,9 +439,9 @@ public abstract class AbstractManagerSetup implements Setup {
         }
     }
 
-    public static List<Agent> createDemoApartmentScenes(AssetStorageService assetStorageService, BuildingAsset apartment, Scene[] scenes, RoomAsset... rooms) {
+    public static List<Agent<?,?,?>> createDemoApartmentScenes(AssetStorageService assetStorageService, BuildingAsset apartment, Scene[] scenes, RoomAsset... rooms) {
 
-        List<Agent> agents = new ArrayList<>();
+        List<Agent<?,?,?>> agents = new ArrayList<>();
 
         for (Scene scene : scenes) {
             MacroAgent sceneAgent = scene.createSceneAgent(apartment, rooms);
@@ -452,10 +452,11 @@ public abstract class AbstractManagerSetup implements Setup {
         addDemoApartmentSceneEnableDisableTimer(apartment, agents, scenes);
         linkDemoApartmentWithSceneAgent(apartment, agents, scenes);
         agents.forEach(assetStorageService::merge);
+        apartment = assetStorageService.merge(apartment);
         return agents;
     }
 
-    protected static void addDemoApartmentSceneEnableDisableTimer(BuildingAsset apartment, List<Agent> agents, Scene[] scenes) {
+    protected static void addDemoApartmentSceneEnableDisableTimer(BuildingAsset apartment, List<Agent<?,?,?>> agents, Scene[] scenes) {
 
         MacroAgent enableSceneAgent = new MacroAgent("Scene agent enable");
         MacroAgent disableSceneAgent = new MacroAgent("Scene agent disable");
@@ -487,20 +488,20 @@ public abstract class AbstractManagerSetup implements Setup {
         enableSceneAgent.setMacroActions(enableActions.toArray(new MacroAction[0]));
         disableSceneAgent.setMacroActions(disableActions.toArray(new MacroAction[0]));
 
-        agents.add(1, enableSceneAgent);
-        agents.add(2, disableSceneAgent);
+        agents.add(enableSceneAgent);
+        agents.add(disableSceneAgent);
     }
 
-    protected static void linkDemoApartmentWithSceneAgent(Asset<?> apartment, List<Agent> agents, Scene[] scenes) {
+    protected static void linkDemoApartmentWithSceneAgent(Asset<?> apartment, List<Agent<?,?,?>> agents, Scene[] scenes) {
 
-        MacroAgent sceneAgent = (MacroAgent) agents.get(0);
-        MacroAgent enableSceneAgent = (MacroAgent) agents.get(1);
-        MacroAgent disableSceneAgent = (MacroAgent) agents.get(2);
-
+        MacroAgent enableSceneAgent = (MacroAgent) agents.get(agents.size()-2);
+        MacroAgent disableSceneAgent = (MacroAgent) agents.get(agents.size()-1);
+        int i=0;
         for (Scene scene : scenes) {
+            MacroAgent sceneAgent = (MacroAgent) agents.get(i);
 
             apartment.getAttributes().addOrReplace(
-                new Attribute<>(scene.attributeName, ValueType.STRING, AttributeExecuteStatus.READY.name())
+                new Attribute<>(scene.attributeName, EXECUTION_STATUS, AttributeExecuteStatus.READY)
                     .addMeta(
                         new MetaItem<>(LABEL, scene.sceneName),
                         new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
@@ -522,7 +523,7 @@ public abstract class AbstractManagerSetup implements Setup {
                         new MetaItem<>(AGENT_LINK, new MacroAgent.MacroAgentLink(sceneAgent.getId()).setActionIndex(1))
                     )
             );
-            int i = 3;
+            int j = 1;
             for (DayOfWeek dayOfWeek : DayOfWeek.values()) {
                 // "MONDAY" => "Monday"
                 String dayOfWeekLabel = dayOfWeek.name().substring(0, 1) + dayOfWeek.name().substring(1).toLowerCase(Locale.ROOT);
@@ -533,18 +534,19 @@ public abstract class AbstractManagerSetup implements Setup {
                             new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                             new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
                             new MetaItem<>(RULE_STATE, true),
-                            new MetaItem<>(AGENT_LINK, new TimerAgent.TimerAgentLink(agents.get(i).getId()).setTimerValue(TimerValue.TIME))
+                            new MetaItem<>(AGENT_LINK, new TimerAgent.TimerAgentLink(agents.get(i+j).getId()).setTimerValue(TimerValue.TIME))
                         ),
                     new Attribute<>(scene.attributeName + "Enabled" + dayOfWeek.name(), BOOLEAN)
                         .addMeta(
                             new MetaItem<>(LABEL, scene.sceneName + " enabled " + dayOfWeekLabel),
                             new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                             new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                            new MetaItem<>(AGENT_LINK, new TimerAgent.TimerAgentLink(agents.get(i).getId()).setTimerValue(TimerValue.ACTIVE))
+                            new MetaItem<>(AGENT_LINK, new TimerAgent.TimerAgentLink(agents.get(i+j).getId()).setTimerValue(TimerValue.ACTIVE))
                         )
                 );
-                i++;
+                j++;
             }
+            i = i+8; // 1 scene agent + 7 timer agents
         }
         apartment.getAttributes().addOrReplace(
             new Attribute<>("sceneTimerEnabled", BOOLEAN, true) // The scene timer is enabled when the timer protocol starts

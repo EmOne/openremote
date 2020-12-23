@@ -79,11 +79,11 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         def kitchenMotionSensorEvent = new AttributeEvent(
                 managerTestSetup.apartment1KitchenId, "motionSensor", 1
         )
-        simulatorProtocol.putValue(kitchenMotionSensorEvent)
+        simulatorProtocol.updateSensor(kitchenMotionSensorEvent)
         def hallwayMotionSensorEvent = new AttributeEvent(
                 managerTestSetup.apartment1HallwayId, "motionSensor", 1
         )
-        simulatorProtocol.putValue(hallwayMotionSensorEvent)
+        simulatorProtocol.updateSensor(hallwayMotionSensorEvent)
 
         then: "the rule engines should settle"
         conditions.eventually {
@@ -110,7 +110,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         kitchenMotionSensorEvent = new AttributeEvent(
                 managerTestSetup.apartment1KitchenId, "motionSensor", 1
         )
-        simulatorProtocol.putValue(kitchenMotionSensorEvent)
+        simulatorProtocol.updateSensor(kitchenMotionSensorEvent)
 
         then: "the rule engines should settle"
         conditions.eventually {
@@ -136,7 +136,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         kitchenMotionSensorEvent = new AttributeEvent(
                 managerTestSetup.apartment1KitchenId, "motionSensor", 0
         )
-        simulatorProtocol.putValue(kitchenMotionSensorEvent)
+        simulatorProtocol.updateSensor(kitchenMotionSensorEvent)
 
         then: "the rule engines should settle"
         conditions.eventually {
@@ -162,7 +162,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         hallwayMotionSensorEvent = new AttributeEvent(
                 managerTestSetup.apartment1HallwayId, "motionSensor", 0
         )
-        simulatorProtocol.putValue(hallwayMotionSensorEvent)
+        simulatorProtocol.updateSensor(hallwayMotionSensorEvent)
 
         then: "the rule engines should settle"
         conditions.eventually {
@@ -233,7 +233,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         def motionSensorTrigger = new AttributeEvent(
                 managerTestSetup.apartment1LivingroomId, "motionSensor", 1
         )
-        simulatorProtocol.putValue(motionSensorTrigger)
+        simulatorProtocol.updateSensor(motionSensorTrigger)
 
         /* See rules, this leads to many false negatives when windows are open in the room
         then: "presence should not be detected"
@@ -253,7 +253,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
             def co2LevelIncrement = new AttributeEvent(
                     managerTestSetup.apartment1LivingroomId, "co2Level", 400 + i
             )
-            simulatorProtocol.putValue(co2LevelIncrement)
+            simulatorProtocol.updateSensor(co2LevelIncrement)
 
             // Wait for event to be processed
             conditions.eventually {
@@ -283,7 +283,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
         def motionSensorNoTrigger = new AttributeEvent(
                 managerTestSetup.apartment1LivingroomId, "motionSensor", 0
         )
-        simulatorProtocol.putValue(motionSensorNoTrigger)
+        simulatorProtocol.updateSensor(motionSensorNoTrigger)
 
         and: "the CO2 level increases (someone breathing in the room)"
         // The CO2 level increments 3 times, 5 minutes apart
@@ -292,7 +292,7 @@ class ResidencePresenceDetectionTest extends Specification implements ManagerCon
             def co2LevelIncrement = new AttributeEvent(
                     managerTestSetup.apartment1LivingroomId, "co2Level", 400 + i
             )
-            simulatorProtocol.putValue(co2LevelIncrement)
+            simulatorProtocol.updateSensor(co2LevelIncrement)
 
             // Wait for event to be processed
             conditions.eventually {

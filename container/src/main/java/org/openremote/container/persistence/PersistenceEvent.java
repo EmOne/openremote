@@ -20,8 +20,6 @@
 package org.openremote.container.persistence;
 
 import org.apache.camel.Predicate;
-import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.util.AssetModelUtil;
 
 import java.util.Arrays;
 
@@ -41,20 +39,6 @@ public class PersistenceEvent<T> {
         return exchange -> {
             Class<?> entityType = exchange.getIn().getHeader(PersistenceEvent.HEADER_ENTITY_TYPE, Class.class);
             return type.isAssignableFrom(entityType);
-        };
-    }
-
-    public static Predicate isPersistenceEventForAssetType(String assetType) {
-        return isPersistenceEventForAssetType(AssetModelUtil.getAssetDescriptor(assetType).map(AssetDescriptor::getType).orElse(null));
-    }
-
-    public static Predicate isPersistenceEventForAssetType(Class<?> assetType) {
-        return exchange -> {
-            if (assetType == null || !(exchange.getIn().getBody() instanceof PersistenceEvent)) {
-                return false;
-            }
-            PersistenceEvent<?> persistenceEvent = exchange.getIn().getBody(PersistenceEvent.class);
-            return assetType.isAssignableFrom(persistenceEvent.getEntity().getClass());
         };
     }
 

@@ -210,13 +210,12 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         if (o == null || getClass() != o.getClass()) return false;
         AssetState<?> that = (AssetState<?>) o;
         return Objects.equals(attributeName, that.attributeName)
-            && Objects.equals(timestamp, that.timestamp)
             && Objects.equals(id, that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(attributeName, id, timestamp);
+        return Objects.hash(attributeName, id);
     }
 
     @Override

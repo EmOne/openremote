@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vividsolutions.jts.geom.Coordinate;
 import org.geotools.referencing.GeodeticCalculator;
+import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.value.Values;
 
 import java.util.Objects;
@@ -94,15 +95,29 @@ public class RadialGeofencePredicate extends GeofencePredicate {
 
     @Override
     public Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier) {
-        return obj ->
-            Values.getValue(obj, Coordinate.class).map(coordinate -> {
-                GeodeticCalculator calculator = new GeodeticCalculator();
-                calculator.setStartingGeographicPoint(lng, lat);
-                calculator.setDestinationGeographicPoint(coordinate.x, coordinate.y);
-                if (negated) {
-                    return calculator.getOrthodromicDistance() > radius;
-                }
-                return calculator.getOrthodromicDistance() <= radius;
-            }).orElse(false);
+
+        return obj -> {
+            if (obj == null) return false;
+
+            Coordinate coordinate;
+
+            if (obj instanceof Coordinate) {
+                coordinate = (Coordinate)obj;
+            } else {
+                coordinate = Values.getValue(obj, GeoJSONPoint.class).map(GeoJSONPoint::getCoordinates).orElse(null);
+            }
+
+            if (coordinate == null) {
+                return false;
+            }
+
+            GeodeticCalculator calculator = new GeodeticCalculator();
+            calculator.setStartingGeographicPoint(lng, lat);
+            calculator.setDestinationGeographicPoint(coordinate.x, coordinate.y);
+            if (negated) {
+                return calculator.getOrthodromicDistance() > radius;
+            }
+            return calculator.getOrthodromicDistance() <= radius;
+        };
     }
 }

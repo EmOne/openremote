@@ -21,6 +21,7 @@ package org.openremote.manager.rules.geofence;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.camel.builder.RouteBuilder;
+import org.openremote.manager.gateway.GatewayService;
 import org.openremote.model.Container;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
@@ -51,6 +52,7 @@ import java.util.stream.IntStream;
 
 import static org.openremote.container.concurrent.GlobalLock.withLock;
 import static org.openremote.container.persistence.PersistenceEvent.*;
+import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.asset.AssetResource.Util.WRITE_ATTRIBUTE_HTTP_METHOD;
 import static org.openremote.model.asset.AssetResource.Util.getWriteAttributeUrl;
 import static org.openremote.model.syslog.SyslogCategory.RULES;
@@ -72,6 +74,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
     protected Map<String, RulesEngine.AssetStateLocationPredicates> assetLocationPredicatesMap = new HashMap<>();
     protected NotificationService notificationService;
     protected AssetStorageService assetStorageService;
+    protected GatewayService gatewayService;
     protected ManagerIdentityService identityService;
     protected ManagerExecutorService executorService;
     protected Map<String, String> consoleIdRealmMap;
@@ -89,6 +92,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
         this.notificationService = container.getService(NotificationService.class);
         this.identityService = container.getService(ManagerIdentityService.class);
         this.executorService = container.getService(ManagerExecutorService.class);
+        gatewayService = container.getService(GatewayService.class);
         container.getService(MessageBrokerService.class).getContext().addRoutes(this);
     }
 
@@ -121,12 +125,12 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
         // If any console asset was modified in the database, detect geofence provider changes
         from(PERSISTENCE_TOPIC)
             .routeId("ORConsoleGeofenceAdapterAssetChanges")
-            .filter(isPersistenceEventForEntityType(Asset.class))
+            .filter(isPersistenceEventForEntityType(ConsoleAsset.class))
+            .filter(isNotForGateway(gatewayService))
             .process(exchange -> {
-                if (isPersistenceEventForAssetType(ConsoleAsset.class).matches(exchange)) {
-                    @SuppressWarnings("unchecked") PersistenceEvent<ConsoleAsset> persistenceEvent = (PersistenceEvent<ConsoleAsset>)exchange.getIn().getBody(PersistenceEvent.class);
-                    processConsoleAssetChange(persistenceEvent);
-                }
+                @SuppressWarnings("unchecked")
+                PersistenceEvent<ConsoleAsset> persistenceEvent = (PersistenceEvent<ConsoleAsset>)exchange.getIn().getBody(PersistenceEvent.class);
+                processConsoleAssetChange(persistenceEvent);
             });
     }
 

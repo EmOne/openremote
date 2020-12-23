@@ -41,11 +41,8 @@ import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.asset.agent.Protocol;
-import org.openremote.model.attribute.Attribute;
-import org.openremote.model.attribute.AttributeEvent;
+import org.openremote.model.attribute.*;
 import org.openremote.model.attribute.AttributeEvent.Source;
-import org.openremote.model.attribute.AttributeList;
-import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.protocol.ProtocolAssetDiscovery;
 import org.openremote.model.protocol.ProtocolAssetImport;
 import org.openremote.model.protocol.ProtocolInstanceDiscovery;
@@ -73,6 +70,7 @@ import static org.openremote.container.concurrent.GlobalLock.withLock;
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.container.persistence.PersistenceEvent.*;
 import static org.openremote.manager.asset.AssetProcessingService.ASSET_QUEUE;
+import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.asset.agent.Protocol.ACTUATOR_TOPIC;
 import static org.openremote.model.asset.agent.Protocol.SENSOR_QUEUE;
 import static org.openremote.model.attribute.AttributeEvent.HEADER_SOURCE;
@@ -149,7 +147,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             boolean isDisabled = agent.isDisabled().orElse(false);
             if (isDisabled) {
                 LOG.fine("Agent is disabled so not starting: " + agent);
-                assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
+                sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
             }
             return !isDisabled;
         }).forEach(this::startAgent);
@@ -168,10 +166,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         from(PERSISTENCE_TOPIC)
             .routeId("AgentPersistenceChanges")
             .filter(isPersistenceEventForEntityType(Asset.class))
+            .filter(isNotForGateway(gatewayService))
             .process(exchange -> {
                 PersistenceEvent<Asset<?>> persistenceEvent = (PersistenceEvent<Asset<?>>)exchange.getIn().getBody(PersistenceEvent.class);
-                Asset<?> asset = persistenceEvent.getEntity();
-                if (isPersistenceEventForAssetType(Agent.class).matches(exchange)) {
+
+                if (isPersistenceEventForEntityType(Agent.class).matches(exchange)) {
                     PersistenceEvent<Agent<?, ?, ?>> agentEvent = (PersistenceEvent<Agent<?,?,?>>)(PersistenceEvent)persistenceEvent;
                     processAgentChange(agentEvent);
                 } else {
@@ -259,13 +258,12 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
         switch (persistenceEvent.getCause()) {
             case CREATE:
-                if (!addReplaceAgent(agent)) {
-                    LOG.finest("Agent is a gateway asset so ignoring");
-                    return;
-                }
+
+                addReplaceAgent(agent);
 
                 if (agent.isDisabled().orElse(false)) {
-                    LOG.info("Agent is marked as disabled so not starting: " + agent);
+                    LOG.info("Agent is disabled so not starting: " + agent);
+                    assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
                 } else {
                     startAgent(agent);
                 }
@@ -275,7 +273,6 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 Agent<?, ?, ?> oldAgent = getAgents().get(persistenceEvent.getEntity().getId());
 
                 if (!removeAgent(oldAgent)) {
-                    LOG.finest("Agent is a gateway asset so ignoring");
                     return;
                 }
 
@@ -283,14 +280,14 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 addReplaceAgent(agent);
 
                 if (agent.isDisabled().orElse(false)) {
-                    LOG.info("Agent is marked as disabled so not starting: " + agent);
+                    LOG.info("Agent is disabled so not starting: " + agent);
+                    assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
                 } else {
                     startAgent(agent);
                 }
                 break;
             case DELETE:
                 if (!removeAgent(agent)) {
-                    LOG.finest("Agent is a gateway asset so ignoring");
                     return;
                 }
                 // Unlink any attributes that have an agent link to this agent
@@ -323,13 +320,6 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         switch (persistenceEvent.getCause()) {
             case CREATE:
 
-                // Check if asset parent is a gateway or a gateway descendant, if so ignore it
-                // Need to look at parent as this asset may not have been acknowledged by the gateway service yet
-                if (gatewayService.getLocallyRegisteredGatewayId(asset.getId(), asset.getParentId()) != null) {
-                    LOG.finest("This is a gateway descendant asset so ignoring: " + asset.getId());
-                    return;
-                }
-
                 // Link any AGENT_LINK attributes to their referenced agent asset
                 getGroupedAgentLinkAttributes(
                     asset.getAttributes().stream(),
@@ -338,11 +328,6 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
                 break;
             case UPDATE:
-
-                if (gatewayService.getLocallyRegisteredGatewayId(asset.getId(), null) != null) {
-                    LOG.finest("This is a gateway descendant asset so ignoring: " + asset.getId());
-                    return;
-                }
 
                 List<String> propertyNames = Arrays.asList(persistenceEvent.getPropertyNames());
 
@@ -368,11 +353,6 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
                 break;
             case DELETE: {
-
-                if (gatewayService.getLocallyRegisteredGatewayId(asset.getId(), null) != null) {
-                    LOG.finest("This is a gateway descendant asset so ignoring: " + asset.getId());
-                    return;
-                }
 
                 // Unlink any AGENT_LINK attributes from the referenced protocol
                 getGroupedAgentLinkAttributes(asset.getAttributes().stream(), attribute -> true)
@@ -411,51 +391,54 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 .orElse(null);
     }
 
-    protected void startAgent(Agent agent) {
-        try {
-            Protocol protocol = agent.getProtocolInstance();
-            protocolInstanceMap.put(agent.getId(), protocol);
+    protected void startAgent(Agent<?,?,?> agent) {
+        withLock(getClass().getSimpleName() + "::startAgent", () -> {
+            try {
+                Protocol<?> protocol = agent.getProtocolInstance();
+                protocolInstanceMap.put(agent.getId(), protocol);
 
-            LOG.fine("Starting protocol instance: " + protocol);
-            protocol.start(container);
-            LOG.fine("Started protocol instance:" + protocol);
+                LOG.fine("Starting protocol instance: " + protocol);
+                protocol.start(container);
+                LOG.fine("Started protocol instance:" + protocol);
 
-            LOG.fine("Linking attributes to protocol instance: " + protocol);
+                LOG.fine("Linking attributes to protocol instance: " + protocol);
 
-            // Get all assets that have attributes with agent link meta for this agent
-            List<Asset<?>> assets = assetStorageService.findAll(
-                new AssetQuery()
-                    .attributes(
-                        new AttributePredicate().meta(
-                            new NameValuePredicate(AGENT_LINK, new StringPredicate(agent.getId()), false, new NameValuePredicate.Path("id"))
+                // Get all assets that have attributes with agent link meta for this agent
+                List<Asset<?>> assets = assetStorageService.findAll(
+                    new AssetQuery()
+                        .attributes(
+                            new AttributePredicate().meta(
+                                new NameValuePredicate(AGENT_LINK, new StringPredicate(agent.getId()), false, new NameValuePredicate.Path("id"))
+                            )
                         )
-                    )
-            );
+                );
 
-            LOG.fine("Found '" + assets.size() + "' asset(s) with attributes linked to this protocol instance: " + protocol);
+                LOG.fine("Found '" + assets.size() + "' asset(s) with attributes linked to this protocol instance: " + protocol);
 
-            assets.forEach(
-                asset ->
-                    getGroupedAgentLinkAttributes(
-                        asset.getAttributes().stream(),
-                        assetAttribute -> assetAttribute.getMetaValue(AGENT_LINK)
-                            .map(agentLink -> agentLink.getId().equals(agent.getId()))
-                            .orElse(false)
-                    ).forEach((agentId, attributes) -> linkAttributes(agent, asset.getId(), attributes))
-            );
+                assets.forEach(
+                    asset ->
+                        getGroupedAgentLinkAttributes(
+                            asset.getAttributes().stream(),
+                            assetAttribute -> assetAttribute.getMetaValue(AGENT_LINK)
+                                .map(agentLink -> agentLink.getId().equals(agent.getId()))
+                                .orElse(false)
+                        ).forEach((agnt, attributes) -> linkAttributes(agnt, asset.getId(), attributes))
+                );
 
 
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Failed to start protocol instance for agent: " + agent);
-        }
+            } catch (Exception e) {
+                protocolInstanceMap.remove(agent.getId());
+                LOG.log(Level.SEVERE, "Failed to start protocol instance for agent: " + agent);
+                sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.ERROR));
+            }
+        });
     }
 
-    protected void stopAgent(Agent agent) {
+    protected void stopAgent(Agent<?,?,?> agent) {
         withLock(getClass().getSimpleName() + "::stopAgent", () -> {
-            Protocol<?> protocol = protocolInstanceMap.remove(agent.getId());
+            Protocol<?> protocol = protocolInstanceMap.get(agent.getId());
 
             if (protocol == null) {
-                LOG.severe("Cannot stop protocol as protocol instance not found for agent: " + agent);
                 return;
             }
 
@@ -474,15 +457,15 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
             // Remove child asset subscriptions for this agent
             childAssetSubscriptions.remove(agent.getId());
+            protocolInstanceMap.remove(agent.getId());
         });
     }
 
-    protected void linkAttributes(Agent agent, String assetId, Collection<Attribute<?>> attributes) {
+    protected void linkAttributes(Agent<?,?,?> agent, String assetId, Collection<Attribute<?>> attributes) {
         withLock(getClass().getSimpleName() + "::linkAttributes", () -> {
             Protocol<?> protocol = getProtocolInstance(agent.getId());
 
             if (protocol == null) {
-                LOG.severe("Cannot link protocol attributes as protocol instance not found for agent: " + agent);
                 return;
             }
 
@@ -490,8 +473,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
             attributes.forEach(attribute -> {
                 try {
-                    LOG.fine("Linking attribute '" + attribute + "' to protocol: " + protocol);
-                    protocol.linkAttribute(assetId, attribute);
+                    AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
+                    if (!protocol.getLinkedAttributes().containsKey(attributeRef)) {
+                        LOG.fine("Linking attribute '" + attributeRef + "' to protocol: " + protocol);
+                        protocol.linkAttribute(assetId, attribute);
+                    }
                 } catch (Exception ex) {
                     LOG.log(Level.SEVERE, "Failed to link attribute '" + attribute + "' to protocol: " + protocol, ex);
                 }
@@ -499,12 +485,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         });
     }
 
-    protected void unlinkAttributes(Agent agent, String assetId, List<Attribute<?>> attributes) {
+    protected void unlinkAttributes(Agent<?,?,?> agent, String assetId, List<Attribute<?>> attributes) {
         withLock(getClass().getSimpleName() + "::unlinkAttributes", () -> {
             Protocol<?> protocol = getProtocolInstance(agent.getId());
 
             if (protocol == null) {
-                LOG.severe("Cannot unlink protocol attributes as protocol instance not found for agent: " + agent);
                 return;
             }
 
@@ -512,8 +497,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
             attributes.forEach(attribute -> {
                 try {
-                    LOG.fine("Unlinking attribute '" + attribute + "' to protocol: " + protocol);
-                    protocol.unlinkAttribute(assetId, attribute);
+                    AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
+                    if (!protocol.getLinkedAttributes().containsKey(attributeRef)) {
+                        LOG.fine("Unlinking attribute '" + attributeRef + "' to protocol: " + protocol);
+                        protocol.unlinkAttribute(assetId, attribute);
+                    }
                 } catch (Exception ex) {
                     LOG.log(Level.SEVERE, "Ignoring error on unlinking attribute '" + attribute + "' from protocol: " + protocol, ex);
                 }
@@ -579,7 +567,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 attribute.getMetaValue(AGENT_LINK)
                     .map(agentLink -> {
                         if (!getAgents().containsKey(agentLink.getId())) {
-                            LOG.fine("Agent linked attribute, agent not found or this is a gateway asset: " + attribute);
+                            LOG.finest("Agent linked attribute, agent not found or this is a gateway asset: " + attribute);
                             return false;
                         }
                         return true;
@@ -598,14 +586,10 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         return getClass().getSimpleName() + "{" + "}";
     }
 
-    protected boolean addReplaceAgent(Agent<?, ?, ?> agent) {
+    protected void addReplaceAgent(Agent<?, ?, ?> agent) {
         // Fully load agent asset
         final Agent<?, ?, ?> loadedAgent = assetStorageService.find(agent.getId(), true, Agent.class);
-        if (gatewayService.getLocallyRegisteredGatewayId(agent.getId(), agent.getParentId()) != null) {
-            return false;
-        }
         withLock(getClass().getSimpleName() + "::addReplaceAgent", () -> getAgents().put(loadedAgent.getId(), loadedAgent));
-        return true;
     }
 
     @SuppressWarnings("ConstantConditions")

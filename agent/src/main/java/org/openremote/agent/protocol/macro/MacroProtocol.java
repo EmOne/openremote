@@ -24,6 +24,7 @@ import org.openremote.model.Container;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.attribute.*;
 import org.openremote.model.syslog.SyslogCategory;
+import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
 
 import java.util.ArrayList;
@@ -64,7 +65,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
         }
 
         void start() {
-            updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_STATUS.getName(), AttributeExecuteStatus.RUNNING));
+            updateExecuteStatus(AttributeExecuteStatus.RUNNING);
             run();
         }
 
@@ -73,7 +74,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
             scheduledFuture.cancel(false);
             cancelled = true;
             execution = null;
-            updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_STATUS.getName(), AttributeExecuteStatus.CANCELLED));
+            updateExecuteStatus(AttributeExecuteStatus.CANCELLED);
         }
 
         private void run() {
@@ -107,7 +108,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
                 if (finished) {
                     execution = null;
                     // Update the command Status of this attribute
-                    updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_STATUS.getName(), AttributeExecuteStatus.COMPLETED));
+                    updateExecuteStatus(AttributeExecuteStatus.COMPLETED);
                 } else {
 
                     // Get next execution delay
@@ -203,9 +204,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
 
         if (attribute.getValueType().getType() == AttributeExecuteStatus.class) {
             // This is a macro execution related write operation
-            AttributeExecuteStatus status = event.getValue()
-                .flatMap(Values::getString)
-                .flatMap(AttributeExecuteStatus::fromString)
+            AttributeExecuteStatus status = Values.getValueCoerced(event.getValue(), AttributeExecuteStatus.class)
                 .orElse(null);
 
             if (status == null || !status.isWrite()) {
@@ -246,13 +245,26 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
                 return;
             }
 
-            action.setAttributeState(new AttributeState(action.getAttributeState().getAttributeRef(), event.getValue().orElse(null)));
+            Object newActionValue = event.getValue().orElse(null);
+            action.setAttributeState(new AttributeState(action.getAttributeState().getAttributeRef(), newActionValue));
             updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_ACTIONS.getName(), actions));
+            updateLinkedAttribute(new AttributeState(event.getAttributeRef(), newActionValue));
         }
     }
 
     protected void executeMacro(boolean repeat) {
         MacroExecutionTask task = new MacroExecutionTask(actions, repeat);
         task.start();
+    }
+
+    protected void updateExecuteStatus(AttributeExecuteStatus executeStatus) {
+        updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_STATUS.getName(), executeStatus));
+
+        // Update linked attribute of type AttributeExecuteStatus
+        linkedAttributes.entrySet().stream()
+            .filter(assetIdAndAttribute ->
+                assetIdAndAttribute.getValue().getValueType().equals(ValueType.EXECUTION_STATUS))
+            .forEach(assetIdAndAttribute ->
+                updateLinkedAttribute(new AttributeState(assetIdAndAttribute.getKey(), executeStatus)));
     }
 }

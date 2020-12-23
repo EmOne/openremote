@@ -96,13 +96,13 @@ public class RulesTestSetup extends AbstractManagerSetup {
         }
 
         // Apartment 2
-        try (InputStream inputStream = RulesTestSetup.class.getResourceAsStream("/demo/rules/DemoResidenceAllLightsOff.js")) {
-            String rules = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-            Ruleset ruleset = new AssetRuleset(
-                    managerTestSetup.apartment2Id, "Demo Residence - All Lights Off", Ruleset.Lang.JAVASCRIPT, rules
-            );
-            apartmentActionsRulesetId = rulesetStorageService.merge(ruleset).getId();
-        }
+//        try (InputStream inputStream = RulesTestSetup.class.getResourceAsStream("/demo/rules/DemoResidenceAllLightsOff.js")) {
+//            String rules = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+//            Ruleset ruleset = new AssetRuleset(
+//                    managerTestSetup.apartment2Id, "Demo Residence - All Lights Off", Ruleset.Lang.JAVASCRIPT, rules
+//            );
+//            apartmentActionsRulesetId = rulesetStorageService.merge(ruleset).getId();
+//        }
 
         try (InputStream inputStream = RulesTestSetup.class.getResourceAsStream("/demo/rules/DemoConsoleLocation.groovy")) {
             String rules = IOUtils.toString(inputStream, StandardCharsets.UTF_8);

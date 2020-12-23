@@ -40,5 +40,5 @@ public enum TimerValue {
      *
      * 24h time format
      */
-    TIME;
+    TIME
 }

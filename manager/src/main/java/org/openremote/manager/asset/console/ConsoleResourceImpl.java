@@ -52,8 +52,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
-import static org.openremote.model.value.MetaItemType.ACCESS_PUBLIC_WRITE;
-import static org.openremote.model.value.MetaItemType.ACCESS_RESTRICTED_WRITE;
+import static org.openremote.model.value.MetaItemType.*;
 
 public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleResource {
 
@@ -86,22 +85,15 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
             throw new BadRequestException("Invalid realm");
         }
 
-        // Validate the console registration
-        if (consoleRegistration == null) {
-            throw new BadRequestException(Response.status(Response.Status.BAD_REQUEST).build());
-        }
-
-        Set<ConstraintViolation<ConsoleRegistration>> constraintViolations = AssetModelUtil.validate(consoleRegistration);
-
-        if (!constraintViolations.isEmpty()) {
-            throw new ConstraintViolationException(constraintViolations);
-        }
-
         ConsoleAsset consoleAsset = null;
 
         // If console registration has an id and asset exists then ensure asset type is console
         if (!TextUtil.isNullOrEmpty(consoleRegistration.getId())) {
-            consoleAsset = assetStorageService.find(consoleRegistration.getId(), true, ConsoleAsset.class);
+            Asset<?> existingAsset = assetStorageService.find(consoleRegistration.getId(), true);
+            if (existingAsset != null && !(existingAsset instanceof ConsoleAsset)) {
+                throw new BadRequestException("Console registration ID is not for a Console asset: " + consoleRegistration.getId());
+            }
+            consoleAsset = (ConsoleAsset) existingAsset;
         }
 
         if (consoleAsset == null) {
@@ -130,12 +122,16 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
     public static ConsoleAsset initConsoleAsset(ConsoleRegistration consoleRegistration, boolean allowPublicLocationWrite, boolean allowRestrictedLocationWrite) {
         ConsoleAsset consoleAsset = new ConsoleAsset(consoleRegistration.getName());
 
+        consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(RULE_STATE));
+
         if (allowPublicLocationWrite) {
             consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(ACCESS_PUBLIC_WRITE, true));
         }
         if (allowRestrictedLocationWrite) {
             consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(ACCESS_RESTRICTED_WRITE, true));
         }
+
+        consoleAsset.setAccessPublicRead(true);
 
         return consoleAsset;
     }

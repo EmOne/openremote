@@ -19,6 +19,8 @@
  */
 package org.openremote.agent.protocol.timer;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
 import org.quartz.CronExpression;
@@ -132,6 +134,7 @@ public class CronExpressionParser implements Serializable {
     protected boolean compatible = true;
     protected boolean valid;
 
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public CronExpressionParser(String cronExpression) {
         valid = CronExpression.isValidExpression(cronExpression);
         originalCronExpression = cronExpression;
@@ -165,6 +168,7 @@ public class CronExpressionParser implements Serializable {
         return valid;
     }
 
+    @JsonValue
     public String buildCronExpression() {
         if (!isCompatible()) {
             return originalCronExpression;
