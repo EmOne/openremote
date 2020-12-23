@@ -204,14 +204,6 @@ public class NamedList<T extends AbstractNameValueHolder<?>> extends ArrayList<T
         throwIfDuplicates(this);
     }
 
-    public <U extends AbstractNameValueDescriptorHolder<T>> void remove(U descriptor) {
-        removeIf(item -> item.getName().equals(descriptor.getName()));
-    }
-
-    public <U extends ValueDescriptorHolder<T> & NameHolder> void remove(U nameHolder) {
-        removeIf(item -> item.getName().equals(nameHolder.getName()));
-    }
-
     public void remove(String name) {
         removeIf(item -> item.getName().equals(name));
     }

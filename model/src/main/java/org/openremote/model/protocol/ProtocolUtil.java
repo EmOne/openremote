@@ -148,16 +148,14 @@ public final class ProtocolUtil {
         final AtomicReference<Object> valRef = new AtomicReference<>(value);
 
         // value filtering
-        valRef.set(
-            agentLink.getValueFilters().map(valueFilters -> {
-                Protocol.LOG.fine("Applying attribute value filters to attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
-                Object o = Values.applyValueFilters(value, valueFilters);
-                if (o == null) {
-                    Protocol.LOG.info("Value filters generated a null value for attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
-                }
-                return o;
-            }).orElse(valRef.get())
-        );
+        agentLink.getValueFilters().ifPresent(valueFilters -> {
+            Protocol.LOG.fine("Applying attribute value filters to attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
+            Object o = Values.applyValueFilters(value, valueFilters);
+            if (o == null) {
+                Protocol.LOG.info("Value filters generated a null value for attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
+            }
+            valRef.set(o);
+        });
 
         // value conversion
         ignoreAndConvertedValue = agentLink.getValueConverter().map(converter -> {
@@ -179,7 +177,7 @@ public final class ProtocolUtil {
 
         if (toType != fromType) {
             Protocol.LOG.fine("Applying built in attribute value conversion: " + fromType + " -> " + toType);
-            valRef.set(Values.getValueCoerced(valRef.get(), toType));
+            valRef.set(Values.getValueCoerced(valRef.get(), toType).orElse(null));
 
             if (valRef.get() == null) {
                 Protocol.LOG.warning("Failed to convert value: " + fromType + " -> " + toType);

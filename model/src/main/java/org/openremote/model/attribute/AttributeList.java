@@ -26,7 +26,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.NameHolder;
 import org.openremote.model.value.ValueDescriptor;
+import org.openremote.model.value.ValueDescriptorHolder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -81,6 +83,10 @@ public class AttributeList extends NamedList<Attribute<?>> {
     // This works around the crappy type system and avoids the need for a type witness
     public <S> Optional<Attribute<S>> get(AttributeDescriptor<S> attributeDescriptor) {
         return super.get(attributeDescriptor);
+    }
+
+    public <U extends AttributeDescriptor<?>> void remove(U nameHolder) {
+        removeIf(item -> item.getName().equals(nameHolder.getName()));
     }
 
     public <S> Attribute<S> getOrCreate(AttributeDescriptor<S> attributeDescriptor) {

@@ -26,10 +26,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.openremote.model.util.AssetModelUtil;
-import org.openremote.model.value.AbstractNameValueDescriptorHolder;
-import org.openremote.model.value.MetaItemDescriptor;
-import org.openremote.model.value.ValueDescriptor;
-import org.openremote.model.value.ValueType;
+import org.openremote.model.value.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -103,6 +100,10 @@ public class MetaList extends NamedList<MetaItem<?>> {
     // This works around the crappy type system and avoids the need for a type witness
     public <S> Optional<MetaItem<S>> get(MetaItemDescriptor<S> metaDescriptor) {
         return super.get(metaDescriptor);
+    }
+
+    public <U extends MetaItemDescriptor<?>> void remove(U nameHolder) {
+        removeIf(item -> item.getName().equals(nameHolder.getName()));
     }
 
     public <S> MetaItem<S> getOrCreate(MetaItemDescriptor<S> metaDescriptor) {

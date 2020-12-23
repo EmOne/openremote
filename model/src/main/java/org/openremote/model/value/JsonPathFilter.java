@@ -33,13 +33,11 @@ import org.openremote.model.util.TextUtil;
 
 import java.util.Optional;
 
-import static org.openremote.model.value.RegexValueFilter.NAME;
-
 /**
  * This filter works on any type of data; when applying the filter the data should be converted to JSON representation
  * using a tool like Jackson and then the JSON path expression should be applied to this JSON string.
  */
-@JsonTypeName(NAME)
+@JsonTypeName(JsonPathFilter.NAME)
 public class JsonPathFilter extends ValueFilter {
 
     protected static ParseContext jsonPathParser = JsonPath.using(

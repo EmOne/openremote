@@ -64,10 +64,12 @@ public class UdpClientProtocol extends AbstractUdpClientProtocol<UdpClientProtoc
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         Consumer<String> messageConsumer = ProtocolUtil.createGenericAttributeMessageConsumer(assetId, attribute, agentLink, timerService::getCurrentTimeMillis, this::updateLinkedAttribute);
 
-        protocolMessageConsumers.add(new Pair<>(
-            attributeRef,
-            messageConsumer
-        ));
+        if (messageConsumer != null) {
+            protocolMessageConsumers.add(new Pair<>(
+                attributeRef,
+                messageConsumer
+            ));
+        }
     }
 
     @Override

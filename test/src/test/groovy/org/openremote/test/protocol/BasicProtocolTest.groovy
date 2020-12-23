@@ -45,13 +45,10 @@ import static org.openremote.model.value.MetaItemType.*
  */
 class BasicProtocolTest extends Specification implements ManagerContainerTrait {
 
-    def "Check abstract protocol linking/un-linking"() {
+    def "Check basic protocol linking/un-linking and value writing"() {
 
         given: "expected conditions"
-        def conditions = new PollingConditions(timeout: 10, delay: 0.2)
-
-        and: "a mock protocol"
-        def mockProtocolName = "Mock Protocol"
+        def conditions = new PollingConditions(timeout: 10, initialDelay: 0.3, delay: 0.2)
         Map<String, Integer> protocolExpectedLinkedAttributeCount = [:]
         protocolExpectedLinkedAttributeCount["mockAgent1"] = 5
         protocolExpectedLinkedAttributeCount["mockAgent2"] = 2
@@ -59,6 +56,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
         protocolExpectedLinkedAttributeCount['mockConfig4'] = 2
 
         and: "the container is started"
+        def container = startContainer(defaultConfig(), defaultServices())
         def assetStorageService = container.getService(AssetStorageService.class)
         def agentService = container.getService(AgentService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
@@ -210,34 +208,33 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
 
         mockThing = assetStorageService.merge(mockThing)
 
-        then: "the mock thing to be fully deployed"
+        then: "the mock thing to be fully deployed in the correct order"
         conditions.eventually {
+            assert agentService.getProtocolInstance(mockAgent1.id) != null
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.size() == 7
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(0) == "START"
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(1).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(2).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(3).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(4).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(5).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(6).startsWith("LINK_ATTRIBUTE")
             assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent1"]
         }
 
-        and: "the deployment should have occurred in the correct order"
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.size() == 3
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(0) == "START"
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.size() == 3
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(0) == "START"
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.size() == 3
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(0) == "START"
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(1).startsWith("LINK ATTRIBUTE")
-        assert ((MockProtocol)agentService.getProtocolInstance(mockAgent3.id)).protocolMethodCalls.get(2).startsWith("LINK ATTRIBUTE")
+        and: "invalid attribute should not actually have been linked"
+        assert !((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).linkedAttributes.any {it.value.name == "invalidToggle1"}
 
-        and: "the linked attributes values should have been updated by the protocol"
+        when: "values are sent to the linked attributes by the protocol"
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(new AttributeState(mockThing.id, "lightToggle1", true))
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(new AttributeState(mockThing.id, "tempTarget1", 25.5d))
+
+        then: "the linked attributes values should have been updated by the protocol"
         conditions.eventually {
-            def mockAsset = assetStorageService.find(mockThing.getId(), true)
+            def mockAsset = assetStorageService.find(mockThing.id, true)
             // Check all valid linked attributes have the new values
             assert mockAsset.getAttributes().<Boolean>getValue("lightToggle1").orElse(false)
             assert mockAsset.getAttribute("tempTarget1", Double.class).flatMap{it.getValue()}.orElse(0d) == 25.5d
-            // Check disabled linked attributes don't have the new values
-            assert !mockAsset.getAttribute("lightToggle4", Boolean.class).get().getValue().isPresent()
-            assert !mockAsset.getAttribute("tempTarget4", Double.class).get().getValue().isPresent()
             // Check invalid attributes don't have the new values
             assert !mockAsset.getAttribute("lightToggle2", Boolean.class).get().getValue().isPresent()
             assert !mockAsset.getAttribute("tempTarget2", Double.class).get().getValue().isPresent()
@@ -245,145 +242,157 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
             assert !mockAsset.getAttribute("tempTarget3", Double.class).get().getValue().isPresent()
         }
 
-        when: "a linked attribute is removed"
-        mockThing = assetStorageService.find(mockThing.getId(), true)
-        protocolMethodCalls.clear()
-        mockThing.getAttributes().remove("tempTarget3")
-        mockThing = assetStorageService.merge(mockThing)
+        when: "the disabled agent is enabled"
+        mockAgent2.setDisabled(false)
+        mockAgent2 = assetStorageService.merge(mockAgent2)
 
-        then: "the protocol should not be unlinked"
+        then: "a protocol instance should exist and attributes should be linked"
         conditions.eventually {
-            assert protocolLinkedAttributes["mockAgent3"].size() == 1
-            assert protocolMethodCalls.size() == 1
-            assert protocolMethodCalls[0] == "UNLINK_ATTRIBUTE"
+            assert agentService.getProtocolInstance(mockAgent2.id) != null
+            assert agentService.getProtocolInstance(mockAgent2.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent2"]
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.size() == 3
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(0) == "START"
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(1).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent2.id)).protocolMethodCalls.get(2).startsWith("LINK_ATTRIBUTE")
         }
 
-        when: "a protocol configuration is removed"
-        protocolMethodCalls.clear()
-        mockAgent.removeAttribute("mockConfig3")
-        mockAgent = assetStorageService.merge(mockAgent)
+        when: "a linked attribute is removed"
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.clear()
+        mockThing = assetStorageService.find(mockThing.id, true)
+        mockThing.getAttributes().remove("lightToggle1")
+        mockThing = assetStorageService.merge(mockThing)
 
-        then: "the attributes should be unlinked then the protocol configuration"
+        then: "the protocol should not be stopped but the attribute should be"
         conditions.eventually {
-            assert protocolLinkedAttributes["mockConfig3"].size() == 0
-            assert protocolMethodCalls.size() == 2
-            assert protocolMethodCalls[0] == "UNLINK_ATTRIBUTE"
-            assert protocolMethodCalls[1] == "UNLINK_PROTOCOL"
+            assert agentService.getProtocolInstance(mockAgent1.id).linkedAttributes.size() == protocolExpectedLinkedAttributeCount["mockAgent1"] - 1
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.size() == 10
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(0).startsWith("UNLINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(1).startsWith("UNLINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(2).startsWith("UNLINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(3).startsWith("UNLINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(4).startsWith("UNLINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(5).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(6).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(7).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(8).startsWith("LINK_ATTRIBUTE")
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.get(9).startsWith("LINK_ATTRIBUTE")
+            assert !((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolMethodCalls.any {it == "LINK_ATTRIBUTE${mockThing.id}lightToggle1"}
+            assert !((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).linkedAttributes.containsKey(new AttributeRef(mockThing.id, "invalidToggle1"))
+        }
+
+        when: "an agent is removed"
+        def mockProtocol2 = (MockProtocol)agentService.getProtocolInstance(mockAgent2.id)
+        mockProtocol2.protocolMethodCalls.clear()
+        assetStorageService.delete([mockAgent2.id])
+
+        then: "the attributes should be unlinked then the protocol stopped"
+        conditions.eventually {
+            assert mockProtocol2.protocolMethodCalls.size() == 3
+            assert mockProtocol2.protocolMethodCalls.get(0).startsWith("UNLINK_ATTRIBUTE")
+            assert mockProtocol2.protocolMethodCalls.get(1).startsWith("UNLINK_ATTRIBUTE")
+            assert mockProtocol2.protocolMethodCalls.get(2) == "STOP"
+        }
+        
+        and: "the protocol instance and agent should be removed"
+        conditions.eventually {
+            assert agentService.getProtocolInstance(mockAgent2.id) == null
+            assert (MockProtocol)agentService.getProtocolInstance(mockAgent2.id) == null
         }
 
         when: "the mock protocol tries to update the plain readonly attribute"
-        mockProtocol.updateAttribute(new AttributeState(mockThing.getId(),"plainAttribute", "UPDATE"))
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateAttribute(new AttributeState(mockThing.id,"plainAttribute", "UPDATE"))
 
         then: "the plain attributes value should be updated"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
+            mockThing = assetStorageService.find(mockThing.id, true)
             assert mockThing.getAttribute("plainAttribute").get().getValue().orElse("") == "UPDATE"
         }
 
         when: "a target temp linked attribute value is updated it should reach the protocol"
-        assetProcessingService.sendAttributeEvent(new AttributeEvent(mockThing.getId(), "tempTarget1", 30d))
+        assetProcessingService.sendAttributeEvent(new AttributeEvent(mockThing.id, "tempTarget1", 30d))
 
         then: "the update should reach the protocol as an attribute write request"
         conditions.eventually {
-            assert protocolWriteAttributeEvents.size() == 1
-            assert protocolWriteAttributeEvents[0].attributeName == "tempTarget1"
-            assert protocolWriteAttributeEvents[0].attributeRef.assetId == mockThing.getId()
-            Values.getNumber(protocolWriteAttributeEvents[0].value.orElse(null)).orElse(0d) == 30d
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolWriteAttributeEvents.size() == 1
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolWriteAttributeEvents.get(0).attributeName == "tempTarget1"
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolWriteAttributeEvents.get(0).attributeRef.assetId == mockThing.id
+            assert ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).protocolWriteAttributeEvents.get(0).value.orElse(null) == 30d
         }
-
-        when: "the protocol has finished processing the attribute write"
-        def state = mockProtocol.protocolWriteAttributeEvents.last().getAttributeState()
-        mockProtocol.updateReceived(state)
 
         then: "the target temp attributes value should be updated"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("tempTarget1").get().getValueAsNumber().orElse(0d) == 30d
+            mockThing = assetStorageService.find(mockThing.id, true) as ThingAsset
+            assert mockThing.getAttribute("tempTarget1").get().getValueAs(Double.class).orElse(0d) == 30d
         }
 
         when: "a sensor value is received that links to an attribute using a regex filter"
-        state = new AttributeState(mockThing.id, "filterRegex", "s100 d56 g1212")
-        mockProtocol.updateReceived(state)
+        def state = new AttributeState(mockThing.id, "filterRegex", "s100 d56 g1212")
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated with the filtered result"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("filterRegex").get().getValueAsNumber().orElse(0d) == 1212d
+            mockThing = assetStorageService.find(mockThing.id, true) as ThingAsset
+            assert mockThing.getAttribute("filterRegex").get().getValueAs(Double.class).orElse(0d) == 1212d
         }
 
         when: "the same attribute receives a sensor value that doesn't match the regex filter (match index invalid)"
         state = new AttributeState(mockThing.id, "filterRegex", "s100")
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated to null"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert !mockThing.getAttribute("filterRegex").get().getValueAsNumber().isPresent()
+            mockThing = assetStorageService.find(mockThing.id, true)
+            assert !mockThing.getAttribute("filterRegex").get().getValue().isPresent()
         }
 
         when: "the same attribute receives a sensor value that doesn't match the regex filter (no match)"
-        def lastUpdate = mockThing.getAttribute("filterRegex").get().timestamp.get()
         state = new AttributeState(mockThing.id, "filterRegex", "no match to be found!")
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated to null"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("filterRegex").get().valueTimestamp.get() > lastUpdate
-            assert !mockThing.getAttribute("filterRegex").get().getValueAsNumber().isPresent()
+            mockThing = assetStorageService.find(mockThing.id, true)
+            assert !mockThing.getAttribute("filterRegex").get().getValue().isPresent()
         }
 
         when: "a sensor value is received that links to an attribute using a substring filter"
         state = new AttributeState(mockThing.id, "filterSubstring", "Substring test value")
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated with the filtered result"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
+            mockThing = assetStorageService.find(mockThing.id, true)
             assert mockThing.getAttribute("filterSubstring").get().getValue().orElse(null) == "te"
         }
 
         when: "the same attribute receives a sensor value that doesn't match the substring filter"
         state = new AttributeState(mockThing.id, "filterSubstring", "Substring")
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated to null"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
+            mockThing = assetStorageService.find(mockThing.id, true)
             assert !mockThing.getAttribute("filterSubstring").get().getValue().isPresent()
         }
 
         when: "a sensor value is received that links to an attribute using a regex and substring filter"
         state = new AttributeState(mockThing.id, "filterRegexSubstring", '{"prop1":true,"prop2":"volume is at 90%"}')
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated with the filtered result"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert mockThing.getAttribute("filterRegexSubstring").get().getValueAsNumber().orElse(0d) == 90d
+            mockThing = assetStorageService.find(mockThing.id, true)
+            assert mockThing.getAttribute("filterRegexSubstring").get().getValue().orElse(0d) == 90d
         }
 
         when: "the same attribute receives a sensor value that doesn't match the substring filter"
         state = new AttributeState(mockThing.id, "filterRegexSubstring", '"volume is at 90%"}')
-        mockProtocol.updateReceived(state)
+        ((MockProtocol)agentService.getProtocolInstance(mockAgent1.id)).updateReceived(state)
 
         then: "the linked attributes value should be updated to null"
         conditions.eventually {
-            mockThing = assetStorageService.find(mockThing.getId(), true)
-            assert !mockThing.getAttribute("filterRegexSubstring").get().getValueAsNumber().isPresent()
-        }
-
-        when: "the disabled protocol configuration is enabled"
-        protocolMethodCalls.clear()
-        mockAgent.getAttribute("mockConfig4").ifPresent({it.meta.removeIf({it.name.get() == DISABLED.urn})})
-        mockAgent = assetStorageService.merge(mockAgent)
-
-        then: "the newly enabled protocol configuration should be unlinked and re-linked"
-        conditions.eventually {
-            assert protocolMethodCalls.size() == 3
-            assert protocolMethodCalls[0] == "LINK_PROTOCOL"
-            assert protocolMethodCalls[1] == "LINK_ATTRIBUTE"
-            assert protocolMethodCalls[2] == "LINK_ATTRIBUTE"
+            mockThing = assetStorageService.find(mockThing.id, true)
+            assert !mockThing.getAttribute("filterRegexSubstring").get().getValue().isPresent()
         }
     }
 }

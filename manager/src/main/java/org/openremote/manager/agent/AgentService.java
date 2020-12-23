@@ -498,7 +498,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             attributes.forEach(attribute -> {
                 try {
                     AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
-                    if (!protocol.getLinkedAttributes().containsKey(attributeRef)) {
+                    if (protocol.getLinkedAttributes().containsKey(attributeRef)) {
                         LOG.fine("Unlinking attribute '" + attributeRef + "' to protocol: " + protocol);
                         protocol.unlinkAttribute(assetId, attribute);
                     }

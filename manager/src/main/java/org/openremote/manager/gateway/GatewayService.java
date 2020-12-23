@@ -238,6 +238,10 @@ public class GatewayService extends RouteBuilder implements ContainerService, As
                         eventAsset = assetStorageService.find(eventAsset.getId(), true);
                     }
 
+                    if (eventAsset == null) {
+                        return;
+                    }
+
                     // Only gateways locally registered to this manager are of interest or gateway descendant assets
                     if (eventAsset instanceof GatewayAsset
                         && (isLocallyRegisteredGateway(eventAsset.getId()) || getLocallyRegisteredGatewayId(eventAsset.getId(), eventAsset.getParentId()) == null)) {

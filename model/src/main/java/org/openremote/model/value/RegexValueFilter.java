@@ -29,14 +29,11 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.openremote.model.value.RegexValueFilter.NAME;
-
-@JsonTypeName(NAME)
+@JsonTypeName(RegexValueFilter.NAME)
 public class RegexValueFilter extends ValueFilter {
 
     public static final String NAME = "regex";
 
-    @JsonDeserialize(using = FromStringDeserializer.class)
     public Pattern pattern;
     public int matchGroup;
     public int matchIndex;

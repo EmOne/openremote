@@ -79,7 +79,7 @@ public class MockProtocol extends AbstractProtocol<MockAgent, MockAgent.MockAgen
         protocolMethodCalls.add("WRITE_ATTRIBUTE:" + event.getAssetId() + ":" + attribute.getName());
         protocolWriteAttributeEvents.add(event);
         if (updateSensor) {
-            updateAttribute(event.getAttributeState());
+            updateReceived(event.getAttributeState());
         }
     }
 
@@ -93,7 +93,7 @@ public class MockProtocol extends AbstractProtocol<MockAgent, MockAgent.MockAgen
         return "mock://" + getAgent().getId();
     }
 
-    protected void updateReceived(AttributeState state) {
+    public void updateReceived(AttributeState state) {
         // Assume we've pushed the update to the actual device and it responded with OK
         // so now we want to cause a sensor update that will go through the processing
         // chain.
