@@ -125,7 +125,7 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
             }
         }
 
-        return processedValue != null ? processedValue.toString() : null;
+        return Values.convert(processedValue, String.class);
     }
 
     @Override

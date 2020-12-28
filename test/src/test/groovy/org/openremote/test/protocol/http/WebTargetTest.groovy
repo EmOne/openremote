@@ -154,9 +154,9 @@ class WebTargetTest extends Specification {
                     }
                     break
                 case "https://headerserver/get":
-                    if (requestContext.getHeaderString("MyHeader") == null
+                    if (requestContext.getHeaderString("MyHeader") == "MyHeaderValue"
                         && requestContext.getHeaderString("MyHeaderNew") == "MyHeaderNewValue"
-                        && requestContext.getHeaderString("MyMultiHeader") == "MyMultiHeaderValue1,MyMultiHeaderValue2,MyMultiHeaderValue3") {
+                        && requestContext.getHeaderString("MyMultiHeader") == "MyMultiHeaderValue3,MyMultiHeaderValue1,MyMultiHeaderValue2") {
                         requestContext.abortWith(Response.ok().build())
                         return
                     }
@@ -429,12 +429,11 @@ class WebTargetTest extends Specification {
 
         when: "a request is made to the server with additional headers"
         headers = new MultivaluedHashMap<String, String>(3)
-        headers.add("MyHeader", null)
         headers.add("MyHeaderNew", "MyHeaderNewValue")
         headers.add("MyMultiHeader", "MyMultiHeaderValue3")
         response = target.path("get")
-            .register(new HeaderInjectorFilter(headers))
             .request()
+            .headers(headers)
             .get()
 
         then: "the response should be a 200 OK indicating the custom headers reached the server"

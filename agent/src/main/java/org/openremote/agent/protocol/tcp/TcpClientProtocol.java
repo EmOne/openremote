@@ -27,6 +27,7 @@ import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.protocol.ProtocolUtil;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.Pair;
+import org.openremote.model.value.Values;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +95,6 @@ public class TcpClientProtocol extends AbstractTcpClientProtocol<TcpClientProtoc
 
     @Override
     protected String createWriteMessage(Attribute<?> attribute, AgentLink.Default agentLink, AttributeEvent event, Object processedValue) {
-        return processedValue != null ? processedValue.toString() : null;
+        return Values.convert(processedValue, String.class);
     }
 }

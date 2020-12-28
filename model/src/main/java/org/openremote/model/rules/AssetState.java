@@ -112,7 +112,7 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
 
     @Override
     public <U> Optional<U> getValueAs(Class<U> valueType) {
-        return Optional.empty();
+        return Values.getValueCoerced(value, valueType);
     }
 
     @Override

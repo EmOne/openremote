@@ -70,7 +70,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
 
     protected static String messageToString(String prefix, Object message) {
         try {
-            String str = Values.asJSON(message);
+            String str = Values.asJSON(message).orElse(null)
             return prefix + str;
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to serialise message");
@@ -159,7 +159,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
             assert triggeredEvent.events.size() == 1
             assert ((AttributeEvent)triggeredEvent.events[0]).assetId == managerTestSetup.apartment1LivingroomId
             assert ((AttributeEvent)triggeredEvent.events[0]).attributeName == "targetTemperature"
-            assert ((AttributeEvent)triggeredEvent.events[0]).value.flatMap{Values.getNumber(it)}.orElse(0) == 5
+            assert ((AttributeEvent)triggeredEvent.events[0]).value.orElse(0) == 5
         }
 
         when: "time advances"
@@ -177,7 +177,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
             assert triggeredEvent.events.size() == 1
             assert ((AttributeEvent)triggeredEvent.events[0]).assetId == managerTestSetup.apartment1LivingroomId
             assert ((AttributeEvent)triggeredEvent.events[0]).attributeName == "targetTemperature"
-            assert ((AttributeEvent)triggeredEvent.events[0]).value.flatMap{Values.getNumber(it)}.orElse(0) == 5
+            assert ((AttributeEvent)triggeredEvent.events[0]).value.orElse(0) == 5
         }
 
         when: "time advances"
@@ -208,66 +208,11 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
         then: "the bathroom target temp should have changed"
         conditions.eventually {
             def bathroom = assetStorageService.find(managerTestSetup.apartment1BathroomId)
-            assert bathroom.getAttribute("targetTemperature").flatMap{it.getValueAsNumber()}.orElse(0d) == 10d
+            assert bathroom.getAttribute("targetTemperature").flatMap{it.value}.orElse(0d) == 10d
         }
 
         and: "the client should not have received the event"
         conditions.eventually {
-            assert receivedMessages.isEmpty()
-        }
-
-
-        when: "a subscription is made to the agent status event"
-        receivedMessages.clear()
-        client.sendMessage(messageToString(EventSubscription.SUBSCRIBE_MESSAGE_PREFIX,
-            new EventSubscription(
-                AgentStatusEvent.class,
-                null,
-                "2",
-                null)))
-
-        then: "a subscribed event should have been received"
-        conditions.eventually {
-            assert receivedMessages.size() == 1
-            def subscribedEvent = messageFromString(receivedMessages[0], EventSubscription.SUBSCRIBED_MESSAGE_PREFIX, EventSubscription.class)
-            assert subscribedEvent.subscriptionId == "2"
-        }
-
-        when: "an existing protocol configuration is disabled"
-        receivedMessages.clear()
-        def agent = assetStorageService.find(managerTestSetup.agentId, true)
-        agent.getAttribute(managerTestSetup.agentProtocolConfigName).get().addMeta(
-            new MetaItem<>(DISABLED)
-        )
-        agent = assetStorageService.merge(agent)
-
-        then: "the agent status change event should have been received"
-        conditions.eventually {
-            assert receivedMessages.size() == 2
-            def waitingEvent = messageFromString(receivedMessages[0], TriggeredEventSubscription.MESSAGE_PREFIX, TriggeredEventSubscription.class)
-            def disabledEvent = messageFromString(receivedMessages[1], TriggeredEventSubscription.MESSAGE_PREFIX, TriggeredEventSubscription.class)
-            assert waitingEvent.subscriptionId == "2"
-            assert waitingEvent.events.size() == 1
-        }
-
-        when: "the agent status subscription is removed"
-        receivedMessages.clear()
-        client.sendMessage(CancelEventSubscription.MESSAGE_PREFIX + Values.asJSON(
-            new CancelEventSubscription(
-                AgentStatusEvent.class,
-                "2")))
-
-        and: "the existing protocol configuration is re-enabled"
-        agent.getAttribute(managerTestSetup.agentProtocolConfigName).get().getMeta().removeIf(
-            isMetaNameEqualTo(DISABLED)
-        )
-        agent = assetStorageService.merge(agent)
-
-        then: "the protocol should be CONNECTED but no new events should have been received"
-        conditions.eventually {
-            assert agentService.getAgentConnectionStatus(
-                new AttributeRef(managerTestSetup.agentId, managerTestSetup.agentProtocolConfigName)
-            ) == ConnectionStatus.CONNECTED
             assert receivedMessages.isEmpty()
         }
 

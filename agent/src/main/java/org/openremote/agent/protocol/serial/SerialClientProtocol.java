@@ -108,6 +108,6 @@ public class SerialClientProtocol extends AbstractSerialClientProtocol<SerialCli
             }
         }
 
-        return processedValue != null ? processedValue.toString() : null;
+        return Values.convert(processedValue, String.class);
     }
 }

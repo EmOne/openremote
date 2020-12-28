@@ -1,6 +1,5 @@
 package org.openremote.test.rules
 
-
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.rules.RulesEngine
@@ -9,17 +8,16 @@ import org.openremote.manager.rules.RulesetStorageService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.KeycloakTestSetup
 import org.openremote.manager.setup.builtin.ManagerTestSetup
-import org.openremote.model.asset.Asset
 import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.*
+import org.openremote.model.attribute.AttributeEvent
+import org.openremote.model.attribute.MetaItem
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TemporaryFact
 import org.openremote.model.rules.TenantRuleset
 import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.ValueType
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -199,7 +197,7 @@ class BasicRulesProcessingTest extends Specification implements ManagerContainer
         then: "the attribute event should have been processed"
         conditions.eventually {
             def apartment2LivingRoom = assetStorageService.find(managerTestSetup.apartment2LivingroomId, true)
-            assert apartment2LivingRoom.getAttribute("windowOpen").flatMap{it.getValueAsBoolean()}.orElse(false)
+            assert apartment2LivingRoom.getAttribute("windowOpen").flatMap{it.getValueAs(Boolean.class)}.orElse(false)
         }
 
         then: "the rules engines should not have fired"
@@ -220,14 +218,13 @@ class BasicRulesProcessingTest extends Specification implements ManagerContainer
         tenantALastFireTimestamp = rulesImport.tenantBuildingEngine.lastFireTimestamp
         apartment2LastFireTimestamp = rulesImport.apartment2Engine.lastFireTimestamp
         apartment3LastFireTimestamp = rulesImport.apartment3Engine.lastFireTimestamp
-        attributes = [
-            new Attribute<>("testString", STRING, "test")
+        asset.addOrReplaceAttributes(
+            new Attribute<>("testString", ValueType.STRING, "test")
                 .addOrReplaceMeta(
-                new MetaItem<>(RULE_STATE, true)
-            ),
-            new Attribute<>("testInteger", NUMBER, 0)
-        ]
-        asset.addOrReplaceAttributes(attributes)
+                    new MetaItem<>(MetaItemType.RULE_STATE, true)
+                ),
+            new Attribute<>("testInteger", ValueType.NUMBER, 0d)
+        )
         asset = assetStorageService.merge(asset)
 
         then: "the rules engines should have executed at least one more time"
@@ -256,14 +253,13 @@ class BasicRulesProcessingTest extends Specification implements ManagerContainer
 
         when: "the Kitchen room asset is modified to set the RULE_STATE to false"
         rulesImport.resetRulesFired()
-        attributes = [
-            new Attribute<>("testString", STRING, "test")
+        asset.addOrReplaceAttributes(
+            new Attribute<>("testString", ValueType.STRING, "test")
                 .addOrReplaceMeta(
-                new MetaItem<>(RULE_STATE, false)
-            ),
-            new Attribute<>("testInteger", NUMBER, 0)
-        ]
-        asset.addOrReplaceAttributes(attributes)
+                    new MetaItem<>(MetaItemType.RULE_STATE, false)
+                ),
+            new Attribute<>("testInteger", ValueType.NUMBER, 0d)
+        )
         asset = assetStorageService.merge(asset)
 
         then: "the facts should be removed from the rule engines and rules should have fired"
@@ -285,17 +281,16 @@ class BasicRulesProcessingTest extends Specification implements ManagerContainer
 
         when: "the Kitchen room asset is modified to set all attributes to RULE_STATE = true"
         rulesImport.resetRulesFired()
-        attributes = [
-            new Attribute<>("testString", STRING, "test")
+        asset.addOrReplaceAttributes(
+            new Attribute<>("testString", ValueType.STRING, "test")
                 .addOrReplaceMeta(
-                new MetaItem<>(RULE_STATE, true)
-            ),
-            new Attribute<>("testInteger", NUMBER, 0)
+                    new MetaItem<>(MetaItemType.RULE_STATE, true)
+                ),
+            new Attribute<>("testInteger", ValueType.NUMBER, 0d)
                 .addOrReplaceMeta(
-                new MetaItem<>(RULE_STATE, true)
-            )
-        ]
-        asset.addOrReplaceAttributes(attributes)
+                    new MetaItem<>(MetaItemType.RULE_STATE, true)
+                )
+        )
         asset = assetStorageService.merge(asset)
 
         then: "the facts should be added to the rule engines and rules should have fired"

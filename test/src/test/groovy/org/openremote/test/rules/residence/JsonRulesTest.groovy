@@ -203,15 +203,16 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
 
         then: "the console location asset state should be in the rule engine"
         conditions.eventually {
-            assert tenantBuildingEngine.assetStates.find {
-                it.id == consoleRegistration.id && it.getValueAs(GeoJSONPoint.class).map {
-                    it.x == ManagerTestSetup.SMART_BUILDING_LOCATION.x && it.y == ManagerTestSetup.SMART_BUILDING_LOCATION.y ? it : null
-                }.isPresent()
-            } != null
+            def assetState = tenantBuildingEngine.assetStates.find {it.id == consoleRegistration.id && it.name == Asset.LOCATION.name}
+            assert assetState != null
+            assert assetState.getValue().isPresent()
+            assert assetState.getValueAs(GeoJSONPoint.class).map{it.x == ManagerTestSetup.SMART_BUILDING_LOCATION.x}.orElse(false)
+            assert assetState.getValueAs(GeoJSONPoint.class).map{it.y == ManagerTestSetup.SMART_BUILDING_LOCATION.y}.orElse(false)
         }
 
         when: "the console device moves outside the home geofence (as defined in the rule)"
-        assetProcessingService.sendAttributeEvent(new AttributeEvent(consoleRegistration.id, Asset.LOCATION.name, new GeoJSONPoint(0d, 0d)), AttributeEvent.Source.CLIENT)
+        def outsideLocation = new GeoJSONPoint(0d, 0d)
+        assetProcessingService.sendAttributeEvent(new AttributeEvent(consoleRegistration.id, Asset.LOCATION.name, outsideLocation), AttributeEvent.Source.CLIENT)
 
         then: "the apartment lights should be switched off"
         conditions.eventually {
@@ -235,7 +236,7 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
             assert emailMessages.size() == 1
             assert emailMessages[0].recipients.size() == 1
             assert emailMessages[0].recipients[0].address == "test@openremote.io"
-            assert emailMessages[0].HTMLText == "<table cellpadding=\"30\"><tr><th>Asset ID</th><th>Asset Name</th><th>Attribute</th><th>Value</th></tr><tr><td>${consoleRegistration.id}</td><td>Test Console</td><td>location</td><td>{\"type\":\"Point\",\"coordinates\":[0,0]}</td></tr></table>"
+            assert emailMessages[0].HTMLText == "<table cellpadding=\"30\"><tr><th>Asset ID</th><th>Asset Name</th><th>Attribute</th><th>Value</th></tr><tr><td>${consoleRegistration.id}</td><td>Test Console</td><td>location</td><td>" + Values.asJSON(outsideLocation).orElse("") + "</td></tr></table>"
         }
 
         and: "after a few seconds the rule should not have fired again"
@@ -275,7 +276,7 @@ class JsonRulesTest extends Specification implements ManagerContainerTrait {
         def version = ruleset.version
         JsonRulesetDefinition jsonRules = Values.JSON.readValue(ruleset.rules, JsonRulesetDefinition.class)
         jsonRules.rules[0].recurrence.mins = 240
-        ruleset.rules = Values.asJSON(jsonRules)
+        ruleset.rules = Values.asJSON(jsonRules).orElse(null)
         ruleset = rulesetStorageService.merge(ruleset)
 
         then: "the ruleset to be redeployed"

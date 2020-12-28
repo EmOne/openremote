@@ -26,6 +26,7 @@ import io.netty.handler.codec.FixedLengthFrameDecoder
 import io.netty.handler.codec.MessageToMessageEncoder
 import io.netty.handler.codec.bytes.ByteArrayDecoder
 import org.openremote.agent.protocol.udp.UdpClientAgent
+import org.openremote.model.asset.agent.Agent
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.agent.protocol.ProtocolExecutorService
 import org.openremote.agent.protocol.udp.AbstractUdpServer
@@ -107,16 +108,22 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         and: "the agent is added to the asset service"
         agent = assetStorageService.merge(agent)
 
-        then: "the protocol instance should be created"
+        then: "the protocol instance should be created and should become connected"
         conditions.eventually {
             assert agentService.getProtocolInstance(agent.id) != null
+            assert agentService.agentMap.get(agent.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
         }
 
         when: "an asset is created with attributes linked to the protocol configuration"
         def asset = new ThingAsset("Test Asset")
             .setParent(agent)
             .addOrReplaceAttributes(
-            new Attribute<>("echoHello", EXECUTION_STATUS)
+            new Attribute<>("startHello", EXECUTION_STATUS)
+                .addMeta(
+                    new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
+                        .setWriteValue('"abcdef"'))
+                ),
+            new Attribute<>("echoHello", STRING)
                 .addMeta(
                     new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
                         .setWriteValue('"Hello {$value};"'))
@@ -147,7 +154,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
 
         then: "the attributes should be linked"
         conditions.eventually {
-            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 4
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 5
             assert ((UdpClientProtocol)agentService.getProtocolInstance(agent.id)).protocolMessageConsumers.size() == 2
         }
 
@@ -168,7 +175,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
 
         then: "the protocol instance should be unlinked"
         conditions.eventually {
-            assert agentService.protocolInstanceMap.isEmpty()
+            assert !agentService.protocolInstanceMap.containsKey(agent.id)
         }
 
         when: "the received messages are cleared"
@@ -185,7 +192,8 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
 
         then: "the attributes should be re-linked"
         conditions.eventually {
-            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 4
+            assert agentService.getProtocolInstance(agent.id) != null
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 5
             assert ((UdpClientProtocol)agentService.getProtocolInstance(agent.id)).protocolMessageConsumers.size() == 2
         }
 
@@ -230,20 +238,23 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
 
         then: "the protocol should be relinked"
         conditions.eventually {
-            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 4
+            assert agentService.agentMap.get(agent.id) != null
+            assert ((UdpClientAgent)agentService.agentMap.get(agent.id)).getMessageConvertHex().orElse(false)
+            assert agentService.getProtocolInstance(agent.id) != null
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 5
             assert ((UdpClientProtocol)agentService.getProtocolInstance(agent.id)).protocolMessageConsumers.size() == 2
         }
 
-        when: "the linked attributes are also updated to work with hex server"
-        asset.getAttribute("echoHello").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue('"abcdef"')}
+        when: "the echo world attribute is also updated to work with hex server"
         asset.getAttribute("echoWorld").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue('"123456"')}
         asset = assetStorageService.merge(asset)
 
         then: "the attributes should be relinked"
         conditions.eventually {
-            assert udpClientProtocol.protocolMessageConsumers.size() == 1
-            assert udpClientProtocol.protocolMessageConsumers.get(new AttributeRef(agent.id, "protocolConfig")).size() == 2
-            assert udpClientProtocol.linkedAttributes.get(new AttributeRef(asset.getId(), "echoHello")).getMetaItem(UdpClientProtocol.META_ATTRIBUTE_WRITE_VALUE).flatMap{it.getValue()}.orElse(null) == '"abcdef"'
+            assert agentService.getProtocolInstance(agent.id) != null
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 5
+            assert ((UdpClientProtocol)agentService.getProtocolInstance(agent.id)).protocolMessageConsumers.size() == 2
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.get(new AttributeRef(asset.getId(), "echoWorld")).getMetaItem(AGENT_LINK).flatMap{it.value}.flatMap{it.writeValue}.orElse(null) == '"123456"'
         }
 
         and: "the protocol should become CONNECTED"
@@ -252,10 +263,10 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
             assert agent.getAgentStatus().orElse(ConnectionStatus.DISCONNECTED) == ConnectionStatus.CONNECTED
         }
 
-        when: "the hello linked attribute is executed"
+        when: "the start hello linked attribute is executed"
         attributeEvent = new AttributeEvent(asset.id,
-            "echoHello",
-            AttributeExecuteStatus.REQUEST_START.asValue())
+            "startHello",
+            AttributeExecuteStatus.REQUEST_START)
         assetProcessingService.sendAttributeEvent(attributeEvent)
 
         then: "the bytes should be received by the server"

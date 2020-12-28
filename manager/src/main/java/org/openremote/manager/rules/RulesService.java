@@ -19,6 +19,8 @@
  */
 package org.openremote.manager.rules;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.Predicate;
 import org.apache.camel.builder.RouteBuilder;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
@@ -195,13 +197,20 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         initDone = true;
     }
 
+    protected Predicate isNotForGW() {
+        return exchange -> {
+            boolean isNotForGateway = isNotForGateway(gatewayService).matches(exchange);
+            return isNotForGateway;
+        };
+    }
+
     @Override
     public void configure() throws Exception {
         // If any ruleset was modified in the database then check its' status and undeploy, deploy, or update it
         from(PERSISTENCE_TOPIC)
             .routeId("RulesetPersistenceChanges")
             .filter(isPersistenceEventForEntityType(Ruleset.class))
-            .filter(isNotForGateway(gatewayService))
+            .filter(this.isNotForGW())
             .process(exchange -> {
                 PersistenceEvent<?> persistenceEvent = exchange.getIn().getBody(PersistenceEvent.class);
                 processRulesetChange((Ruleset) persistenceEvent.getEntity(), persistenceEvent.getCause());
@@ -449,8 +458,8 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
 
             // We must load the asset from database (only when required), as the
             // persistence event might not contain a completely loaded asset
-            BiFunction<Asset<?>, Attribute<?>, AssetState> buildAssetState = (loadedAsset, attribute) ->
-                new AssetState(loadedAsset, Values.clone(attribute), Source.INTERNAL);
+            BiFunction<Asset<?>, Attribute<?>, AssetState<?>> buildAssetState = (loadedAsset, attribute) ->
+                new AssetState<>(loadedAsset, Values.clone(attribute), Source.INTERNAL);
 
             switch (persistenceEvent.getCause()) {
                 case CREATE: {
@@ -511,7 +520,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                     asset.getAttributes().stream()
                         .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
                         .forEach(attribute -> {
-                            AssetState assetState = new AssetState(asset, attribute, Source.INTERNAL);
+                            AssetState<?> assetState = new AssetState<>(asset, attribute, Source.INTERNAL);
                             LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), retracting fact: " + assetState);
                             retractAssetState(assetState);
                         });

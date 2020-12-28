@@ -14,6 +14,7 @@ import org.openremote.model.rules.TenantRuleset
 import org.openremote.model.value.MetaItemType
 
 import static org.openremote.model.rules.Ruleset.Lang.GROOVY
+import static org.openremote.model.rules.Ruleset.Lang.SHOW_ON_LIST
 import static org.openremote.model.rules.RulesetStatus.DEPLOYED
 
 class BasicRulesImport {
@@ -84,7 +85,7 @@ class BasicRulesImport {
             "Some apartment 2 demo rules",
             GROOVY,
             getClass().getResource("/org/openremote/test/rules/BasicMatchAllAssetStates.groovy").text)
-        .setMeta(new MetaList(Collections.singletonList(new MetaItem<>(MetaItemType.SHOW_ON_DASHBOARD, true))))
+        .setMeta(new MetaList(Collections.singletonList(new MetaItem<>(SHOW_ON_LIST))))
         apartment2RulesetId = rulesetStorageService.merge(ruleset).id
 
         ruleset = new AssetRuleset(
@@ -101,8 +102,8 @@ class BasicRulesImport {
                                ManagerTestSetup managerTestSetup) {
 
         globalEngine = rulesService.globalEngine
-        globalEngine.disableTemporaryFactExpiration = true
         assert globalEngine != null
+        globalEngine.disableTemporaryFactExpiration = true
         assert globalEngine.isRunning()
         assert globalEngine.deployments.size() == 1
         assert globalEngine.deployments.values().any { it -> it.name == "Some global demo rules" && it.status == DEPLOYED }

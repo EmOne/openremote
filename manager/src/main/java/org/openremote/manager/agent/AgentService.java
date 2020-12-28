@@ -589,6 +589,9 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     protected void addReplaceAgent(Agent<?, ?, ?> agent) {
         // Fully load agent asset
         final Agent<?, ?, ?> loadedAgent = assetStorageService.find(agent.getId(), true, Agent.class);
+        if (loadedAgent == null) {
+            return;
+        }
         withLock(getClass().getSimpleName() + "::addReplaceAgent", () -> getAgents().put(loadedAgent.getId(), loadedAgent));
     }
 

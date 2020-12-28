@@ -20,16 +20,32 @@
 package org.openremote.model.geo;
 
 import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
 import com.vividsolutions.jts.geom.Coordinate;
+import net.minidev.json.JSONArray;
+import org.openremote.model.value.Values;
 
 import static org.openremote.model.geo.GeoJSONPoint.TYPE;
 
 @JsonTypeName(TYPE)
 public class GeoJSONPoint extends GeoJSONGeometry {
 
+    public static class CoordinateArrayConverter extends StdConverter<Coordinate, double[]> {
+
+        @Override
+        public double[] convert(Coordinate value) {
+            if (Double.isNaN(value.z)) {
+                return new double[] {value.x, value.y};
+            }
+            return new double[] {value.x, value.y, value.z};
+        }
+    }
+
     public static final String TYPE = "Point";
     @JsonProperty
     @JsonFormat(shape = JsonFormat.Shape.ARRAY)
+    @JsonSerialize(converter = CoordinateArrayConverter.class)
     protected Coordinate coordinates;
 
     @JsonCreator
@@ -68,5 +84,12 @@ public class GeoJSONPoint extends GeoJSONGeometry {
     @JsonIgnore
     public boolean hasZ() {
         return coordinates.z != Coordinate.NULL_ORDINATE;
+    }
+
+    @Override
+    public String toString() {
+        return "GeoJSONPoint{" +
+            "coordinates=" + (coordinates != null ? (coordinates.x + ", " + coordinates.y + ", " + coordinates.z) : "null") +
+            '}';
     }
 }

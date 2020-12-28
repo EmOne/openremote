@@ -53,7 +53,7 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
         ).token
 
         expect: "the rules engines to be ready"
-        new PollingConditions(timeout: 10, delay: 0.2).eventually {
+        conditions.eventually {
             rulesImport.assertEnginesReady(rulesService, keycloakTestSetup, managerTestSetup)
         }
 

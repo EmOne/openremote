@@ -2,6 +2,8 @@ package org.openremote.test.rules.residence
 
 
 import com.google.firebase.messaging.Message
+import org.openremote.agent.protocol.simulator.SimulatorProtocol
+import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.notification.NotificationService
@@ -57,6 +59,7 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         def notificationService = container.getService(NotificationService.class)
         def pushNotificationHandler = container.getService(PushNotificationHandler.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
+        def agentService = container.getService(AgentService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
         def rulesetStorageService = container.getService(RulesetStorageService.class)
 
@@ -194,9 +197,9 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
 
         when: "time moves on and other events happen that trigger evaluation in the rule engine"
         advancePseudoClock(20, TimeUnit.MINUTES, container)
-        assetProcessingService.sendAttributeEvent(new AttributeEvent(
-                managerTestSetup.apartment1LivingroomId, "co2Level", 444
-        ))
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(
+            new AttributeEvent(managerTestSetup.apartment1LivingroomId, "co2Level", 444)
+        )
 
         then: "still only one notification should have been sent"
         conditions.eventually {

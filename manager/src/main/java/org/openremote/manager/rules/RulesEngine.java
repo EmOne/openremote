@@ -282,7 +282,7 @@ public class RulesEngine<T extends Ruleset> {
      * @return <code>true</code> if this rules engine has no deployments.
      */
     public boolean removeRuleset(Ruleset ruleset) {
-        RulesetDeployment deployment = deployments.remove(ruleset.getId());
+        RulesetDeployment deployment = deployments.get(ruleset.getId());
 
         if (deployment == null) {
             LOG.finer("Ruleset cannot be retracted as it was never deployed: " + ruleset);

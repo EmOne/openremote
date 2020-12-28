@@ -125,7 +125,7 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
     public static Predicate<AssetState<?>> asPredicate(ParentPredicate predicate) {
         return assetState ->
             (predicate.id == null || predicate.id.equals(assetState.getParentId()))
-                && (predicate.type == null || predicate.type.equals(assetState.getParentType()))
+                && (predicate.type == null || predicate.type.getSimpleName().equals(assetState.getParentType()))
                 && (predicate.name == null || predicate.name.equals(assetState.getParentName()))
                 && (!predicate.noParent || assetState.getParentId() == null);
     }

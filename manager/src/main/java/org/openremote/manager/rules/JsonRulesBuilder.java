@@ -982,7 +982,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("</td><td>");
                 sb.append(assetState.getName());
                 sb.append("</td><td>");
-                sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
+                sb.append(assetState.getValue().flatMap(Values::asJSON).orElse(""));
                 sb.append("</td></tr>");
             }));
             sb.append("</table>");

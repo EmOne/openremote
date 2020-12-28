@@ -98,6 +98,7 @@ trait ContainerTrait {
             if (configsMatch && servicesMatch) {
 
                 println("Services and config matches already running container so checking state")
+                def counter = 0
 
 //                    // Crude way is to restart some services to reset the system but this isn't super fast
 //                    currentServiceList.find {it instanceof PersistenceService},
@@ -114,24 +115,60 @@ trait ContainerTrait {
                     def rulesService = container.getService(RulesService.class)
                     def rulesetStorageService = container.getService(RulesetStorageService.class)
 
-                    if (!globalRulesets.isEmpty()) {
-                        println("Purging ${globalRulesets.size()} global ruleset(s)")
-                        globalRulesets.forEach { rulesetStorageService.delete(GlobalRuleset.class, it.id) }
+                    if (!assetRulesets.isEmpty()) {
+                        println("Purging ${assetRulesets.size()} asset ruleset(s)")
+                        assetRulesets.forEach {
+                            rulesetStorageService.delete(AssetRuleset.class, it.id)
+                            def rulesStopped = false
+                            while (!rulesStopped) {
+                                rulesStopped = rulesService.assetEngines.isEmpty() || !rulesService.assetEngines.containsKey(((AssetRuleset)it).assetId) || !rulesService.assetEngines.get(((AssetRuleset)it).assetId).deployments.containsKey(it.id)
+                                if (counter++ > 100) {
+                                    throw new IllegalStateException("Failed to purge ruleset: " + it.name)
+                                }
+                                Thread.sleep(100)
+                            }
+                        }
                     }
                     if (!tenantRulesets.isEmpty()) {
                         println("Purging ${tenantRulesets.size()} tenant ruleset(s)")
-                        tenantRulesets.forEach { rulesetStorageService.delete(TenantRuleset.class, it.id) }
+                        tenantRulesets.forEach {
+                            rulesetStorageService.delete(TenantRuleset.class, it.id)
+                            def rulesStopped = false
+                            while (!rulesStopped) {
+                                rulesStopped = rulesService.tenantEngines.isEmpty() || !rulesService.tenantEngines.containsKey(((TenantRuleset)it).realm) || !rulesService.tenantEngines.get(((TenantRuleset)it).realm).deployments.containsKey(it.id)
+                                if (counter++ > 100) {
+                                    throw new IllegalStateException("Failed to purge ruleset: " + it.name)
+                                }
+                                Thread.sleep(100)
+                            }
+                        }
                     }
-                    if (!assetRulesets.isEmpty()) {
-                        println("Purging ${assetRulesets.size()} asset ruleset(s)")
-                        assetRulesets.forEach { rulesetStorageService.delete(AssetRuleset.class, it.id) }
+                    if (!globalRulesets.isEmpty()) {
+                        println("Purging ${globalRulesets.size()} global ruleset(s)")
+                        globalRulesets.forEach {
+                            rulesetStorageService.delete(GlobalRuleset.class, it.id)
+                            def rulesStopped = false
+                            while (!rulesStopped) {
+                                rulesStopped = rulesService.globalEngine == null || !rulesService.globalEngine.deployments.containsKey(it.id)
+                                if (counter++ > 100) {
+                                    throw new IllegalStateException("Failed to purge ruleset: " + it.name)
+                                }
+                                Thread.sleep(100)
+                            }
+                        }
                     }
+
                     // Wait for all rule engines to stop and be removed
+                    counter = 0
                     def enginesStopped = false
                     while (!enginesStopped) {
                         enginesStopped = rulesService.globalEngine == null && rulesService.tenantEngines.isEmpty() && rulesService.assetEngines.isEmpty()
+                        if (counter++ > 100) {
+                            throw new IllegalStateException("Rule engines have failed to stop")
+                        }
                         Thread.sleep(100)
                     }
+
                     if (!TestFixture.assetRulesets.isEmpty()) {
                         println("Re-inserting ${TestFixture.assetRulesets.size()} asset ruleset(s)")
                         TestFixture.assetRulesets.forEach { rulesetStorageService.merge(it) }
@@ -159,8 +196,13 @@ trait ContainerTrait {
                     // Wait for all assets to be unlinked from protocols
                     def agentsRemoved = false
                     while (!agentsRemoved) {
+                        if (counter++ > 100) {
+                            throw new IllegalStateException("Failed to purge agents: " + it.name)
+                        }
                         agentsRemoved = container.getService(AgentService.class).agentMap.isEmpty()
+                        Thread.sleep(100)
                     }
+
                     if (!TestFixture.assets.isEmpty()) {
                         println("Re-inserting ${TestFixture.assets.size()} asset(s)")
                         TestFixture.assets.forEach { a ->

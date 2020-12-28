@@ -170,9 +170,11 @@ public abstract class AbstractIoClientProtocol<T extends AbstractIoClientProtoco
 
     protected ProtocolIoClient<V, W> createIoClient() throws Exception {
         W client = doCreateIoClient();
+        ProtocolIoClient<V, W> protocolIoClient = new ProtocolIoClient<>(client, this::onConnectionStatusChanged, this::onMessageReceived);
+        this.client = protocolIoClient;
         Supplier<ChannelHandler[]> encoderDecoderProvider = getEncoderDecoderProvider();
         client.setEncoderDecoderProvider(encoderDecoderProvider);
-        return new ProtocolIoClient<>(client, this::onConnectionStatusChanged, this::onMessageReceived);
+        return protocolIoClient;
     }
 
     /**
