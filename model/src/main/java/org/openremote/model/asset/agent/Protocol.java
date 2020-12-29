@@ -166,7 +166,9 @@ public interface Protocol<T extends Agent<T, ?, ?>> {
 
     String DYNAMIC_VALUE_PLACEHOLDER_REGEXP = "\"?\\{\\$value}\"?";
 
-    //Specify to use time. First # delimiter used to specify format. Second # delimiter used to add or subtract millis
+    /**
+     * Specify to use time. First # delimiter used to specify format. Second # delimiter used to add or subtract millis
+     */
     String DYNAMIC_TIME_PLACEHOLDER_REGEXP = "\"?\\{\\$time#?([a-z,A-Z,\\-,\\s,:]*)#?(-?\\d*)?}\"?";
 
     /**

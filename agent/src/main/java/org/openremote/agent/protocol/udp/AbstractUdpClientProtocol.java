@@ -41,6 +41,6 @@ public abstract class AbstractUdpClientProtocol<T extends AbstractIoClientProtoc
         Integer port = agent.getPort().orElse(null);
         Integer bindPort = agent.getBindPort().orElse(null);
 
-        return (X) new UdpIoClient<W>(host, port, bindPort, executorService);
+        return (X) new UdpIoClient<W>(host, port, bindPort);
     }
 }

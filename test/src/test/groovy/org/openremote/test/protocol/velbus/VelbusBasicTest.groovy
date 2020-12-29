@@ -22,8 +22,8 @@ package org.openremote.test.protocol.velbus
 import org.openremote.agent.protocol.velbus.VelbusNetwork
 import org.openremote.agent.protocol.velbus.VelbusPacket
 import org.openremote.agent.protocol.velbus.device.*
+import org.openremote.container.Container
 import org.openremote.container.concurrent.ContainerScheduledExecutor
-import org.openremote.manager.concurrent.ManagerExecutorService
 import org.openremote.model.asset.agent.ConnectionStatus
 import spock.lang.Shared
 import spock.lang.Specification
@@ -804,12 +804,12 @@ class VelbusBasicTest extends Specification {
         VelbusNetwork.DELAY_BETWEEN_PACKET_WRITES_MILLISECONDS = 10
         VelbusDevice.INITIALISATION_TIMEOUT_MILLISECONDS = 10
         // Uncomment and configure the below lines to communicate with an actual VELBUS network
-//        def client = new VelbusSocketMessageProcessor("192.168.0.65", 6000, protocolExecutorService);
+//        def client = new VelbusSocketMessageProcessor("192.168.0.65", 6000);
 //        VelbusNetwork.DELAY_BETWEEN_PACKET_WRITES_MILLISECONDS = 100;
-//        def client = new VelbusSerialMessageProcessor("COM6", 38400, protocolExecutorService);
+//        def client = new VelbusSerialMessageProcessor("COM6", 38400);
 //        VelbusNetwork.DELAY_BETWEEN_PACKET_WRITES_MILLISECONDS = 100;
 
-        def scheduledTasksExecutor = new ContainerScheduledExecutor("Scheduled task", ManagerExecutorService.SCHEDULED_TASKS_THREADS_MAX_DEFAULT)
+        def scheduledTasksExecutor = new ContainerScheduledExecutor("Scheduled task", Container.SCHEDULED_TASKS_THREADS_MAX_DEFAULT)
         network = new VelbusNetwork(messageProcessor,  scheduledTasksExecutor, null)
 
         loadDevicePackets(VelbusBasicTest.messageProcessor)

@@ -26,8 +26,6 @@ import org.jboss.resteasy.core.Headers;
 import org.jboss.resteasy.specimpl.BuiltResponse;
 import org.jboss.resteasy.specimpl.ResponseBuilderImpl;
 import org.openremote.agent.protocol.AbstractProtocol;
-import org.openremote.agent.protocol.io.IoAgent;
-import org.openremote.container.web.HeaderInjectorFilter;
 import org.openremote.container.web.QueryParameterInjectorFilter;
 import org.openremote.container.web.WebTargetBuilder;
 import org.openremote.model.Container;
@@ -40,12 +38,14 @@ import org.openremote.model.auth.UsernamePassword;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.ValueType;
+import org.openremote.model.value.Values;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import java.lang.annotation.Annotation;
@@ -62,6 +62,8 @@ import java.util.logging.Logger;
 
 import static org.openremote.agent.protocol.http.HttpClientAgent.*;
 import static org.openremote.container.concurrent.GlobalLock.withLock;
+import static org.openremote.container.web.QueryParameterInjectorFilter.QUERY_PARAMETERS_PROPERTY;
+import static org.openremote.container.web.WebTargetBuilder.createClient;
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 
 /**
@@ -119,7 +121,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
     public static class HttpClientRequest {
 
         public String method;
-        public MultivaluedMap<String, String> headers;
+        public MultivaluedMap<String, Object> headers;
         public MultivaluedMap<String, String> queryParameters;
         public String path;
         protected String contentType;
@@ -131,7 +133,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
         public HttpClientRequest(WebTarget client,
                                  String path,
                                  String method,
-                                 MultivaluedMap<String, String> headers,
+                                 MultivaluedMap<String, Object> headers,
                                  MultivaluedMap<String, String> queryParameters,
                                  boolean pagingEnabled,
                                  String contentType) {
@@ -168,13 +170,12 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
         protected WebTarget createRequestTarget(String path) {
             WebTarget requestTarget = client.path(path == null ? "" : path);
 
-            if (headers != null) {
-                requestTarget.register(new HeaderInjectorFilter(headers));
-            }
-
             if (queryParameters != null) {
-                requestTarget.register(new QueryParameterInjectorFilter(queryParameters, dynamicQueryParameters ? DYNAMIC_VALUE_PLACEHOLDER_REGEXP : null,
-                    DYNAMIC_TIME_PLACEHOLDER_REGEXP));
+                @SuppressWarnings("unchecked")
+                MultivaluedMap<String, String> existingParams = (MultivaluedMap<String, String>) requestTarget.getConfiguration().getProperty(QUERY_PARAMETERS_PROPERTY);
+                existingParams = existingParams != null ? new MultivaluedHashMap<String, String>(existingParams) : new MultivaluedHashMap<String, String>();
+                queryParameters.forEach(existingParams::addAll);
+                requestTarget.property(QUERY_PARAMETERS_PROPERTY, existingParams);
             }
 
             return requestTarget;
@@ -191,8 +192,12 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
                 requestBuilder = createRequestTarget(path).request();
             }
 
+            if (headers != null) {
+                requestBuilder.headers(headers);
+            }
+
             if (dynamicQueryParameters) {
-                requestBuilder.property(QueryParameterInjectorFilter.DYNAMIC_VALUE, value);
+                requestBuilder.property(QueryParameterInjectorFilter.DYNAMIC_VALUE_PROPERTY, value);
             }
 
             return requestBuilder;
@@ -202,7 +207,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
             Invocation invocation;
 
             if (dynamicQueryParameters) {
-                requestBuilder.property(QueryParameterInjectorFilter.DYNAMIC_VALUE, value);
+                requestBuilder.property(QueryParameterInjectorFilter.DYNAMIC_VALUE_PROPERTY, value);
             }
 
             if (method != null && !HttpMethod.GET.equals(method) && value != null) {
@@ -218,12 +223,6 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
             Invocation.Builder requestBuilder = getRequestBuilder(value);
             Invocation invocation = buildInvocation(requestBuilder, value);
             return invocation.invoke();
-        }
-
-        protected Future<Response> submit(String dynamicRequestValue) {
-            Invocation.Builder requestBuilder = getRequestBuilder(dynamicRequestValue);
-            Invocation invocation = buildInvocation(requestBuilder, dynamicRequestValue);
-            return invocation.submit();
         }
 
         @Override
@@ -282,15 +281,14 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
     protected final Map<AttributeRef, HttpClientRequest> requestMap = new HashMap<>();
     protected final Map<AttributeRef, ScheduledFuture<?>> pollingMap = new HashMap<>();
     protected final Map<AttributeRef, Set<AttributeRef>> pollingLinkedAttributeMap = new HashMap<>();
-    protected ResteasyClient client;
+    protected static ResteasyClient client;
+
+    static {
+        client = createClient(org.openremote.container.Container.EXECUTOR_SERVICE);
+    }
 
     public HttpClientProtocol(HttpClientAgent agent) {
         super(agent);
-        client = createClient();
-    }
-
-    protected ResteasyClient createClient() {
-        return WebTargetBuilder.createClient(executorService);
     }
 
     @Override
@@ -365,8 +363,8 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
         String path = agentLink.getPath().orElse(null);
         String contentType = agentLink.getContentType().orElse(null);
 
-        ValueType.MultivaluedStringMap headers = agentLink.getHeaders().orElse(null);
-        ValueType.MultivaluedStringMap queryParams = agentLink.getQueryParameters().orElse(null);
+        Map<String, List<String>> headers = agentLink.getHeaders().orElse(null);
+        Map<String, List<String>> queryParams = agentLink.getQueryParameters().orElse(null);
         Integer pollingMillis = agentLink.getPollingMillis().map(millis -> Math.max(millis, MIN_POLLING_MILLIS)).orElse(null);
         boolean pagingEnabled = agentLink.getPagingMode().orElse(false);
         String pollingAttribute = agentLink.getPollingAttribute().orElse(null);
@@ -392,8 +390,8 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
             path,
             method,
             body,
-            headers,
-            queryParams,
+            headers != null ? WebTargetBuilder.mapToMultivaluedMap(headers, new MultivaluedHashMap<String, Object>()) : null,
+            queryParams != null ? WebTargetBuilder.mapToMultivaluedMap(queryParams, new MultivaluedHashMap<String, String>()) : null,
             pagingEnabled,
             contentType,
             pollingMillis);
@@ -437,14 +435,14 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
 
     @Override
     public String getProtocolInstanceUri() {
-        return webTarget.getUri().toString();
+        return webTarget != null ? webTarget.getUri().toString() : agent.getBaseURI().orElse("");
     }
 
     protected void addHttpClientRequest(AttributeRef attributeRef,
                                         String path,
                                         String method,
                                         String body,
-                                        MultivaluedMap<String, String> headers,
+                                        MultivaluedMap<String, Object> headers,
                                         MultivaluedMap<String, String> queryParams,
                                         boolean pagingEnabled,
                                         String contentType,
@@ -476,7 +474,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
         });
     }
 
-    protected HttpClientRequest buildClientRequest(String path, String method, MultivaluedMap<String, String> headers, MultivaluedMap<String, String> queryParams, boolean pagingEnabled, String contentType) {
+    protected HttpClientRequest buildClientRequest(String path, String method, MultivaluedMap<String, Object> headers, MultivaluedMap<String, String> queryParams, boolean pagingEnabled, String contentType) {
         return new HttpClientRequest(
                 webTarget,
                 path,
@@ -547,7 +545,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
     protected void executeAttributeWriteRequest(HttpClientRequest clientRequest,
                                                 Object attributeValue,
                                                 Consumer<Response> responseConsumer) {
-        String valueStr = attributeValue == null ? null : attributeValue.toString();
+        String valueStr = attributeValue == null ? null : Values.convert(attributeValue, String.class);
         Response response = null;
 
         try {
@@ -611,4 +609,5 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
             }
         });
     }
+
 }

@@ -21,6 +21,7 @@ package org.openremote.test.protocol.websocket
 
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.agent.protocol.websocket.WebsocketClientAgent
+import org.openremote.agent.protocol.websocket.WebsocketClientProtocol
 import org.openremote.agent.protocol.websocket.WebsocketHttpSubscription
 import org.openremote.agent.protocol.websocket.WebsocketSubscription
 import org.openremote.manager.agent.AgentService
@@ -58,16 +59,15 @@ import javax.ws.rs.client.ClientRequestContext
 import javax.ws.rs.client.ClientRequestFilter
 import javax.ws.rs.core.HttpHeaders
 import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.MultivaluedHashMap
 import javax.ws.rs.core.Response
 
 import static org.openremote.container.util.MapAccess.getString
-import static org.openremote.model.value.ValueType.*
-import static org.openremote.model.value.MetaItemType.*
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.Constants.MASTER_REALM_ADMIN_USER
+import static org.openremote.model.value.MetaItemType.AGENT_LINK
+import static org.openremote.model.value.ValueType.NUMBER
 
 class WebsocketClientProtocolTest extends Specification implements ManagerContainerTrait {
 
@@ -125,8 +125,8 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
 
         when: "the web target builder is configured to use the mock HTTP server (to test subscriptions)"
-        if (!websocketClientProtocol.client.configuration.isRegistered(mockServer)) {
-            websocketClientProtocol.client.register(mockServer, Integer.MAX_VALUE)
+        if (!WebsocketClientProtocol.resteasyClient.configuration.isRegistered(mockServer)) {
+            WebsocketClientProtocol.resteasyClient.register(mockServer, Integer.MAX_VALUE)
         }
 
         and: "an agent with a websocket client protocol configuration is created to connect to this tests manager"
@@ -145,17 +145,17 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                         AttributeEvent.class,
                         new AssetFilter<AttributeEvent>().setAssetIds(managerTestSetup.apartment1LivingroomId),
                         "1",
-                        null))),
+                        null)).orElse(null)),
                 new WebsocketHttpSubscription()
                     .contentType(MediaType.APPLICATION_JSON)
                     .method(WebsocketHttpSubscription.Method.POST)
-                    .headers(new MultivaluedHashMap<String, String>([
-                        "header1" : ["header1Value1"] as String[],
-                        "header2" : ["header2Value1", "header2Value2"] as String[]
+                    .headers(new HashMap<String, List<String>>([
+                        "header1" : ["header1Value1"],
+                        "header2" : ["header2Value1", "header2Value2"]
                     ]))
                     .uri("https://mockapi/assets")
                     .body(
-                        Values.asJSON(new AssetQuery().ids(managerTestSetup.apartment1LivingroomId))
+                        Values.asJSON(new AssetQuery().ids(managerTestSetup.apartment1LivingroomId)).orElse(null)
                     )
                 ] as WebsocketSubscription[]
             )
@@ -182,13 +182,14 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                 new Attribute<>("readWriteTargetTemp", NUMBER)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
-                            .setWriteValue("\'" + SharedEvent.MESSAGE_PREFIX +
+                            .setWriteValue(("\"" + SharedEvent.MESSAGE_PREFIX +
                                 Values.asJSON(new AttributeEvent(
                                     managerTestSetup.apartment1LivingroomId,
                                     "targetTemperature",
                                     0.12345))
-                                    .orElse(Values.NULL_LITERAL).replace("0.12345", Protocol.DYNAMIC_VALUE_PLACEHOLDER) +
-                                "\'")
+                                    .orElse(Values.NULL_LITERAL) + "\"")
+                                        .replace("0.12345", Protocol.DYNAMIC_VALUE_PLACEHOLDER)
+                                        .replace("\r\n", ""))
                         .setMessageMatchFilters(
                             [
                                 new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
@@ -208,7 +209,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                             [
                                 new WebsocketSubscription().body(SharedEvent.MESSAGE_PREFIX + Values.asJSON(
                                     new ReadAttributeEvent(managerTestSetup.apartment1LivingroomId, "targetTemperature")
-                                ))
+                                ).orElse(null))
                             ] as WebsocketSubscription[]
                         ))
                     ),
@@ -234,7 +235,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                                 [
                                     new WebsocketSubscription().body(SharedEvent.MESSAGE_PREFIX + Values.asJSON(
                                         new ReadAttributeEvent(managerTestSetup.apartment1LivingroomId, "co2Level")
-                                    ))
+                                    ).orElse(null))
                                 ] as WebsocketSubscription[]
                             ))
                     )

@@ -281,9 +281,9 @@ class ControllerProtocolTest extends Specification implements ManagerContainerTr
                 new Attribute<>("command", STRING, "command1")
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new ControllerAgent.ControllerAgentLink(agent3.id, "DeviceName2")
-                            .setCommandsMap(new MultivaluedStringMap([
-                                ("command1") : ("my_command"),
-                                ("command2") : ("wrong")
+                            .setCommandsMap(new HashMap<String, List<String>>([
+                                ("command1") : ["my_command"],
+                                ("command2") : ["wrong"]
                             ]))
                         )
                     )

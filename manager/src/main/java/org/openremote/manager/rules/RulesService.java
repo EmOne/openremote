@@ -30,7 +30,6 @@ import org.openremote.manager.asset.AssetProcessingException;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.asset.AssetUpdateProcessor;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.datapoint.AssetDatapointService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.gateway.GatewayService;
@@ -63,6 +62,7 @@ import org.openremote.model.value.Values;
 
 import javax.persistence.EntityManager;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -109,7 +109,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     protected final Map<String, RulesEngine<AssetRuleset>> assetEngines = new HashMap<>();
     protected List<GeofenceAssetAdapter> geofenceAssetAdapters = new ArrayList<>();
     protected TimerService timerService;
-    protected ManagerExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected PersistenceService persistenceService;
     protected RulesetStorageService rulesetStorageService;
     protected ManagerIdentityService identityService;
@@ -139,8 +139,8 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
 
     @Override
     public void init(Container container) throws Exception {
+        executorService = container.getExecutorService();
         timerService = container.getService(TimerService.class);
-        executorService = container.getService(ManagerExecutorService.class);
         persistenceService = container.getService(PersistenceService.class);
         rulesetStorageService = container.getService(RulesetStorageService.class);
         identityService = container.getService(ManagerIdentityService.class);

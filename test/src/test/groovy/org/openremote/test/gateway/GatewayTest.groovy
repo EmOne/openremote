@@ -4,23 +4,14 @@ import com.google.common.collect.Lists
 import io.netty.channel.ChannelHandler
 import org.apache.http.client.utils.URIBuilder
 import org.openremote.agent.protocol.http.HttpClientAgent
-import org.openremote.agent.protocol.http.HttpClientProtocol
 import org.openremote.agent.protocol.io.AbstractNettyIoClient
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.agent.protocol.websocket.WebsocketIoClient
-import org.openremote.container.Container
 import org.openremote.container.timer.TimerService
 import org.openremote.container.util.UniqueIdentifierGenerator
 import org.openremote.manager.agent.AgentService
-import org.openremote.model.Constants
-import org.openremote.model.asset.impl.BuildingAsset
-import org.openremote.model.asset.impl.GatewayAsset
-import org.openremote.model.asset.impl.MicrophoneAsset
-import org.openremote.model.asset.impl.RoomAsset
-import org.openremote.model.auth.OAuthClientCredentialsGrant
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-import org.openremote.manager.concurrent.ManagerExecutorService
 import org.openremote.manager.gateway.GatewayClientService
 import org.openremote.manager.gateway.GatewayConnector
 import org.openremote.manager.gateway.GatewayService
@@ -30,7 +21,15 @@ import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.*
 import org.openremote.model.asset.agent.ConnectionStatus
-import org.openremote.model.attribute.*
+import org.openremote.model.asset.impl.BuildingAsset
+import org.openremote.model.asset.impl.GatewayAsset
+import org.openremote.model.asset.impl.MicrophoneAsset
+import org.openremote.model.asset.impl.RoomAsset
+import org.openremote.model.attribute.Attribute
+import org.openremote.model.attribute.AttributeEvent
+import org.openremote.model.attribute.AttributeRef
+import org.openremote.model.attribute.MetaItem
+import org.openremote.model.auth.OAuthClientCredentialsGrant
 import org.openremote.model.event.shared.EventRequestResponseWrapper
 import org.openremote.model.event.shared.SharedEvent
 import org.openremote.model.gateway.GatewayClientResource
@@ -38,8 +37,6 @@ import org.openremote.model.gateway.GatewayConnection
 import org.openremote.model.geo.GeoJSONPoint
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.TenantPredicate
-import org.openremote.model.value.MetaItemType
-import org.openremote.model.value.ValueType
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
@@ -56,9 +53,9 @@ import static org.openremote.manager.gateway.GatewayConnector.mapAssetId
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
 import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
-import static org.openremote.model.value.ValueType.*
-import static org.openremote.model.value.MetaItemType.*
 import static org.openremote.model.util.TextUtil.isNullOrEmpty
+import static org.openremote.model.value.MetaItemType.*
+import static org.openremote.model.value.ValueType.*
 
 class GatewayTest extends Specification implements ManagerContainerTrait {
 
@@ -68,7 +65,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         def conditions = new PollingConditions(timeout: 10, delay: 0.2)
         def container = startContainer(defaultConfig(), defaultServices())
         def assetProcessingService = container.getService(AssetProcessingService.class)
-        def executorService = container.getService(ManagerExecutorService.class)
+        def executorService = container.getExecutorService()
         def timerService = container.getService(TimerService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
         def agentService = container.getService(AgentService.class)
@@ -112,8 +109,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             new OAuthClientCredentialsGrant("http://127.0.0.1:$serverPort/auth/realms/$managerTestSetup.realmBuildingTenant/protocol/openid-connect/token",
                 gateway.getClientId().orElse(""),
                 gateway.getClientSecret().orElse(""),
-                null).setBasicAuthHeader(true),
-            executorService)
+                null).setBasicAuthHeader(true))
         gatewayClient.setEncoderDecoderProvider({
             [new AbstractNettyIoClient.MessageToMessageDecoder<String>(String.class, gatewayClient)].toArray(new ChannelHandler[0])
         })
@@ -459,7 +455,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
                     responseFuture.get().cancel(false)
                 }
             }
-        }, 100, 100))
+        }, 100, 100, TimeUnit.MILLISECONDS))
         assetStorageService.merge(localBuilding1Room5Asset)
         localBuilding1Room5Asset = assetStorageService.find(mapAssetId(gateway.id, building1Room5AssetId, false)) // Re-fetch asset as modifying instance returned by merge will cause concurrency issues
 
@@ -483,7 +479,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
                     responseFuture.get().cancel(false)
                 }
             }
-        }, 100, 100))
+        }, 100, 100, TimeUnit.MILLISECONDS))
         localBuilding1Room5Asset = assetStorageService.merge(localBuilding1Room5Asset)
         def version = localBuilding1Room5Asset.version
         localBuilding1Room5Asset = assetStorageService.find(mapAssetId(gateway.id, building1Room5AssetId, false)) // Re-fetch asset as modifying instance returned by merge will cause concurrency issues
@@ -512,7 +508,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
                     responseFuture.get().cancel(false)
                 }
             }
-        }, 100, 100))
+        }, 100, 100, TimeUnit.MILLISECONDS))
         def deleted = assetStorageService.delete([mapAssetId(gateway.id, building1Room5AssetId, false)])
 
         then: "the asset should have been deleted"

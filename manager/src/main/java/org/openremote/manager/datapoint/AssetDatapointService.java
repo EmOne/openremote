@@ -9,7 +9,6 @@ import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingException;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.asset.AssetUpdateProcessor;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebService;
 import org.openremote.model.asset.Asset;
@@ -37,7 +36,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -63,7 +64,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
     protected PersistenceService persistenceService;
     protected AssetStorageService assetStorageService;
     protected TimerService timerService;
-    protected ManagerExecutorService managerExecutorService;
+    protected ScheduledExecutorService executorService;
     protected int maxDatapointAgeDays;
     protected ScheduledFuture<?> dataPointsPurgeScheduledFuture;
 
@@ -77,7 +78,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
         persistenceService = container.getService(PersistenceService.class);
         assetStorageService = container.getService(AssetStorageService.class);
         timerService = container.getService(TimerService.class);
-        managerExecutorService = container.getService(ManagerExecutorService.class);
+        executorService = container.getExecutorService();
 
         container.getService(ManagerWebService.class).getApiSingletons().add(
                 new AssetDatapointResourceImpl(
@@ -98,11 +99,11 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
     @Override
     public void start(Container container) throws Exception {
         if (maxDatapointAgeDays > 0) {
-            dataPointsPurgeScheduledFuture = managerExecutorService.scheduleAtFixedRate(
+            dataPointsPurgeScheduledFuture = executorService.scheduleAtFixedRate(
                     this::purgeDataPoints,
 
                 getFirstRunMillis(timerService.getNow()),
-                Duration.ofDays(1).toMillis());
+                Duration.ofDays(1).toMillis(), TimeUnit.MILLISECONDS);
         }
     }
 

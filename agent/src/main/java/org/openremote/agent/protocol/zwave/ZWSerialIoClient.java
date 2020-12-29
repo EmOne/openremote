@@ -20,7 +20,6 @@
 package org.openremote.agent.protocol.zwave;
 
 import io.netty.channel.ChannelHandler;
-import org.openremote.agent.protocol.ProtocolExecutorService;
 import org.openremote.agent.protocol.io.AbstractNettyIoClient;
 import org.openremote.agent.protocol.serial.SerialIoClient;
 import org.openremote.controller.protocol.zwave.ZWaveCommandBuilder;
@@ -57,8 +56,8 @@ public class ZWSerialIoClient extends SerialIoClient<byte[]> implements Transpor
 
     // Constructors -------------------------------------------------------------------------------
 
-    public ZWSerialIoClient(String port, ProtocolExecutorService executorService) {
-        super(port, 115200, executorService);
+    public ZWSerialIoClient(String port) {
+        super(port, 115200);
 
         setEncoderDecoderProvider(
             () -> new ChannelHandler[] {

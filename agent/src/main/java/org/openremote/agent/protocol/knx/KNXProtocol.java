@@ -77,7 +77,7 @@ public class KNXProtocol extends AbstractProtocol<KNXAgent, KNXAgent.KNXAgentLin
         Integer gatewayPort = agent.getPort().orElse(3671);
         String messageSourceAddress = agent.getMessageSourceAddress().orElse("0.0.0");
 
-        connection = new KNXConnection(gatewayAddress, bindAddress, gatewayPort, messageSourceAddress, isRouting, isNat, executorService);
+        connection = new KNXConnection(gatewayAddress, bindAddress, gatewayPort, messageSourceAddress, isRouting, isNat);
         connection.addConnectionStatusConsumer(this::setConnectionStatus);
         connection.connect();
     }

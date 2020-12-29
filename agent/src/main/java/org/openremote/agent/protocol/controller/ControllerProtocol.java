@@ -49,6 +49,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -95,7 +96,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
     public static final int HEARTBEAT_DELAY_SECONDS = 5;
     public static final String PROTOCOL_DISPLAY_NAME = "Controller Client";
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, ControllerProtocol.class);
-    private final Map<String, ScheduledFuture<?>> pollingSensorList = new HashMap<>();
+    private final Map<String, Future<?>> pollingSensorList = new HashMap<>();
     protected ResteasyClient client;
     private Controller controller;
     private ResteasyWebTarget controllerWebTarget;
@@ -143,7 +144,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
         super.setConnectionStatus(connectionStatus);
 
         if (connectionStatus.equals(ConnectionStatus.DISCONNECTED)) {
-            for (ScheduledFuture<?> task : this.pollingSensorList.values()) {
+            for (Future<?> task : this.pollingSensorList.values()) {
                 task.cancel(true);
             }
         }
@@ -169,7 +170,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
         String commandDeviceName = agentLink.getCommandDeviceName().orElse(null);
         String commandName = agentLink.getCommandName().orElse(null);
 
-        ValueType.MultivaluedStringMap commandsMap = agentLink.getCommandsMap().orElse(null);
+        Map<String, List<String>> commandsMap = agentLink.getCommandsMap().orElse(null);
 
         /*
          * Build Sensor Status info for polling request
@@ -248,7 +249,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
     /**
      * Convert commands map received as {@link MultivaluedMap} into a simple {@link Map}
      */
-    private Map<String, String> computeCommandsMapFromMultiValue(MultivaluedMap<String, String> multivaluedMap) {
+    private Map<String, String> computeCommandsMapFromMultiValue(Map<String, List<String>> multivaluedMap) {
         Map<String, String> commandsMap = new HashMap<>();
 
         for (Map.Entry<String, List<String>> entry : multivaluedMap.entrySet()) {
@@ -260,8 +261,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
 
     private void collectInitialStatus(AttributeRef attributeRef, String deviceName, String sensorName) {
         this.executorService
-            .schedule(() -> this.executeInitialStatus(attributeRef, deviceName, sensorName, response -> onInitialStatusResponse(attributeRef, deviceName, sensorName, response)),
-                0);
+            .submit(() -> this.executeInitialStatus(attributeRef, deviceName, sensorName, response -> onInitialStatusResponse(attributeRef, deviceName, sensorName, response)));
     }
 
     private void executeInitialStatus(AttributeRef attributeRef, String deviceName, String sensorName, Consumer<Response> responseConsumer) {
@@ -319,7 +319,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
      * Compute the polling request for a given deviceName and controller. Method check all registered sensor's (linked
      * to the Protocol) and collect all sensor's name to put them into polling request
      */
-    private ScheduledFuture<?> computePollingTask(String deviceName) {
+    private Future<?> computePollingTask(String deviceName) {
         return withLockReturning(getProtocolName() + "::computePollingTask::" + deviceName, () -> {
             List<String> sensorNameList = controller.collectSensorNameLinkedToDeviceName(deviceName);
 
@@ -327,8 +327,8 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
                 return null;
             }
 
-            return executorService.schedule(() -> executePollingRequest(deviceName, sensorNameList,
-                response -> onPollingResponse(deviceName, sensorNameList, response)), 0);
+            return executorService.submit(() -> executePollingRequest(deviceName, sensorNameList,
+                response -> onPollingResponse(deviceName, sensorNameList, response)));
         });
     }
 
@@ -518,7 +518,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
      * We check if there is sensor to poll for the given device name.
      */
     private void schedulePollingTask(String deviceName) {
-        ScheduledFuture<?> scheduledFuture = computePollingTask(deviceName);
+        Future<?> scheduledFuture = computePollingTask(deviceName);
 
         if (scheduledFuture != null) {
             pollingSensorList.put(deviceName, scheduledFuture);

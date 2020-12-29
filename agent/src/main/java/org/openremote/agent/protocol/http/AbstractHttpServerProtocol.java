@@ -93,15 +93,13 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
     public static final Pattern PATH_REGEX = Pattern.compile("^[\\w/_]+$", Pattern.CASE_INSENSITIVE);
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, AbstractHttpServerProtocol.class);
     public static final HttpMethod[] DEFAULT_ALLOWED_METHODS = HttpMethod.values();
-    public static final String DEFAULT_DEPLOYMENT_NAME_FORMAT = "HttpServer %1$s Deployment %2$d";
-    protected static DeploymentInstance deployment;
+    protected DeploymentInstance deployment;
     protected static WebServiceExceptions.DefaultResteasyExceptionMapper defaultResteasyExceptionMapper;
     protected static WebServiceExceptions.ForbiddenResteasyExceptionMapper forbiddenResteasyExceptionMapper;
     protected static JacksonConfig jacksonConfig;
     protected static AlreadyGzippedWriterInterceptor alreadyGzippedWriterInterceptor;
     protected static ClientErrorExceptionHandler clientErrorExceptionHandler;
     protected static WebServiceExceptions.ServletUndertowExceptionHandler undertowExceptionHandler;
-    protected int deploymentCounter = 0;
     protected Container container;
     protected boolean devMode;
     protected IdentityService identityService;
@@ -271,8 +269,7 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
      * Get a unique deployment name for this instance.
      */
     protected String getDeploymentName() {
-        deploymentCounter++;
-        return String.format(DEFAULT_DEPLOYMENT_NAME_FORMAT, getClass().getSimpleName(), deploymentCounter);
+        return "HttpServerProtocol=" + getClass().getSimpleName() + ",  Agent ID=" + agent.getId();
     }
 
     protected void deploy(DeploymentInfo deploymentInfo) {
@@ -324,8 +321,10 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
                     + deployment.deploymentInfo.getContextPath());
             webService.getRequestHandlers().remove(deployment.requestHandler);
             DeploymentManager manager = Servlets.defaultContainer().getDeployment(deployment.deploymentInfo.getDeploymentName());
-            manager.stop();
-            manager.undeploy();
+            if (manager != null) {
+                manager.stop();
+                manager.undeploy();
+            }
             Servlets.defaultContainer().removeDeployment(deployment.deploymentInfo);
         } catch (Exception ex) {
             LOG.log(Level.WARNING,

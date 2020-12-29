@@ -34,6 +34,7 @@ import org.hibernate.internal.util.SerializationHelper;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.TextUtil;
 
+import javax.ws.rs.core.MultivaluedMap;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
@@ -396,6 +397,12 @@ public class Values {
     public static <T> T convert(Object object, Class<T> targetType) {
         if (object == null) {
             return null;
+        }
+        if (targetType == String.class) {
+            if (object instanceof TextNode) {
+                return (T) ((TextNode)object).textValue();
+            }
+            return (T) asJSON(object).orElse(null);
         }
         return JSON.convertValue(object, targetType);
     }

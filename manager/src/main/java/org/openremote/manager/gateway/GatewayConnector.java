@@ -22,7 +22,6 @@ package org.openremote.manager.gateway;
 import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.model.asset.*;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.asset.impl.GatewayAsset;
@@ -35,7 +34,9 @@ import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.Pair;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -66,7 +67,7 @@ public class GatewayConnector {
     protected final String realm;
     protected final String gatewayId;
     protected final AssetStorageService assetStorageService;
-    protected final ManagerExecutorService executorService;
+    protected final ScheduledExecutorService executorService;
     protected final AssetProcessingService assetProcessingService;
     protected final Map<String, Asset<?>> pendingAssetMerges = new HashMap<>();
     protected final AtomicReference<EventRequestResponseWrapper<DeleteAssetsRequestEvent>> pendingAssetDelete = new AtomicReference<>();
@@ -124,7 +125,7 @@ public class GatewayConnector {
     public GatewayConnector(
         AssetStorageService assetStorageService,
         AssetProcessingService assetProcessingService,
-        ManagerExecutorService executorService,
+        ScheduledExecutorService executorService,
         GatewayAsset gateway) {
 
         this.assetStorageService = assetStorageService;
@@ -273,7 +274,7 @@ public class GatewayConnector {
         sendMessageToGateway(new EventRequestResponseWrapper<>(
             ASSET_READ_EVENT_NAME_INITIAL,
             new ReadAssetsEvent(new AssetQuery().select(selectExcludeAll()).recursive(true))));
-        syncProcessorFuture = executorService.schedule(this::onSyncAssetsTimeout, SYNC_TIMEOUT_MILLIS);
+        syncProcessorFuture = executorService.schedule(this::onSyncAssetsTimeout, SYNC_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -334,7 +335,7 @@ public class GatewayConnector {
                 )
             )
         );
-        syncProcessorFuture = executorService.schedule(this::requestAssets, SYNC_TIMEOUT_MILLIS);
+        syncProcessorFuture = executorService.schedule(this::requestAssets, SYNC_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     synchronized protected void onSyncAssetsResponse(String messageId, AssetsEvent e) {

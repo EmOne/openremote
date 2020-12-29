@@ -28,7 +28,6 @@ import io.netty.handler.codec.bytes.ByteArrayDecoder
 import org.openremote.agent.protocol.udp.UdpClientAgent
 import org.openremote.model.asset.agent.Agent
 import org.openremote.model.asset.agent.AgentLink
-import org.openremote.agent.protocol.ProtocolExecutorService
 import org.openremote.agent.protocol.udp.AbstractUdpServer
 import org.openremote.agent.protocol.udp.UdpClientProtocol
 import org.openremote.agent.protocol.udp.UdpStringServer
@@ -57,7 +56,6 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
 
         and: "the container starts"
         def container = startContainer(defaultConfig(), defaultServices())
-        def protocolExecutorService = container.getService(ProtocolExecutorService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
         def agentService = container.getService(AgentService.class)
@@ -70,7 +68,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         when: "a simple UDP echo server is started"
         def echoServerPort = findEphemeralPort()
         def clientPort = findEphemeralPort()
-        AbstractUdpServer echoServer = new UdpStringServer(protocolExecutorService, new InetSocketAddress("127.0.0.1", echoServerPort), ";", Integer.MAX_VALUE, true)
+        AbstractUdpServer echoServer = new UdpStringServer(new InetSocketAddress("127.0.0.1", echoServerPort), ";", Integer.MAX_VALUE, true)
         def echoSkipCount = 0
         def clientActualPort = null
         def lastCommand = null
@@ -200,7 +198,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         when: "the echo server is changed to a byte based server"
         echoServer.stop()
         echoServer.removeAllMessageConsumers()
-        echoServer = new AbstractUdpServer<byte[]>(protocolExecutorService, new InetSocketAddress(echoServerPort)) {
+        echoServer = new AbstractUdpServer<byte[]>(new InetSocketAddress(echoServerPort)) {
 
             @Override
             protected void addDecoders(DatagramChannel channel) {

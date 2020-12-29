@@ -23,12 +23,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import javax.ws.rs.core.MultivaluedMap;
+import java.util.Collections;
+
 @JsonTypeName(OAuthPasswordGrant.PASSWORD_GRANT_TYPE)
 public class OAuthPasswordGrant extends OAuthClientCredentialsGrant {
 
     public static final String VALUE_KEY_USERNAME = "username";
     public static final String VALUE_KEY_PASSWORD = "password";
     public static final String PASSWORD_GRANT_TYPE = "password";
+    protected String username;
+    protected String password;
 
     @JsonCreator
     public OAuthPasswordGrant(@JsonProperty("tokenEndpointUri") String tokenEndpointUri,
@@ -49,21 +54,27 @@ public class OAuthPasswordGrant extends OAuthClientCredentialsGrant {
                                  String password
                                  ) {
         super(tokenEndpointUri, grantType, clientId, clientSecret, scope);
-        valueMap.add(VALUE_KEY_USERNAME, username);
-        valueMap.add(VALUE_KEY_PASSWORD, password);
+        this.username = username;
+        this.password = password;
     }
 
-    @JsonProperty
     public String getUsername() {
-        return valueMap.getFirst(VALUE_KEY_USERNAME);
+        return username;
     }
 
-    @JsonProperty
     public String getPassword() {
-        return valueMap.getFirst(VALUE_KEY_PASSWORD);
+        return password;
     }
 
     public OAuthPasswordGrant setBasicAuthHeader(boolean basicAuthHeader) {
         return (OAuthPasswordGrant)super.setBasicAuthHeader(basicAuthHeader);
+    }
+
+    @Override
+    public MultivaluedMap<String, String> asMultivaluedMap() {
+        MultivaluedMap<String, String> valueMap = super.asMultivaluedMap();
+        valueMap.put(VALUE_KEY_USERNAME, Collections.singletonList(username));
+        valueMap.put(VALUE_KEY_PASSWORD, Collections.singletonList(password));
+        return valueMap;
     }
 }

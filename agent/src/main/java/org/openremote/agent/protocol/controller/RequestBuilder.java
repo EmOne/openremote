@@ -30,7 +30,6 @@ import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * Request's builder created for {@link ControllerProtocol}
@@ -41,8 +40,8 @@ public class RequestBuilder {
      * Default header used for every request.
      * We're working with JSON object in response
      */
-    private static MultivaluedMap<String, String> getDefaultHeaders() {
-        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+    private static MultivaluedMap<String, Object> getDefaultHeaders() {
+        MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
 
         headers.addAll("Accept", MediaType.APPLICATION_JSON);
 

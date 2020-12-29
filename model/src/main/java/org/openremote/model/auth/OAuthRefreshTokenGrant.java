@@ -23,18 +23,21 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import javax.ws.rs.core.MultivaluedMap;
+import java.util.Collections;
+
 @JsonTypeName(OAuthRefreshTokenGrant.REFRESH_TOKEN_GRANT_TYPE)
 public class OAuthRefreshTokenGrant extends OAuthClientCredentialsGrant {
 
     public static final String REFRESH_TOKEN_GRANT_TYPE = "refresh_token";
-    public static final String VALUE_KEY_REFRESH_TOKEN = "refresh_token";
-
+    @JsonProperty(REFRESH_TOKEN_GRANT_TYPE)
+    protected String refreshToken;
     @JsonCreator
     public OAuthRefreshTokenGrant(@JsonProperty("tokenEndpointUri") String tokenEndpointUri,
                                   @JsonProperty(VALUE_KEY_CLIENT_ID) String clientId,
                                   @JsonProperty(VALUE_KEY_CLIENT_SECRET) String clientSecret,
                                   @JsonProperty(VALUE_KEY_SCOPE) String scope,
-                                  @JsonProperty(VALUE_KEY_REFRESH_TOKEN) String refreshToken) {
+                                  @JsonProperty(REFRESH_TOKEN_GRANT_TYPE) String refreshToken) {
         this(tokenEndpointUri, REFRESH_TOKEN_GRANT_TYPE, clientId, clientSecret, scope, refreshToken);
     }
 
@@ -45,15 +48,22 @@ public class OAuthRefreshTokenGrant extends OAuthClientCredentialsGrant {
                                      String scope,
                                      String refreshToken) {
         super(tokenEndpointUri, grantType, clientId, clientSecret, scope);
-        valueMap.add(VALUE_KEY_REFRESH_TOKEN, refreshToken);
+        this.refreshToken = refreshToken;
     }
 
     @JsonProperty
     public String getRefreshToken() {
-        return valueMap.getFirst(VALUE_KEY_REFRESH_TOKEN);
+        return refreshToken;
     }
 
     public OAuthRefreshTokenGrant setBasicAuthHeader(boolean basicAuthHeader) {
         return (OAuthRefreshTokenGrant)super.setBasicAuthHeader(basicAuthHeader);
+    }
+
+    @Override
+    public MultivaluedMap<String, String> asMultivaluedMap() {
+        MultivaluedMap<String, String> valueMap = super.asMultivaluedMap();
+        valueMap.put(REFRESH_TOKEN_GRANT_TYPE, Collections.singletonList(refreshToken));
+        return valueMap;
     }
 }

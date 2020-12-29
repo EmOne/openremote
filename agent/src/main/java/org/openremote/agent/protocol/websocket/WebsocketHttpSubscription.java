@@ -19,7 +19,10 @@
  */
 package org.openremote.agent.protocol.websocket;
 
-import javax.ws.rs.core.MultivaluedHashMap;
+import org.openremote.model.value.ValueType;
+
+import java.util.List;
+import java.util.Map;
 
 public class WebsocketHttpSubscription extends WebsocketSubscription {
 
@@ -33,7 +36,7 @@ public class WebsocketHttpSubscription extends WebsocketSubscription {
 
     public Method method;
     public String contentType;
-    public MultivaluedHashMap<String, String> headers;
+    public Map<String, List<String>> headers;
     public String uri;
 
     public WebsocketHttpSubscription() {
@@ -50,7 +53,7 @@ public class WebsocketHttpSubscription extends WebsocketSubscription {
         return this;
     }
 
-    public WebsocketHttpSubscription headers(MultivaluedHashMap<String, String> headers) {
+    public WebsocketHttpSubscription headers(Map<String, List<String>> headers) {
         this.headers = headers;
         return this;
     }

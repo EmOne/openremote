@@ -197,7 +197,7 @@ trait ContainerTrait {
                     def agentsRemoved = false
                     while (!agentsRemoved) {
                         if (counter++ > 100) {
-                            throw new IllegalStateException("Failed to purge agents: " + it.name)
+                            throw new IllegalStateException("Failed to purge agents")
                         }
                         agentsRemoved = container.getService(AgentService.class).agentMap.isEmpty()
                         Thread.sleep(100)

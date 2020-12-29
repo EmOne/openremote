@@ -41,6 +41,6 @@ public abstract class AbstractSerialClientProtocol<T extends AbstractIoClientPro
         String port = agent.getSerialPort().orElse(null);
         Integer baudrate = agent.getSerialBaudrate().orElse(null);
 
-        return (X) new SerialIoClient<W>(port, baudrate, executorService);
+        return (X) new SerialIoClient<W>(port, baudrate);
     }
 }

@@ -150,7 +150,7 @@ public class MqttBrokerService implements ContainerService {
         LOG.fine("Stopped MQTT broker");
     }
 
-    public void sendAttributeEvent(String clientId, AttributeEvent attributeEvent) {
+    protected void sendAttributeEvent(String clientId, AttributeEvent attributeEvent) {
         try {
             ByteBuf payload = Unpooled.copiedBuffer(Values.JSON.writeValueAsString(attributeEvent), Charset.defaultCharset());
 

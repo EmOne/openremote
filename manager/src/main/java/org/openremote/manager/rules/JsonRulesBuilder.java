@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.notification.EmailNotificationMessage;
@@ -43,6 +42,7 @@ import org.openremote.model.value.Values;
 import org.quartz.CronExpression;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -483,13 +483,13 @@ public class JsonRulesBuilder extends RulesBuilder {
     final protected Notifications notificationsFacade;
     final protected HistoricDatapoints historicDatapointsFacade;
     final protected PredictedDatapoints predictedDatapointsFacade;
-    final protected ManagerExecutorService executorService;
+    final protected ScheduledExecutorService executorService;
     final protected BiConsumer<Runnable, Long> scheduledActionConsumer;
     final protected Map<String, RuleState> ruleStateMap = new HashMap<>();
     final protected JsonRule[] jsonRules;
 
     public JsonRulesBuilder(Ruleset ruleset, TimerService timerService,
-                            AssetStorageService assetStorageService, ManagerExecutorService executorService,
+                            AssetStorageService assetStorageService, ScheduledExecutorService executorService,
                             Assets assetsFacade, Users usersFacade, Notifications notificationsFacade,
                             HistoricDatapoints historicDatapoints, PredictedDatapoints predictedDatapoints,
                             BiConsumer<Runnable, Long> scheduledActionConsumer) throws Exception {

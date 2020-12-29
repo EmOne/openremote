@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -79,7 +80,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
     protected MessageBrokerContext messageBrokerContext;
     protected ProducerTemplate producerTemplate;
     protected TimerService timerService;
-    protected ProtocolExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected ProtocolAssetService assetService;
     protected ProtocolPredictedAssetService predictedAssetService;
     protected ProtocolClientEventService protocolClientEventService;
@@ -92,7 +93,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
     @Override
     public void start(Container container) throws Exception {
         timerService = container.getService(TimerService.class);
-        executorService = container.getService(ProtocolExecutorService.class);
+        executorService = container.getExecutorService();
         assetService = container.getService(ProtocolAssetService.class);
         predictedAssetService = container.getService(ProtocolPredictedAssetService.class);
         protocolClientEventService = container.getService(ProtocolClientEventService.class);

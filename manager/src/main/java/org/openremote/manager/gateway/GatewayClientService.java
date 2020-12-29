@@ -33,7 +33,6 @@ import org.openremote.container.persistence.PersistenceService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebService;
@@ -53,6 +52,7 @@ import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.Values;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -74,7 +74,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
     protected PersistenceService persistenceService;
     protected ClientEventService clientEventService;
     protected TimerService timerService;
-    protected ManagerExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected ManagerIdentityService identityService;
     protected final Map<String, GatewayConnection> connectionRealmMap = new HashMap<>();
     protected final Map<String, WebsocketIoClient<String>> clientRealmMap = new HashMap<>();
@@ -86,12 +86,12 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
 
     @Override
     public void init(Container container) throws Exception {
+        executorService = container.getExecutorService();
         assetStorageService = container.getService(AssetStorageService.class);
         assetProcessingService = container.getService(AssetProcessingService.class);
         persistenceService = container.getService(PersistenceService.class);
         clientEventService = container.getService(ClientEventService.class);
         timerService = container.getService(TimerService.class);
-        executorService = container.getService(ManagerExecutorService.class);
         identityService = container.getService(ManagerIdentityService.class);
 
         container.getService(ManagerWebService.class).getApiSingletons().add(
@@ -214,8 +214,8 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
                         .build().toString(),
                     connection.getClientId(),
                     connection.getClientSecret(),
-                    null).setBasicAuthHeader(true),
-                executorService);
+                    null).setBasicAuthHeader(true)
+            );
 
             client.setEncoderDecoderProvider(() ->
                 new ChannelHandler[] {new AbstractNettyIoClient.MessageToMessageDecoder<>(String.class, client)}

@@ -28,7 +28,6 @@ import org.openremote.manager.asset.AssetProcessingException;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.asset.AssetUpdateProcessor;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.gateway.GatewayService;
 import org.openremote.manager.security.ManagerIdentityService;
@@ -57,6 +56,7 @@ import org.openremote.model.util.TextUtil;
 import javax.persistence.EntityManager;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -94,7 +94,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     protected MessageBrokerService messageBrokerService;
     protected ClientEventService clientEventService;
     protected GatewayService gatewayService;
-    protected ManagerExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected Map<String, Agent<?, ?, ?>> agentMap;
     protected final Map<String, Future<Void>> agentDiscoveryImportFutureMap = new HashMap<>();
     protected final Map<String, Protocol<?>> protocolInstanceMap = new HashMap<>();
@@ -117,7 +117,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         messageBrokerService = container.getService(MessageBrokerService.class);
         clientEventService = container.getService(ClientEventService.class);
         gatewayService = container.getService(GatewayService.class);
-        executorService = container.getService(ManagerExecutorService.class);
+        executorService = container.getExecutorService();
 
         if (initDone) {
             return;
@@ -272,7 +272,8 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             case UPDATE:
                 Agent<?, ?, ?> oldAgent = getAgents().get(persistenceEvent.getEntity().getId());
 
-                if (!removeAgent(oldAgent)) {
+                // Old agent can be null if an update happens straight after the creation
+                if (oldAgent == null || !removeAgent(oldAgent)) {
                     return;
                 }
 
@@ -361,34 +362,36 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             }
         }
 
-        String parentAgentId = getAgentAncestorId(asset);
-        if (parentAgentId != null) {
-            notifyChildAssetChange(parentAgentId, persistenceEvent);
-        }
+        notifyAgentAncestor(asset, persistenceEvent);
     }
 
-    protected String getAgentAncestorId(Asset<?> asset) {
-        if (asset.getPath() == null) {
-            // Fully load
-            Asset<?> fullyLoaded = assetStorageService.find(asset.getId());
-            if (fullyLoaded != null) {
-                asset = fullyLoaded;
-            } else if (!TextUtil.isNullOrEmpty(asset.getParentId())) {
-                fullyLoaded = assetStorageService.find(asset.getParentId());
-                List<String> path = new ArrayList<>(Arrays.asList(fullyLoaded.getPath()));
-                path.add(0, asset.getId());
-                asset.setPath(path.toArray(new String[0]));
+    protected void notifyAgentAncestor(Asset<?> asset, PersistenceEvent<Asset<?>> persistenceEvent) {
+        String parentId = asset.getParentId();
+
+        if ((asset instanceof Agent) || parentId == null) {
+            return;
+        }
+
+        String ancestorAgentId = null;
+
+        if (agentMap.containsKey(parentId)) {
+            ancestorAgentId = parentId;
+        } else {
+            // If path is not loaded then get the parents path as the asset might have been deleted
+            if (asset.getPath() == null) {
+                Asset<?> parentAsset = assetStorageService.find(parentId);
+                if (parentAsset != null && parentAsset.getPath() != null) {
+                    ancestorAgentId = Arrays.stream(asset.getPath())
+                        .filter(assetId -> getAgents().containsKey(assetId))
+                        .findFirst()
+                        .orElse(null);
+                }
             }
         }
 
-        if (asset.getPath() == null) {
-            return null;
+        if (ancestorAgentId != null) {
+            notifyChildAssetChange(ancestorAgentId, persistenceEvent);
         }
-
-        return Arrays.stream(asset.getPath())
-                .filter(assetId -> getAgents().containsKey(assetId))
-                .findFirst()
-                .orElse(null);
     }
 
     protected void startAgent(Agent<?,?,?> agent) {

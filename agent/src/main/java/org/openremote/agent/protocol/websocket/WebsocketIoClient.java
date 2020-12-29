@@ -32,21 +32,20 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.CharsetUtil;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.openremote.agent.protocol.ProtocolExecutorService;
-import org.openremote.container.web.OAuthFilter;
-import org.openremote.model.auth.OAuthGrant;
 import org.openremote.agent.protocol.io.AbstractNettyIoClient;
+import org.openremote.container.web.OAuthFilter;
 import org.openremote.model.asset.agent.ConnectionStatus;
+import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MultivaluedMap;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -140,15 +139,13 @@ public class WebsocketIoClient<T> extends AbstractNettyIoClient<T, InetSocketAdd
     protected URI uri;
     protected SslContext sslCtx;
     protected WebSocketClientHandler handler;
-    protected MultivaluedMap<String, String> headers;
+    protected Map<String, List<String>> headers;
     protected OAuthGrant oAuthGrant;
     protected String authHeaderValue;
     protected String host;
     protected int port;
 
-    public WebsocketIoClient(URI uri, MultivaluedMap<String, String> headers, OAuthGrant oAuthGrant, ProtocolExecutorService executorService) {
-        super(executorService);
-
+    public WebsocketIoClient(URI uri, Map<String, List<String>> headers, OAuthGrant oAuthGrant) {
         this.uri = uri;
         this.headers = headers;
         this.oAuthGrant = oAuthGrant;

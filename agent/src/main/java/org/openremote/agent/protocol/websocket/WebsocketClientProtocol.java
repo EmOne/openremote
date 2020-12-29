@@ -44,17 +44,18 @@ import org.openremote.model.value.Values;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import static org.openremote.agent.protocol.http.HttpClientProtocol.DEFAULT_CONTENT_TYPE;
 import static org.openremote.agent.protocol.http.HttpClientProtocol.DEFAULT_HTTP_METHOD;
+import static org.openremote.container.web.WebTargetBuilder.createClient;
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 
 /**
@@ -72,11 +73,15 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
     public static final String PROTOCOL_DISPLAY_NAME = "Websocket Client";
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, WebsocketClientProtocol.class);
     public static final int CONNECTED_SEND_DELAY_MILLIS = 2000;
-    protected ResteasyClient resteasyClient;
+    protected static final ResteasyClient resteasyClient;
     protected List<Runnable> protocolConnectedTasks;
     protected Map<AttributeRef, Runnable> attributeConnectedTasks;
-    protected MultivaluedMap<String, String> clientHeaders;
+    protected Map<String, List<String>> clientHeaders;
     protected final List<Pair<AttributeRef, Consumer<String>>> protocolMessageConsumers = new ArrayList<>();
+
+    static {
+        resteasyClient = createClient(org.openremote.container.Container.EXECUTOR_SERVICE);
+    }
 
     public WebsocketClientProtocol(WebsocketClientAgent agent) {
         super(agent);
@@ -151,14 +156,14 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
                 return h;
             }).orElseGet(() -> {
                 ValueType.MultivaluedStringMap h = new ValueType.MultivaluedStringMap();
-                h.add(HttpHeaders.AUTHORIZATION, authValue);
+                h.put(HttpHeaders.AUTHORIZATION, Collections.singletonList(authValue));
                 return h;
             }));
         }
 
         clientHeaders = headers.orElse(null);
-        WebsocketIoClient<String> websocketClient = new WebsocketIoClient<>(uri, headers.orElse(null), oAuthGrant.orElse(null), executorService);
-        MultivaluedMap<String, String> finalHeaders = headers.orElse(null);
+        WebsocketIoClient<String> websocketClient = new WebsocketIoClient<>(uri, headers.orElse(null), oAuthGrant.orElse(null));
+        Map<String, List<String>> finalHeaders = headers.orElse(null);
 
         subscriptions.ifPresent(websocketSubscriptions ->
             addProtocolConnectedTask(() -> doSubscriptions(finalHeaders, websocketSubscriptions))
@@ -177,7 +182,6 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
 
     @Override
     protected void doLinkAttribute(String assetId, Attribute<?> attribute, WebsocketClientAgent.WebsocketClientAgentLink agentLink) {
-        @SuppressWarnings("unchecked")
         Optional<WebsocketSubscription[]> subscriptions = agentLink.getWebsocketSubscriptions();
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
 
@@ -185,7 +189,7 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
             Runnable task = () -> doSubscriptions(clientHeaders, websocketSubscriptions);
             addAttributeConnectedTask(attributeRef, task);
             if (client.ioClient.getConnectionStatus() == ConnectionStatus.CONNECTED) {
-                executorService.schedule(task, 1000);
+                executorService.schedule(task, 1000, TimeUnit.MILLISECONDS);
             }
         });
 
@@ -207,12 +211,12 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
         // Look for any subscriptions that need to be processed
         if (protocolConnectedTasks != null) {
             // Execute after a delay to ensure connection is properly initialised
-            executorService.schedule(() -> protocolConnectedTasks.forEach(Runnable::run), CONNECTED_SEND_DELAY_MILLIS);
+            executorService.schedule(() -> protocolConnectedTasks.forEach(Runnable::run), CONNECTED_SEND_DELAY_MILLIS, TimeUnit.MILLISECONDS);
         }
 
         if (attributeConnectedTasks != null) {
             // Execute after a delay to ensure connection is properly initialised
-            executorService.schedule(() -> attributeConnectedTasks.forEach((ref, task) -> task.run()), CONNECTED_SEND_DELAY_MILLIS);
+            executorService.schedule(() -> attributeConnectedTasks.forEach((ref, task) -> task.run()), CONNECTED_SEND_DELAY_MILLIS, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -231,7 +235,7 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
         attributeConnectedTasks.put(attributeRef, task);
     }
 
-    protected void doSubscriptions(MultivaluedMap<String, String> headers, WebsocketSubscription[] subscriptions) {
+    protected void doSubscriptions(Map<String, List<String>> headers, WebsocketSubscription[] subscriptions) {
         LOG.info("Executing subscriptions for websocket: " + client.ioClient.getClientUri());
 
         // Inject OAuth header
@@ -240,16 +244,16 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
                 headers = new MultivaluedHashMap<>();
             }
             headers.remove(HttpHeaders.AUTHORIZATION);
-            headers.add(HttpHeaders.AUTHORIZATION, client.ioClient.authHeaderValue);
+            headers.put(HttpHeaders.AUTHORIZATION, Collections.singletonList(client.ioClient.authHeaderValue));
         }
 
-        MultivaluedMap<String, String> finalHeaders = headers;
+        Map<String, List<String>> finalHeaders = headers;
         Arrays.stream(subscriptions).forEach(
             subscription -> doSubscription(finalHeaders, subscription)
         );
     }
 
-    protected void doSubscription(MultivaluedMap<String, String> headers, WebsocketSubscription subscription) {
+    protected void doSubscription(Map<String, List<String>> headers, WebsocketSubscription subscription) {
         if (subscription instanceof WebsocketHttpSubscription) {
             WebsocketHttpSubscription httpSubscription = (WebsocketHttpSubscription)subscription;
 
@@ -276,13 +280,15 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
             }
 
             if (httpSubscription.headers != null) {
-                headers = headers != null ? new MultivaluedHashMap<String, String>(headers) : new MultivaluedHashMap<>();
-                MultivaluedMap<String, String> finalHeaders = headers;
+                headers = headers != null ? new HashMap<>(headers) : new HashMap<>();
+                Map<String, List<String>> finalHeaders = headers;
                 httpSubscription.headers.forEach((header, values) -> {
                     if (values == null || values.isEmpty()) {
                         finalHeaders.remove(header);
                     } else {
-                        finalHeaders.addAll(header, values);
+                        List<String> vals = new ArrayList<>(finalHeaders.compute(header, (h, l) -> l != null ? l : Collections.emptyList()));
+                        vals.addAll(values);
+                        finalHeaders.put(header, vals);
                     }
                 });
             }

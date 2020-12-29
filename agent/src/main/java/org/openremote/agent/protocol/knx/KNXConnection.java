@@ -1,7 +1,7 @@
 package org.openremote.agent.protocol.knx;
 
 import org.apache.commons.lang3.StringUtils;
-import org.openremote.agent.protocol.ProtocolExecutorService;
+import org.openremote.container.Container;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.Pair;
@@ -22,7 +22,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,10 +40,8 @@ public class KNXConnection implements NetworkLinkListener, ProcessListener {
     protected final static int RECONNECT_BACKOFF_MULTIPLIER = 2;
     protected ScheduledFuture<?> reconnectTask;
     protected int reconnectDelayMilliseconds = INITIAL_RECONNECT_DELAY_MILLIS;
-    
     protected final List<Consumer<ConnectionStatus>> connectionStatusConsumers = new ArrayList<>();
-    
-    protected final ProtocolExecutorService executorService;
+    protected final ScheduledExecutorService executorService;
     protected final String gatewayAddress;
     private final int gatewayPort;
     private final boolean natMode;
@@ -56,9 +56,9 @@ public class KNXConnection implements NetworkLinkListener, ProcessListener {
     
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, KNXConnection.class);
     
-    public KNXConnection(String gatewayAddress, String bindAddress, Integer gatewayPort, String messageSourceAddress, boolean routingMode, boolean natMode, ProtocolExecutorService executorService) {
+    public KNXConnection(String gatewayAddress, String bindAddress, Integer gatewayPort, String messageSourceAddress, boolean routingMode, boolean natMode) {
         this.gatewayAddress = gatewayAddress;
-        this.executorService = executorService;
+        this.executorService = Container.EXECUTOR_SERVICE;
         this.routingMode = routingMode;
         this.bindAddress = bindAddress;
         this.gatewayPort = gatewayPort;
@@ -349,7 +349,7 @@ public class KNXConnection implements NetworkLinkListener, ProcessListener {
                     connect();
                 }
             }
-        }, reconnectDelayMilliseconds);
+        }, reconnectDelayMilliseconds, TimeUnit.MILLISECONDS);
     }
 
     @Override

@@ -21,6 +21,7 @@ package org.openremote.model;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 public interface Container {
 
@@ -29,6 +30,8 @@ public interface Container {
     Map<String, String> getConfig();
 
     ContainerService[] getServices();
+
+    ScheduledExecutorService getExecutorService();
 
     <T extends ContainerService> Collection<T> getServices(Class<T> type);
 

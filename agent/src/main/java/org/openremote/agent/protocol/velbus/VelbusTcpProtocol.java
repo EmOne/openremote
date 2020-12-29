@@ -49,7 +49,7 @@ public class VelbusTcpProtocol extends AbstractVelbusProtocol<VelbusTcpProtocol,
 
         TextUtil.requireNonNullAndNonEmpty(host, "Host cannot be null or empty");
         Objects.requireNonNull(port, "Port cannot be null");
-        TcpIoClient<VelbusPacket> client = new TcpIoClient<>(host, port, executorService);
+        TcpIoClient<VelbusPacket> client = new TcpIoClient<>(host, port);
         client.setEncoderDecoderProvider(
             () -> new ChannelHandler[] {
                 new VelbusPacketEncoder(),

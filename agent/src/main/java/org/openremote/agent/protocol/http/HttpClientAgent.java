@@ -27,6 +27,8 @@ import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Entity
@@ -34,8 +36,8 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
 
     public static class HttpClientAgentLink extends AgentLink<HttpClientAgentLink> {
 
-        protected ValueType.MultivaluedStringMap headers;
-        protected ValueType.MultivaluedStringMap queryParameters;
+        protected Map<String, List<String>> headers;
+        protected Map<String, List<String>> queryParameters;
         protected Integer pollingMillis;
         protected Boolean pagingMode;
         protected String path;
@@ -50,7 +52,7 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
             super(id);
         }
 
-        public Optional<ValueType.MultivaluedStringMap> getHeaders() {
+        public Optional<Map<String, List<String>>> getHeaders() {
             return Optional.ofNullable(headers);
         }
 
@@ -59,7 +61,7 @@ public class HttpClientAgent extends Agent<HttpClientAgent, HttpClientProtocol, 
             return this;
         }
 
-        public Optional<ValueType.MultivaluedStringMap> getQueryParameters() {
+        public Optional<Map<String, List<String>>> getQueryParameters() {
             return Optional.ofNullable(queryParameters);
         }
 

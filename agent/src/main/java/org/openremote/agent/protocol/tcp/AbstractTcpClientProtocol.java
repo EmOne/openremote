@@ -22,7 +22,6 @@ package org.openremote.agent.protocol.tcp;
 import org.openremote.agent.protocol.io.AbstractIoClientProtocol;
 import org.openremote.agent.protocol.io.IoAgent;
 import org.openremote.agent.protocol.io.IoClient;
-import org.openremote.agent.protocol.udp.UdpIoClient;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentLink;
 
@@ -43,6 +42,6 @@ public abstract class AbstractTcpClientProtocol<T extends AbstractIoClientProtoc
         String host = agent.getAttributes().getValue(Agent.HOST).orElse(null);
         int port = agent.getAttributes().getValue(Agent.PORT).orElse(0);
 
-        return (X) new TcpIoClient<W>(host, port, executorService);
+        return (X) new TcpIoClient<W>(host, port);
     }
 }

@@ -22,7 +22,7 @@ package org.openremote.agent.protocol.io;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
-import org.openremote.agent.protocol.ProtocolExecutorService;
+import org.openremote.container.Container;
 import org.openremote.model.util.Retry;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.syslog.SyslogCategory;
@@ -165,13 +165,13 @@ public abstract class AbstractNettyIoClient<T, U extends SocketAddress> implemen
     protected Channel channel;
     protected Bootstrap bootstrap;
     protected EventLoopGroup workerGroup;
-    protected ProtocolExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected Retry connectRetry;
     protected boolean permanentError;
     protected Supplier<ChannelHandler[]> encoderDecoderProvider;
 
-    protected AbstractNettyIoClient(ProtocolExecutorService executorService) {
-        this.executorService = executorService;
+    protected AbstractNettyIoClient() {
+        this.executorService = Container.EXECUTOR_SERVICE;
     }
 
     @Override

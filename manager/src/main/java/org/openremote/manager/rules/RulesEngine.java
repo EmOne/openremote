@@ -25,7 +25,6 @@ import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.datapoint.AssetDatapointService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.notification.NotificationService;
@@ -41,6 +40,7 @@ import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.MetaItemType;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -104,7 +104,7 @@ public class RulesEngine<T extends Ruleset> {
     protected static BiConsumer<RulesEngine<?>, RulesetDeployment> UNPAUSE_SCHEDULER = RulesEngine::scheduleUnpause;
 
     final protected TimerService timerService;
-    final protected ManagerExecutorService executorService;
+    final protected ScheduledExecutorService executorService;
     final protected AssetStorageService assetStorageService;
     final protected ClientEventService clientEventService;
 
@@ -136,7 +136,7 @@ public class RulesEngine<T extends Ruleset> {
 
     public RulesEngine(TimerService timerService,
                        ManagerIdentityService identityService,
-                       ManagerExecutorService executorService,
+                       ScheduledExecutorService executorService,
                        AssetStorageService assetStorageService,
                        AssetProcessingService assetProcessingService,
                        NotificationService notificationService,
@@ -456,13 +456,14 @@ public class RulesEngine<T extends Ruleset> {
                         if ((facts.hasTemporaryFacts() || (hadTemporaryFactsBefore && !facts.hasTemporaryFacts()))
                             && !disableTemporaryFactExpiration) {
                             LOG.fine("Temporary facts require firing rules on: " + this);
-                            executorService.schedule(this::scheduleFire, 0);
+                            executorService.submit(this::scheduleFire);
                         } else if (!disableTemporaryFactExpiration) {
                             LOG.fine("No temporary facts present/changed when firing rules on: " + this);
                         }
 
                     }),
-                    TemporaryFact.GUARANTEED_MIN_EXPIRATION_MILLIS
+                    TemporaryFact.GUARANTEED_MIN_EXPIRATION_MILLIS,
+                    TimeUnit.MILLISECONDS
                 );
             }
         });
@@ -667,7 +668,7 @@ public class RulesEngine<T extends Ruleset> {
     protected void schedulePause(RulesetDeployment deployment) {
         long delay = deployment.getValidTo() - timerService.getCurrentTimeMillis();
         LOG.info("Scheduling pause of ruleset at '" + new Date(deployment.getValidTo()).toString() + "' ("+ delay + "ms): " + deployment.ruleset.getName());
-        pauseTimers.put(deployment.getId(), executorService.schedule(() -> pauseRuleset(deployment), delay));
+        pauseTimers.put(deployment.getId(), executorService.schedule(() -> pauseRuleset(deployment), delay, TimeUnit.MILLISECONDS));
     }
 
     protected void pauseRuleset(RulesetDeployment deployment) {
@@ -697,7 +698,7 @@ public class RulesEngine<T extends Ruleset> {
     protected void scheduleUnpause(RulesetDeployment deployment) {
         long delay = deployment.getValidFrom() - timerService.getCurrentTimeMillis();
         LOG.info("Scheduling un-pause of ruleset at '" + new Date(deployment.getValidFrom()).toString() + "' ("+ delay + "ms): " + deployment.ruleset.getName());
-        unpauseTimers.put(deployment.getId(), executorService.schedule(() -> unPauseRuleset(deployment), delay));
+        unpauseTimers.put(deployment.getId(), executorService.schedule(() -> unPauseRuleset(deployment), delay, TimeUnit.MILLISECONDS));
     }
 
     protected void unPauseRuleset(RulesetDeployment deployment) {

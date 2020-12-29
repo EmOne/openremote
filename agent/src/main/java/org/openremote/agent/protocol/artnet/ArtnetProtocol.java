@@ -43,7 +43,7 @@ public class ArtnetProtocol extends AbstractIoClientProtocol<ArtnetProtocol, Art
 
         Integer bindPort = agent.getBindPort().orElse(null);
 
-        return new UdpIoClient<>(host, port, bindPort, executorService);
+        return new UdpIoClient<>(host, port, bindPort);
     }
 
     @Override

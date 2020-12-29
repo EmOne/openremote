@@ -23,7 +23,6 @@ import io.netty.channel.ChannelHandler;
 import org.openremote.agent.protocol.io.AbstractNettyIoClient;
 import org.openremote.agent.protocol.io.IoClient;
 import org.openremote.agent.protocol.serial.SerialIoClient;
-import org.openremote.model.protocol.ProtocolInstanceDiscovery;
 import org.openremote.model.util.TextUtil;
 
 public class VelbusSerialProtocol extends AbstractVelbusProtocol<VelbusSerialProtocol, VelbusSerialAgent> {
@@ -48,7 +47,7 @@ public class VelbusSerialProtocol extends AbstractVelbusProtocol<VelbusSerialPro
         int baudRate = agent.getSerialBaudrate().orElse(DEFAULT_BAUDRATE);
 
         TextUtil.requireNonNullAndNonEmpty(port, "Port cannot be null or empty");
-        SerialIoClient<VelbusPacket> client = new SerialIoClient<>(port, baudRate, executorService);
+        SerialIoClient<VelbusPacket> client = new SerialIoClient<>(port, baudRate);
 
         client.setEncoderDecoderProvider(
             () -> new ChannelHandler[]{

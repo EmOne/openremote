@@ -19,7 +19,6 @@
  */
 package org.openremote.model.auth;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -27,8 +26,8 @@ import org.openremote.model.util.TextUtil;
 
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
-
 import java.io.Serializable;
+import java.util.Collections;
 
 import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 
@@ -36,7 +35,7 @@ import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 @JsonSubTypes({
     @JsonSubTypes.Type(name=OAuthPasswordGrant.PASSWORD_GRANT_TYPE, value=OAuthPasswordGrant.class),
     @JsonSubTypes.Type(name=OAuthClientCredentialsGrant.CLIENT_CREDENTIALS_GRANT_TYPE, value=OAuthClientCredentialsGrant.class),
-    @JsonSubTypes.Type(name=OAuthRefreshTokenGrant.VALUE_KEY_REFRESH_TOKEN, value=OAuthRefreshTokenGrant.class),
+    @JsonSubTypes.Type(name=OAuthRefreshTokenGrant.REFRESH_TOKEN_GRANT_TYPE, value=OAuthRefreshTokenGrant.class),
 })
 public abstract class OAuthGrant implements Serializable {
 
@@ -44,54 +43,59 @@ public abstract class OAuthGrant implements Serializable {
     public static final String VALUE_KEY_CLIENT_ID = "client_id";
     public static final String VALUE_KEY_CLIENT_SECRET = "client_secret";
     public static final String VALUE_KEY_SCOPE = "scope";
-    @JsonIgnore
-    protected MultivaluedMap<String, String> valueMap = new MultivaluedHashMap<>(6);
     protected String tokenEndpointUri;
-    @JsonProperty
     protected boolean basicAuthHeader;
+    @JsonProperty(VALUE_KEY_GRANT_TYPE)
+    protected String grantType;
+    @JsonProperty(VALUE_KEY_CLIENT_ID)
+    String clientId;
+    @JsonProperty(VALUE_KEY_CLIENT_SECRET)
+    String clientSecret;
+    @JsonProperty(VALUE_KEY_SCOPE)
+    String scope;
 
     protected OAuthGrant(String tokenEndpointUri, String grantType, String clientId, String clientSecret, String scope) {
         requireNonNullAndNonEmpty(tokenEndpointUri);
         requireNonNullAndNonEmpty(grantType);
         requireNonNullAndNonEmpty(clientId);
+        this.grantType = grantType;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.scope = scope;
         this.tokenEndpointUri = tokenEndpointUri;
-        valueMap.add(VALUE_KEY_GRANT_TYPE, grantType);
-        valueMap.add(VALUE_KEY_CLIENT_ID, clientId);
-        if(!TextUtil.isNullOrEmpty(clientSecret)) {
-            valueMap.add(VALUE_KEY_CLIENT_SECRET, clientSecret);
-        }
-        if(!TextUtil.isNullOrEmpty(scope)) {
-            valueMap.add(VALUE_KEY_SCOPE, scope);
-        }
     }
 
-    public MultivaluedMap<String, String> getValueMap() {
+    public MultivaluedMap<String, String> asMultivaluedMap() {
+        MultivaluedMap<String, String> valueMap = new MultivaluedHashMap<>();
+        valueMap.put(VALUE_KEY_GRANT_TYPE, Collections.singletonList(grantType));
+        valueMap.put(VALUE_KEY_CLIENT_ID, Collections.singletonList(clientId));
+        if(!TextUtil.isNullOrEmpty(clientSecret)) {
+            valueMap.put(VALUE_KEY_CLIENT_SECRET, Collections.singletonList(clientSecret));
+        }
+        if(!TextUtil.isNullOrEmpty(scope)) {
+            valueMap.put(VALUE_KEY_SCOPE, Collections.singletonList(scope));
+        }
         return valueMap;
     }
 
-    @JsonProperty
     public String getTokenEndpointUri() {
         return tokenEndpointUri;
     }
 
-    @JsonProperty(VALUE_KEY_GRANT_TYPE)
     public String getGrantType() {
-        return valueMap.getFirst(VALUE_KEY_GRANT_TYPE);
+        return grantType;
     }
 
-    @JsonProperty(VALUE_KEY_CLIENT_ID)
     public String getClientId() {
-        return valueMap.getFirst(VALUE_KEY_CLIENT_ID);
+        return clientId;
     }
 
-    @JsonProperty(VALUE_KEY_CLIENT_SECRET)
     public String getClientSecret() {
-        return valueMap.getFirst(VALUE_KEY_CLIENT_SECRET);
+        return clientSecret;
     }
 
-    @JsonProperty(VALUE_KEY_SCOPE)
     public String getScope() {
-        return valueMap.getFirst(VALUE_KEY_SCOPE);
+        return scope;
     }
 
     public boolean isBasicAuthHeader() {

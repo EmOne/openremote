@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
@@ -115,7 +116,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
                     int delayMillis = actions.get(step).getDelayMilliseconds();
 
                     // Schedule the next iteration
-                    scheduledFuture = executorService.schedule(this::run, Math.max(delayMillis, 0));
+                    scheduledFuture = executorService.schedule(this::run, Math.max(delayMillis, 0), TimeUnit.MILLISECONDS);
                 }
             }
         }

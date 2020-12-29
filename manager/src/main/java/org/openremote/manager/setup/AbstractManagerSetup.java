@@ -27,7 +27,6 @@ import org.openremote.agent.protocol.timer.TimerValue;
 import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.datapoint.AssetDatapointService;
 import org.openremote.manager.persistence.ManagerPersistenceService;
 import org.openremote.manager.predicted.AssetPredictedDatapointService;
@@ -47,6 +46,7 @@ import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -56,7 +56,7 @@ import static org.openremote.model.value.ValueType.*;
 
 public abstract class AbstractManagerSetup implements Setup {
 
-    final protected ManagerExecutorService executorService;
+    final protected ScheduledExecutorService executorService;
     final protected ManagerPersistenceService persistenceService;
     final protected ManagerIdentityService identityService;
     final protected AssetStorageService assetStorageService;
@@ -68,7 +68,7 @@ public abstract class AbstractManagerSetup implements Setup {
     final protected MetaItem<?>[] EMPTY_META = new MetaItem<?>[0];
 
     public AbstractManagerSetup(Container container) {
-        this.executorService = container.getService(ManagerExecutorService.class);
+        this.executorService = container.getExecutorService();
         this.persistenceService = container.getService(ManagerPersistenceService.class);
         this.identityService = container.getService(ManagerIdentityService.class);
         this.assetStorageService = container.getService(AssetStorageService.class);
@@ -179,6 +179,9 @@ public abstract class AbstractManagerSetup implements Setup {
 
         if (shouldBeLinked) {
             room.getAttribute("motionSensor").ifPresent(attr -> attr.addMeta(
+                new MetaItem<>(AGENT_LINK, agentLinker.get()))
+            );
+            room.getAttribute("presenceDetected").ifPresent(attr -> attr.addMeta(
                 new MetaItem<>(AGENT_LINK, agentLinker.get()))
             );
         }

@@ -26,6 +26,8 @@ import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Entity
@@ -37,7 +39,7 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
         protected String sensorName;
         protected String commandDeviceName;
         protected String commandName;
-        protected ValueType.MultivaluedStringMap commandsMap;
+        protected Map<String, List<String>> commandsMap;
 
         // For Hydrators
         protected ControllerAgentLink() {}
@@ -83,11 +85,11 @@ public class ControllerAgent extends Agent<ControllerAgent, ControllerProtocol, 
             return this;
         }
 
-        public Optional<ValueType.MultivaluedStringMap> getCommandsMap() {
+        public Optional<Map<String, List<String>>> getCommandsMap() {
             return Optional.ofNullable(commandsMap);
         }
 
-        public ControllerAgentLink setCommandsMap(ValueType.MultivaluedStringMap commandsMap) {
+        public ControllerAgentLink setCommandsMap(Map<String, List<String>> commandsMap) {
             this.commandsMap = commandsMap;
             return this;
         }

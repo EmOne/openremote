@@ -22,13 +22,10 @@ package org.openremote.manager.setup;
 import org.openremote.container.Container;
 import org.openremote.container.persistence.Database;
 import org.openremote.container.persistence.PersistenceService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.persistence.ManagerPersistenceService;
 
 import javax.persistence.Persistence;
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -47,7 +44,6 @@ public class SchemaExporter {
         File schemaFile = new File(args[0]);
 
         Container container = new Container(
-            new ManagerExecutorService(),
             new ManagerPersistenceService() {
 
                 @Override

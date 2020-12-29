@@ -19,7 +19,6 @@
  */
 package org.openremote.agent.protocol.zwave;
 
-import org.openremote.agent.protocol.ProtocolExecutorService;
 import org.openremote.controller.exception.ConfigurationException;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.impl.ThingAsset;
@@ -46,6 +45,7 @@ import org.openremote.protocol.zwave.port.ZWavePortConfiguration;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
@@ -60,9 +60,9 @@ public class ZWNetwork {
     private final Map<Consumer<Value>, ChannelConsumerLink> consumerLinkMap = new HashMap<>();
     protected String serialPort;
     protected ZWSerialIoClient ioClient;
-    protected ProtocolExecutorService executorService;
+    protected ScheduledExecutorService executorService;
 
-    public ZWNetwork(String serialPort, ProtocolExecutorService executorService) {
+    public ZWNetwork(String serialPort, ScheduledExecutorService executorService) {
         this.serialPort = serialPort;
         this.executorService = executorService;
     }
@@ -77,7 +77,7 @@ public class ZWNetwork {
         configuration.setCommLayer(ZWavePortConfiguration.CommLayer.NETTY);
         configuration.setComPort(serialPort);
 
-        ioClient = new ZWSerialIoClient(serialPort, executorService);
+        ioClient = new ZWSerialIoClient(serialPort);
         ioClient.addConnectionStatusConsumer(this::onConnectionStatusChanged);
 
         controller = new Controller(NettyConnectionManager.create(configuration, ioClient));

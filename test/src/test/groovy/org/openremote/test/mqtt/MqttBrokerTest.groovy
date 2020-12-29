@@ -2,7 +2,9 @@ package org.openremote.test.mqtt
 
 import com.google.common.collect.Lists
 import io.moquette.BrokerConstants
+import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.container.util.UniqueIdentifierGenerator
+import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.mqtt.MqttBrokerService
@@ -50,6 +52,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
         def mqttBrokerService = container.getService(MqttBrokerService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
+        def agentService = container.getService(AgentService.class)
         def mqttClientId = managerTestSetup.realmBuildingTenant + MQTT_CLIENT_ID_SEPARATOR + UniqueIdentifierGenerator.generateId()
         def clientId = MqttBrokerService.MQTT_CLIENT_ID_PREFIX + UniqueIdentifierGenerator.generateId(managerTestSetup.realmBuildingTenant)
         def clientSecret = UniqueIdentifierGenerator.generateId(managerTestSetup.realmBuildingTenant)
@@ -194,7 +197,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "An asset attribute changed the client is subscribed on"
         def attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "motionSensor", 50)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "A publish event message should be sent"
         conditions.eventually {
@@ -203,7 +206,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "Another asset attribute changed the client is subscribed on"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "presenceDetected", true)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "A second publish event message should be sent"
         conditions.eventually {
@@ -212,7 +215,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute which is readonly"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        def payload = Values.createJsonObject().put("motionSensor", 70)
+        def payload = Values.asJSON(Values.createJsonObject().put("motionSensor", 70)).orElse(null)
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH
@@ -231,7 +234,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "a mqtt client publishes to an asset attribute"
         topic = "assets/" + managerTestSetup.apartment1HallwayId
-        payload = Values.createJsonObject().put("lights", false)
+        payload = Values.asJSON(Values.createJsonObject().put("lights", false)).orElse(null)
         remainingLength = 2 + topic.size() + payload.length()
 
         //PUBLISH
@@ -272,7 +275,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "Another asset attribute changed without any subscriptions"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "presenceDetected", false)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "No publish event message should be sent"
         conditions.eventually {
@@ -305,7 +308,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         and: "that attribute changed"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "motionSensor", 30)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "A publish event message should be sent"
         conditions.eventually {
@@ -314,7 +317,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "Another asset attribute changed without any subscriptions on that attribute"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "presenceDetected", true)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "No publish event message should be sent"
         conditions.eventually {
@@ -368,7 +371,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         and: "that attribute changed"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "motionSensor", 40)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "A publish value message should be sent"
         conditions.eventually {
@@ -377,7 +380,7 @@ class MqttBrokerTest extends Specification implements ManagerContainerTrait {
 
         when: "Another asset attribute changed without any subscriptions on that attribute"
         attributeEvent = new AttributeEvent(managerTestSetup.apartment1HallwayId, "presenceDetected", false)
-        assetProcessingService.sendAttributeEvent(attributeEvent)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(attributeEvent)
 
         then: "No publish value message should be sent"
         conditions.eventually {

@@ -88,7 +88,6 @@ public final class ProtocolUtil {
         String writeValue = agentLink.getWriteValue().orElse(null);
 
         Pair<Boolean, Object> ignoreAndConvertedValue;
-        final AtomicReference<Object> valRef = new AtomicReference<>(value);
 
         // Check if attribute type is executable
         if (attribute.getValueType().equals(ValueType.EXECUTION_STATUS)) {
@@ -101,18 +100,17 @@ public final class ProtocolUtil {
         }
 
         // value conversion
+        Object finalValue = value;
         ignoreAndConvertedValue = agentLink.getWriteValueConverter().map(converter -> {
             Protocol.LOG.fine("Applying attribute write value converter to attribute: assetId=" + assetId + ", attribute=" + attribute.getName());
-            return applyValueConverter(valRef.get(), converter);
-        }).orElse(new Pair<>(false, valRef.get()));
+            return applyValueConverter(finalValue, converter);
+        }).orElse(new Pair<>(false, finalValue));
 
         if (ignoreAndConvertedValue.key) {
             return ignoreAndConvertedValue;
         }
 
-        if (valRef.get() == null) {
-            return new Pair<>(false, null);
-        }
+        value = ignoreAndConvertedValue.value;
 
         // dynamic value insertion
 
@@ -120,7 +118,7 @@ public final class ProtocolUtil {
 
         if (hasWriteValue) {
             if (containsDynamicPlaceholder) {
-                String valueStr = value == null ? NULL_LITERAL : value.toString();
+                String valueStr = value == null ? NULL_LITERAL : Values.convert(value, String.class);
                 writeValue = writeValue.replaceAll(Protocol.DYNAMIC_VALUE_PLACEHOLDER_REGEXP, valueStr);
             }
 

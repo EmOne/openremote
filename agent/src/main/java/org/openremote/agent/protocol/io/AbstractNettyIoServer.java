@@ -25,7 +25,7 @@ import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.GlobalEventExecutor;
-import org.openremote.agent.protocol.ProtocolExecutorService;
+import org.openremote.container.Container;
 import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.syslog.SyslogCategory;
 
@@ -33,7 +33,9 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -52,7 +54,7 @@ public abstract class AbstractNettyIoServer<T, U extends Channel, V extends Abst
     protected final static int MAX_RECONNECT_DELAY_MILLIS = 60000;
     protected final static int RECONNECT_BACKOFF_MULTIPLIER = 2;
     protected static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, AbstractNettyIoServer.class);
-    protected final ProtocolExecutorService executorService;
+    protected final ScheduledExecutorService executorService;
     protected int clientLimit = 0; // 0 means no limit
     protected V bootstrap;
     protected ConnectionStatus connectionStatus = ConnectionStatus.DISCONNECTED;
@@ -66,8 +68,8 @@ public abstract class AbstractNettyIoServer<T, U extends Channel, V extends Abst
     protected ScheduledFuture reconnectTask;
     protected int reconnectDelayMilliseconds = INITIAL_RECONNECT_DELAY_MILLIS;
 
-    public AbstractNettyIoServer(ProtocolExecutorService executorService) {
-        this.executorService = executorService;
+    public AbstractNettyIoServer() {
+        this.executorService = Container.EXECUTOR_SERVICE;
     }
 
     @Override
@@ -439,7 +441,7 @@ public abstract class AbstractNettyIoServer<T, U extends Channel, V extends Abst
                     start();
                 }
             }
-        }, reconnectDelayMilliseconds);
+        }, reconnectDelayMilliseconds, TimeUnit.MILLISECONDS);
     }
 
 

@@ -28,6 +28,8 @@ import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Entity

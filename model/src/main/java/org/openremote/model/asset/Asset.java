@@ -437,7 +437,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return path;
     }
 
-    public T setPath(String[] path) {
+    protected T setPath(String[] path) {
         this.path = path;
         return (T) this;
     }

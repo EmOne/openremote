@@ -20,12 +20,14 @@
 package org.openremote.container;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.openremote.container.concurrent.ContainerScheduledExecutor;
 import org.openremote.container.concurrent.ContainerThreads;
 import org.openremote.container.util.LogUtil;
 import org.openremote.model.ContainerService;
 import org.openremote.model.value.Values;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.StreamSupport.stream;
 import static org.openremote.container.util.MapAccess.getBoolean;
+import static org.openremote.container.util.MapAccess.getInteger;
 
 /**
  * A thread-safe registry of {@link ContainerService}s.
@@ -46,7 +49,32 @@ import static org.openremote.container.util.MapAccess.getBoolean;
  */
 public class Container implements org.openremote.model.Container {
 
+    protected static class NoShutdownScheduledExecutorService extends ContainerScheduledExecutor {
+
+        public NoShutdownScheduledExecutorService(String name, int corePoolSize) {
+            super(name, corePoolSize);
+        }
+
+        @Override
+        public void shutdown() {
+            throw new UnsupportedOperationException();
+        }
+
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public List<Runnable> shutdownNow() {
+            throw new UnsupportedOperationException();
+        }
+
+        void doShutdownNow() {
+            super.shutdownNow();
+        }
+    }
+
     public static final Logger LOG;
+    public static ScheduledExecutorService EXECUTOR_SERVICE;
+    public static final String SCHEDULED_TASKS_THREADS_MAX = "SCHEDULED_TASKS_THREADS_MAX";
+    public static final int SCHEDULED_TASKS_THREADS_MAX_DEFAULT = Math.max(Runtime.getRuntime().availableProcessors(), 2);
 
     static {
         LogUtil.configureLogging("logging.properties");
@@ -89,6 +117,13 @@ public class Container implements org.openremote.model.Container {
         if (this.devMode) {
             Values.JSON.enable(SerializationFeature.INDENT_OUTPUT);
         }
+
+        int scheduledTasksThreadsMax = getInteger(
+            getConfig(),
+            SCHEDULED_TASKS_THREADS_MAX,
+            SCHEDULED_TASKS_THREADS_MAX_DEFAULT);
+
+        EXECUTOR_SERVICE = new NoShutdownScheduledExecutorService("Scheduled task", scheduledTasksThreadsMax);
 
         // Any log handlers of the root logger that are container services must be registered
         for (Handler handler : Logger.getLogger("").getHandlers()) {
@@ -145,6 +180,7 @@ public class Container implements org.openremote.model.Container {
             if (!isRunning())
                 return;
             LOG.info("<<< Stopping runtime container...");
+
             List<ContainerService> servicesToStop = Arrays.asList(getServices());
             Collections.reverse(servicesToStop);
             try {
@@ -154,10 +190,17 @@ public class Container implements org.openremote.model.Container {
                 }
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
-            } finally {
-                waitingThread.interrupt();
-                waitingThread = null;
             }
+
+            try {
+                LOG.info("Cancelling scheduled tasks");
+                ((NoShutdownScheduledExecutorService) EXECUTOR_SERVICE).doShutdownNow();
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Exception thrown whilst trying to stop scheduled tasks", e);
+            }
+
+            waitingThread.interrupt();
+            waitingThread = null;
             LOG.info("<<< Runtime container stopped");
         }
     }
@@ -217,5 +260,10 @@ public class Container implements org.openremote.model.Container {
                 throw new IllegalStateException("Missing required service: " + type);
             return service;
         }
+    }
+
+    @Override
+    public ScheduledExecutorService getExecutorService() {
+        return EXECUTOR_SERVICE;
     }
 }

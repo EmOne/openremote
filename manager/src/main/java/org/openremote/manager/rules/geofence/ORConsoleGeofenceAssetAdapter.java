@@ -21,15 +21,14 @@ package org.openremote.manager.rules.geofence;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.camel.builder.RouteBuilder;
-import org.openremote.manager.gateway.GatewayService;
-import org.openremote.model.Container;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
+import org.openremote.manager.gateway.GatewayService;
 import org.openremote.manager.notification.NotificationService;
 import org.openremote.manager.rules.RulesEngine;
 import org.openremote.manager.security.ManagerIdentityService;
+import org.openremote.model.Container;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.impl.ConsoleAsset;
 import org.openremote.model.attribute.AttributeRef;
@@ -42,16 +41,18 @@ import org.openremote.model.rules.geofence.GeofenceDefinition;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.Values;
 
-import java.io.Console;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.openremote.container.concurrent.GlobalLock.withLock;
-import static org.openremote.container.persistence.PersistenceEvent.*;
+import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_TOPIC;
+import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
 import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.asset.AssetResource.Util.WRITE_ATTRIBUTE_HTTP_METHOD;
 import static org.openremote.model.asset.AssetResource.Util.getWriteAttributeUrl;
@@ -76,7 +77,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
     protected AssetStorageService assetStorageService;
     protected GatewayService gatewayService;
     protected ManagerIdentityService identityService;
-    protected ManagerExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected Map<String, String> consoleIdRealmMap;
     protected ScheduledFuture notifyAssetsScheduledFuture;
     protected Set<String> notifyAssets;
@@ -91,7 +92,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
         this.assetStorageService = container.getService(AssetStorageService.class);
         this.notificationService = container.getService(NotificationService.class);
         this.identityService = container.getService(ManagerIdentityService.class);
-        this.executorService = container.getService(ManagerExecutorService.class);
+        executorService = container.getExecutorService();
         gatewayService = container.getService(GatewayService.class);
         container.getService(MessageBrokerService.class).getContext().addRoutes(this);
     }
@@ -204,7 +205,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
                                     notifyAssets = null;
                                     notifyAssetsScheduledFuture = null;
                                 }),
-                        NOTIFY_ASSETS_DEBOUNCE_MILLIS);
+                        NOTIFY_ASSETS_DEBOUNCE_MILLIS, TimeUnit.MILLISECONDS);
                 }
             }
         });
@@ -276,7 +277,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
                 executorService.schedule(() -> {
                     LOG.info("Notifiying consoles that geofences have changed: " + notification.getTargets());
                     notificationService.sendNotification(notification);
-                }, i * NOTIFY_ASSETS_BATCH_MILLIS);
+                }, i * NOTIFY_ASSETS_BATCH_MILLIS, TimeUnit.MILLISECONDS);
             });
     }
 

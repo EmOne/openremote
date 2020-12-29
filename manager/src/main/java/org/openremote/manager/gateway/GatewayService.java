@@ -30,7 +30,6 @@ import org.openremote.manager.asset.AssetProcessingException;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.asset.AssetUpdateProcessor;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.rules.RulesService;
 import org.openremote.manager.rules.RulesetStorageService;
@@ -54,6 +53,7 @@ import org.openremote.model.util.TextUtil;
 import javax.persistence.EntityManager;
 import javax.websocket.Session;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -87,7 +87,7 @@ public class GatewayService extends RouteBuilder implements ContainerService, As
     protected ClientEventService clientEventService;
     protected RulesetStorageService rulesetStorageService;
     protected RulesService rulesService;
-    protected ManagerExecutorService executorService;
+    protected ScheduledExecutorService executorService;
     protected final Map<String, GatewayConnector> gatewayConnectorMap = new HashMap<>();
     protected final Map<String, String> assetIdGatewayIdMap = new HashMap<>();
     protected boolean active;
@@ -152,7 +152,7 @@ public class GatewayService extends RouteBuilder implements ContainerService, As
         assetProcessingService = container.getService(AssetProcessingService.class);
         identityService = container.getService(ManagerIdentityService.class);
         clientEventService = container.getService(ClientEventService.class);
-        executorService = container.getService(ManagerExecutorService.class);
+        executorService = container.getExecutorService();
         rulesetStorageService = container.getService(RulesetStorageService.class);
         rulesService = container.getService(RulesService.class);
 

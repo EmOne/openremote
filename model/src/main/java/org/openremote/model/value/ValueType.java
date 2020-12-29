@@ -40,6 +40,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class ValueType {
@@ -50,18 +51,7 @@ public final class ValueType {
     public static class DoubleMap extends HashMap<String, Double> {}
     public static class BooleanMap extends HashMap<String, Double> {}
 
-    public static class MultivaluedStringMap extends MultivaluedHashMap<String, String> {
-        public MultivaluedStringMap() {
-        }
-
-        public MultivaluedStringMap(MultivaluedMap<? extends String, ? extends String> map) {
-            super(map);
-        }
-
-        public MultivaluedStringMap(Map<? extends String, ? extends String> map) {
-            super(map);
-        }
-    }
+    public static class MultivaluedStringMap extends HashMap<String, List<String>> {}
 
     public static final ValueDescriptor<Boolean> BOOLEAN = new ValueDescriptor<>("Boolean", Boolean.class);
 

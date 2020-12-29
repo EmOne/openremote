@@ -21,24 +21,18 @@ package org.openremote.test.protocol.websocket
 
 import io.netty.channel.ChannelHandler
 import org.apache.http.client.utils.URIBuilder
-import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.agent.protocol.io.AbstractNettyIoClient
 import org.openremote.agent.protocol.websocket.WebsocketIoClient
-import org.openremote.container.Container
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
-import org.openremote.manager.concurrent.ManagerExecutorService
 import org.openremote.manager.setup.SetupService
 import org.openremote.manager.setup.builtin.ManagerTestSetup
 import org.openremote.model.asset.AssetFilter
-
 import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.attribute.AttributeEvent
-import org.openremote.model.attribute.AttributeRef
-import org.openremote.model.attribute.MetaItem
+import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.event.TriggeredEventSubscription
-import org.openremote.model.event.shared.CancelEventSubscription
 import org.openremote.model.event.shared.EventSubscription
 import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
@@ -84,7 +78,6 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
 
         and: "the container is started"
         def container = startContainer(defaultConfig(), defaultServices())
-        def protocolExecutorService = container.getService(ManagerExecutorService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
         def agentService = container.getService(AgentService.class)
@@ -99,8 +92,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
                     null,
                     null,
                     MASTER_REALM_ADMIN_USER,
-                    getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)),
-                protocolExecutorService)
+                    getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)))
         client.setEncoderDecoderProvider({
             [new AbstractNettyIoClient.MessageToMessageDecoder<String>(String.class, client)].toArray(new ChannelHandler[0])
         })

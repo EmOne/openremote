@@ -33,7 +33,6 @@ import org.kohsuke.groovy.sandbox.GroovyValueFilter;
 import org.kohsuke.groovy.sandbox.SandboxTransformer;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
-import org.openremote.manager.concurrent.ManagerExecutorService;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.rules.*;
 import org.openremote.model.rules.flow.NodeCollection;
@@ -46,7 +45,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -123,7 +124,7 @@ public class RulesetDeployment {
     final protected Rules rules = new Rules();
     final protected AssetStorageService assetStorageService;
     final protected TimerService timerService;
-    final protected ManagerExecutorService executorService;
+    final protected ScheduledExecutorService executorService;
     final protected Assets assetsFacade;
     final protected Users usersFacade;
     final protected Notifications notificationsFacade;
@@ -138,7 +139,7 @@ public class RulesetDeployment {
     protected Pair<Long, Long> nextValidity;
 
     public RulesetDeployment(Ruleset ruleset, TimerService timerService,
-                             AssetStorageService assetStorageService, ManagerExecutorService executorService,
+                             AssetStorageService assetStorageService, ScheduledExecutorService executorService,
                              Assets assetsFacade, Users usersFacade, Notifications notificationsFacade,
                              HistoricDatapoints historicDatapointsFacade, PredictedDatapoints predictedDatapointsFacade) {
         this.ruleset = ruleset;
@@ -258,7 +259,7 @@ public class RulesetDeployment {
                     withLock(toString() + "::scheduledRuleActionFire", () -> {
                         scheduledRuleActions.removeIf(Future::isDone);
                         action.run();
-                    }), delayMillis);
+                    }), delayMillis, TimeUnit.MILLISECONDS);
             scheduledRuleActions.add(future);
         });
     }
