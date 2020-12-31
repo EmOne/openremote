@@ -550,7 +550,9 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         notificationService.notificationHandlerMap.put(emailNotificationHandler.getTypeName(), mockEmailNotificationHandler)
 
         expect: "the container to settle"
-        assert noEventProcessedIn(assetProcessingService, 500)
+        conditions.eventually {
+            assert noEventProcessedIn(assetProcessingService, 500)
+        }
 
         when: "an email notification is sent to a tenant through same mechanism as rules"
         def notification = new Notification(
