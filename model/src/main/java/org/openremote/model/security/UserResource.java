@@ -35,8 +35,21 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public interface UserResource {
 
     @GET
+    @Path("{realm}/roles")
     @Produces(APPLICATION_JSON)
-    @Path("{realm}")
+    @SuppressWarnings("unusable-by-js")
+    @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
+    Role[] getRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
+
+    @PUT
+    @Path("{realm}/roles")
+    @Consumes(APPLICATION_JSON)
+    @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
+    void updateRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, Role[] roles);
+
+    @GET
+    @Produces(APPLICATION_JSON)
+    @Path("{realm}/users")
     User[] getAll(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
 
     @GET
@@ -45,49 +58,50 @@ public interface UserResource {
     User get(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId);
 
     @GET
+    @Path("user")
     @Produces(APPLICATION_JSON)
     User getCurrent(@BeanParam RequestParams requestParams);
 
     @PUT
-    @Path("{realm}/{userId}")
+    @Path("{realm}/users/{userId}")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
     void update(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId, @Valid User user);
 
     @POST
-    @Path("{realm}")
+    @Path("{realm}/users")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
     void create(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @Valid User user);
 
     @DELETE
-    @Path("{realm}/{userId}")
+    @Path("{realm}/users/{userId}")
     @Produces(APPLICATION_JSON)
     @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
     void delete(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId);
 
     @PUT
-    @Path("{realm}/{userId}/reset-password")
+    @Path("{realm}/reset-password/{userId}")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
     void resetPassword(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId, Credential credential);
 
     @GET
-    @Path("{realm}/{userId}/role")
+    @Path("{realm}/userRoles/{userId}")
     @Produces(APPLICATION_JSON)
-    Role[] getRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId);
+    Role[] getUserRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId);
 
     @GET
-    @Path("role")
+    @Path("userRoles")
     @Produces(APPLICATION_JSON)
     Role[] getCurrentUserRoles(@BeanParam RequestParams requestParams);
 
     @PUT
-    @Path("{realm}/role/{userId}")
+    @Path("{realm}/userRoles/{userId}")
     @Consumes(APPLICATION_JSON)
     @RolesAllowed(Constants.WRITE_ADMIN_ROLE)
-    void updateRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId, Role[] roles);
+    void updateUserRoles(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @PathParam("userId") String userId, Role[] roles);
 }

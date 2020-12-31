@@ -108,7 +108,6 @@ export function headerItemLogs<S extends AppStateKeyed, A extends AnyAction>(orA
         hideMobile: true
     };
 }
-
 export function headerItemAccount<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
     return {
         icon: "account",
@@ -120,7 +119,24 @@ export function headerItemAccount<S extends AppStateKeyed, A extends AnyAction>(
         }
     };
 }
-
+export function headerItemUsers<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
+    return {
+        icon: "account-group",
+        value: "users",
+        href: "users",
+        text: "user_plural",
+        roles: ["write:admin"]
+    };
+}
+export function headerItemRoles<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
+    return {
+        icon: "account-group",
+        value: "roles",
+        href: "roles",
+        text: "role_plural",
+        roles: ["write:admin"]
+    };
+}
 export function getRealmQueryParameter(): string {
     if(location.search && location.search !== "") {
         return Util.getQueryParameter(location.search, "realm");
@@ -172,6 +188,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                 --or-app-color2: ${unsafeCSS(DefaultColor2)};
                 --or-app-color3: #22211f;
                 --or-app-color4: #4D9D2A;
+                --or-console-primary-color: #4D9D2A;
                 color: ${unsafeCSS(DefaultColor3)};
                 fill: ${unsafeCSS(DefaultColor3)};
                 font-size: 14px;

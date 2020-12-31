@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.google.firebase.messaging.Message
 import org.openremote.container.web.WebService
+import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.asset.console.ConsoleResourceImpl
 import org.openremote.manager.notification.EmailNotificationHandler
@@ -534,6 +535,7 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         def notificationService = container.getService(NotificationService.class)
         def emailNotificationHandler = container.getService(EmailNotificationHandler.class)
         def assetStorageService = container.getService(AssetStorageService.class)
+        def assetProcessingService = container.getService(AssetProcessingService.class)
 
         and: "a mock email notification handler"
         EmailNotificationHandler mockEmailNotificationHandler = Spy(emailNotificationHandler)
@@ -546,6 +548,9 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
                 return NotificationSendResult.success()
         }
         notificationService.notificationHandlerMap.put(emailNotificationHandler.getTypeName(), mockEmailNotificationHandler)
+
+        expect: "the container to settle"
+        assert noEventProcessedIn(assetProcessingService, 500)
 
         when: "an email notification is sent to a tenant through same mechanism as rules"
         def notification = new Notification(
