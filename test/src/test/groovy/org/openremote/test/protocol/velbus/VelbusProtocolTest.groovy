@@ -110,7 +110,7 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
     def "Check linked attribute import"() {
 
         given: "the server container is started"
-        def conditions = new PollingConditions(timeout: 20, delay: 0.2)
+        def conditions = new PollingConditions(timeout: 90, delay: 0.5)
         def container = startContainer(defaultConfig(), defaultServices())
         def assetStorageService = container.getService(AssetStorageService.class)
         def agentService = container.getService(AgentService.class)

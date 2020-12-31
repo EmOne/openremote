@@ -153,56 +153,52 @@ public class Container implements org.openremote.model.Container {
         return waitingThread != null;
     }
 
-    public void start() throws Exception {
-        synchronized (services) {
-            if (isRunning())
-                return;
-            LOG.info(">>> Starting runtime container...");
-            try {
-                for (ContainerService service : getServices()) {
-                    LOG.fine("Initializing service: " + service);
-                    service.init(Container.this);
-                }
-                for (ContainerService service : getServices()) {
-                    LOG.fine("Starting service: " + service);
-                    service.start(Container.this);
-                }
-            } catch (Exception ex) {
-                LOG.log(Level.SEVERE, ">>> Runtime container startup failed", ex);
-                throw ex;
+    public synchronized void start() throws Exception {
+        if (isRunning())
+            return;
+        LOG.info(">>> Starting runtime container...");
+        try {
+            for (ContainerService service : getServices()) {
+                LOG.fine("Initializing service: " + service);
+                service.init(Container.this);
             }
-            LOG.info(">>> Runtime container startup complete");
+            for (ContainerService service : getServices()) {
+                LOG.fine("Starting service: " + service);
+                service.start(Container.this);
+            }
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, ">>> Runtime container startup failed", ex);
+            throw ex;
         }
+        LOG.info(">>> Runtime container startup complete");
     }
 
-    public void stop() {
-        synchronized (services) {
-            if (!isRunning())
-                return;
-            LOG.info("<<< Stopping runtime container...");
+    public synchronized void stop() {
+        if (!isRunning())
+            return;
+        LOG.info("<<< Stopping runtime container...");
 
-            List<ContainerService> servicesToStop = Arrays.asList(getServices());
-            Collections.reverse(servicesToStop);
-            try {
-                for (ContainerService service : servicesToStop) {
-                    LOG.fine("Stopping service: " + service);
-                    service.stop(this);
-                }
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
+        List<ContainerService> servicesToStop = Arrays.asList(getServices());
+        Collections.reverse(servicesToStop);
+        try {
+            for (ContainerService service : servicesToStop) {
+                LOG.fine("Stopping service: " + service);
+                service.stop(this);
             }
-
-            try {
-                LOG.info("Cancelling scheduled tasks");
-                ((NoShutdownScheduledExecutorService) EXECUTOR_SERVICE).doShutdownNow();
-            } catch (Exception e) {
-                LOG.log(Level.WARNING, "Exception thrown whilst trying to stop scheduled tasks", e);
-            }
-
-            waitingThread.interrupt();
-            waitingThread = null;
-            LOG.info("<<< Runtime container stopped");
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
+
+        try {
+            LOG.info("Cancelling scheduled tasks");
+            ((NoShutdownScheduledExecutorService) EXECUTOR_SERVICE).doShutdownNow();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Exception thrown whilst trying to stop scheduled tasks", e);
+        }
+
+        waitingThread.interrupt();
+        waitingThread = null;
+        LOG.info("<<< Runtime container stopped");
     }
 
     /**
