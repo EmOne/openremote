@@ -12,12 +12,14 @@ import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TemporaryFact
 import org.openremote.test.ManagerContainerTrait
+import spock.lang.Ignore
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
 import static java.util.concurrent.TimeUnit.HOURS
 import static org.openremote.manager.setup.builtin.ManagerTestSetup.DEMO_RULE_STATES_APARTMENT_1
 
+@Ignore
 class ResidenceSmartSwitchTest extends Specification implements ManagerContainerTrait {
 
     static final double CYCLE_TIME_MILLISECONDS = 2.5 * 60 * 60 * 1000

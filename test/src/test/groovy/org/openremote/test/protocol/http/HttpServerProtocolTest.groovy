@@ -311,6 +311,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
         then: "the protocol should be deployed"
         conditions.eventually {
             assert agentService.getProtocolInstance(agent.id) != null
+            assert ((TestHttpServerProtocol)agentService.getProtocolInstance(agent.id)).deployment != null
         }
 
         when: "the authenticated test resource is used to post an asset"

@@ -23,11 +23,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = GeoJSONPoint.class, name = GeoJSONPoint.TYPE)
+    @JsonSubTypes.Type(GeoJSONPoint.class)
 })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    property = "type"
+    property = "type",
+    include = JsonTypeInfo.As.EXISTING_PROPERTY
 )
 public abstract class GeoJSONGeometry extends GeoJSON {
 

@@ -34,7 +34,6 @@ import org.hibernate.internal.util.SerializationHelper;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.TextUtil;
 
-import javax.ws.rs.core.MultivaluedMap;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Type;
@@ -150,6 +149,10 @@ public class Values {
             return Optional.of((T) value);
         }
 
+        if (value instanceof String && !coerce) {
+            return Optional.empty();
+        }
+
         if (value instanceof JsonNode) {
             JsonNode node = (JsonNode) value;
             if (Number.class.isAssignableFrom(type)) {
@@ -169,8 +172,13 @@ public class Values {
                     return Optional.of((T) Short.valueOf(node.shortValue()));
                 }
             }
-            if (String.class == type && (node.isTextual() || coerce)) {
-                return Optional.of((T) node.asText());
+            if (String.class == type) {
+                if (node.isTextual()) {
+                    return Optional.of((T) node.asText());
+                }
+                if (coerce) {
+                    return Optional.of((T) node.toString());
+                }
             }
             if (Boolean.class == type && (node.isBoolean() || coerce)) {
                 if (!node.isBoolean() && node.isTextual()) {
@@ -192,8 +200,13 @@ public class Values {
         if (coerce) {
             try {
                 return Optional.of(JSON.convertValue(value, type));
-            } catch (Exception ignored) {
-                LOG.info("Failed to coerce value to requested type: input=" + value.getClass() + ", output=" + type);
+            } catch (Exception e) {
+                if (value instanceof String) {
+                    // Try and parse the value
+                    return parse((String)value, type);
+                }
+
+                LOG.log(Level.INFO, "Failed to coerce value to requested type: input=" + value.getClass() + ", output=" + type, e);
                 return Optional.empty();
             }
         }
@@ -397,6 +410,9 @@ public class Values {
     public static <T> T convert(Object object, Class<T> targetType) {
         if (object == null) {
             return null;
+        }
+        if (targetType == object.getClass()) {
+            return (T)object;
         }
         if (targetType == String.class) {
             if (object instanceof TextNode) {

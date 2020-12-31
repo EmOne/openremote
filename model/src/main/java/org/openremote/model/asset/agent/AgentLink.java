@@ -128,11 +128,9 @@ public abstract class AgentLink<T extends AgentLink<?>> implements Serializable 
         return Optional.ofNullable(writeValueConverter);
     }
 
-    @JsonPropertyDescription("JSON string to be used for attribute writes and can contain '" + Protocol.DYNAMIC_VALUE_PLACEHOLDER +
-        "' placeholders to allow the written value to be injected into the JSON string or to even hardcode the value written to the" +
-        " protocol. Once any placeholders are replaced the JSON string is then parsed and the resulting object is passed to the" +
-        " protocol (it is therefore important that strings are correctly escaped); A value of 'null' will produce a literal null." +
-        " If this property is not defined then the written value is passed through to the protocol as it is")
+    @JsonPropertyDescription("String to be used for attribute writes and can contain '" + Protocol.DYNAMIC_VALUE_PLACEHOLDER +
+        "' placeholders to allow the written value to be injected into the string or to even hardcode the value written to the" +
+        " protocol")
     public Optional<String> getWriteValue() {
         return Optional.ofNullable(writeValue);
     }

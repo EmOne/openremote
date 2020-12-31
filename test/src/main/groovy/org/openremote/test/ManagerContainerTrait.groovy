@@ -68,11 +68,6 @@ trait ManagerContainerTrait extends ContainerTrait {
         startContainer(config << [(TIMER_CLOCK_TYPE): REAL.name()], services)
     }
 
-    boolean noEventProcessedIn(AssetProcessingService assetProcessingService, int milliseconds) {
-        return (assetProcessingService.lastProcessedEventTimestamp > 0
-                && assetProcessingService.lastProcessedEventTimestamp + milliseconds < System.currentTimeMillis())
-    }
-
     boolean noRuleEngineFiringScheduled() {
         if (!this.container) {
             return false

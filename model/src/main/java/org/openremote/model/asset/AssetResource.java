@@ -194,7 +194,7 @@ public interface AssetResource {
     @PUT
     @Path("{assetId}/attribute/{attributeName}")
     @Consumes(APPLICATION_JSON)
-    void writeAttributeValue(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @PathParam("attributeName") String attributeName, String rawJson);
+    void writeAttributeValue(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @PathParam("attributeName") String attributeName, String valueStr);
 
     /**
      * Creates an asset. The identifier value of the asset can be provided, it should be a globally unique string value,

@@ -179,21 +179,21 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
             .setParent(agent)
             .addOrReplaceAttributes(
                 // write attribute value
-                new Attribute<>("readWriteTargetTemp", NUMBER)
+                new Attribute<>("readWriteTargetTemp", NUMBER, 10d)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
-                            .setWriteValue(("\"" + SharedEvent.MESSAGE_PREFIX +
+                            .setWriteValue(SharedEvent.MESSAGE_PREFIX +
                                 Values.asJSON(new AttributeEvent(
                                     managerTestSetup.apartment1LivingroomId,
                                     "targetTemperature",
                                     0.12345))
-                                    .orElse(Values.NULL_LITERAL) + "\"")
+                                    .orElse(Values.NULL_LITERAL)
                                         .replace("0.12345", Protocol.DYNAMIC_VALUE_PLACEHOLDER)
-                                        .replace("\r\n", ""))
+                            )
                         .setMessageMatchFilters(
                             [
                                 new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
-                                new JsonPathFilter("\$..attributeState.attributeRef.attributeName", false, false)
+                                new JsonPathFilter("\$..attributeState.ref[1]", false, false)
                             ] as ValueFilter[]
                         )
                         .setMessageMatchPredicate(
@@ -202,7 +202,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                         .setValueFilters(
                             [
                                 new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
-                                new JsonPathFilter("\$..events[?(@.attributeState.attributeRef.attributeName == \"targetTemperature\")].attributeState.value", true, false)
+                                new JsonPathFilter("\$..events[?(@.attributeState.ref[1] == \"targetTemperature\")].attributeState.value", true, false)
                             ] as ValueFilter[]
                         )
                         .setWebsocketSubscriptions(
@@ -213,13 +213,13 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                             ] as WebsocketSubscription[]
                         ))
                     ),
-                new Attribute<>("readCo2Level", NUMBER)
+                new Attribute<>("readCo2Level", NUMBER, 20d)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
                             .setMessageMatchFilters(
                                 [
                                     new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
-                                    new JsonPathFilter("\$..attributeState.attributeRef.attributeName", false, false)
+                                    new JsonPathFilter("\$..attributeState.ref[1]", false, false)
                                 ] as ValueFilter[]
                             )
                             .setMessageMatchPredicate(
@@ -228,7 +228,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                             .setValueFilters(
                                 [
                                     new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
-                                    new JsonPathFilter("\$..events[?(@.attributeState.attributeRef.attributeName == \"co2Level\")].attributeState.value", true, false),
+                                    new JsonPathFilter("\$..events[?(@.attributeState.ref[1] == \"co2Level\")].attributeState.value", true, false),
                                 ] as ValueFilter[]
                             )
                             .setWebsocketSubscriptions(
@@ -244,11 +244,11 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         and: "the asset is merged into the asset service"
         asset = assetStorageService.merge(asset)
 
-        then: "the linked attributes should have no initial values"
+        then: "the linked attributes should have the initial values of the subscribed attributes"
         conditions.eventually {
             asset = assetStorageService.find(asset.getId(), true)
-            assert !asset.getAttribute("readCo2Level").get().value.isPresent()
-            assert !asset.getAttribute("readWriteTargetTemp").get().value.isPresent()
+            assert asset.getAttribute("readCo2Level").get().getValue().orElse(null) == 20d
+            assert asset.getAttribute("readWriteTargetTemp").get().getValue().orElse(null) == 10d
         }
 
         when: "a linked attribute value is updated"
@@ -267,12 +267,12 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         def co2LevelIncrement = new AttributeEvent(
             managerTestSetup.apartment1LivingroomId, "co2Level", 600
         )
-        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.agentId)).updateSensor(co2LevelIncrement)
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(co2LevelIncrement)
 
         then: "the linked co2Level attribute should get the new value"
         conditions.eventually {
             asset = assetStorageService.find(asset.getId(), true)
-            assert asset.getAttribute("readCo2Level", Integer.class).flatMap{it.getValue()}.orElse(null) == 600d
+            assert asset.getAttribute("readCo2Level").flatMap{it.getValue()}.orElse(null) == 600d
         }
     }
 }

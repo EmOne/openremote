@@ -119,12 +119,12 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
             new Attribute<>("startHello", EXECUTION_STATUS)
                 .addMeta(
                     new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
-                        .setWriteValue('"abcdef"'))
+                        .setWriteValue("abcdef"))
                 ),
             new Attribute<>("echoHello", STRING)
                 .addMeta(
                     new MetaItem<>(AGENT_LINK, new AgentLink.Default(agent.id)
-                        .setWriteValue('"Hello {$value};"'))
+                        .setWriteValue('Hello {$value};'))
                 ),
             new Attribute<>("echoWorld", STRING)
                 .addMeta(
@@ -244,7 +244,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
         }
 
         when: "the echo world attribute is also updated to work with hex server"
-        asset.getAttribute("echoWorld").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue('"123456"')}
+        asset.getAttribute("echoWorld").flatMap({it.getMetaValue(AGENT_LINK)}).ifPresent{it.setWriteValue("123456")}
         asset = assetStorageService.merge(asset)
 
         then: "the attributes should be relinked"
@@ -252,7 +252,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
             assert agentService.getProtocolInstance(agent.id) != null
             assert agentService.getProtocolInstance(agent.id).linkedAttributes.size() == 5
             assert ((UdpClientProtocol)agentService.getProtocolInstance(agent.id)).protocolMessageConsumers.size() == 2
-            assert agentService.getProtocolInstance(agent.id).linkedAttributes.get(new AttributeRef(asset.getId(), "echoWorld")).getMetaItem(AGENT_LINK).flatMap{it.value}.flatMap{it.writeValue}.orElse(null) == '"123456"'
+            assert agentService.getProtocolInstance(agent.id).linkedAttributes.get(new AttributeRef(asset.getId(), "echoWorld")).getMetaItem(AGENT_LINK).flatMap{it.value}.flatMap{it.writeValue}.orElse(null) == "123456"
         }
 
         and: "the protocol should become CONNECTED"

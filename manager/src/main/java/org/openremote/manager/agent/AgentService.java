@@ -381,7 +381,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             if (asset.getPath() == null) {
                 Asset<?> parentAsset = assetStorageService.find(parentId);
                 if (parentAsset != null && parentAsset.getPath() != null) {
-                    ancestorAgentId = Arrays.stream(asset.getPath())
+                    ancestorAgentId = Arrays.stream(parentAsset.getPath())
                         .filter(assetId -> getAgents().containsKey(assetId))
                         .findFirst()
                         .orElse(null);

@@ -715,6 +715,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         conditions.eventually {
             assert identityProvider.getClient(managerTestSetup.realmBuildingTenant, GatewayService.GATEWAY_CLIENT_ID_PREFIX + gateway.getId()) == null
         }
+
+        cleanup: "cleanup the gateway client"
+        if (gatewayClient != null) {
+            gatewayClient.disconnect()
+            gatewayClient.removeAllMessageConsumers()
+        }
     }
 
     def "Verify gateway client service"() {

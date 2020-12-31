@@ -34,7 +34,6 @@ import io.netty.util.CharsetUtil;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.openremote.agent.protocol.io.AbstractNettyIoClient;
 import org.openremote.container.web.OAuthFilter;
-import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
@@ -91,17 +90,11 @@ public class WebsocketIoClient<T> extends AbstractNettyIoClient<T, InetSocketAdd
             if (!handshaker.isHandshakeComplete()) {
                 try {
                     handshaker.finishHandshake(ch, (FullHttpResponse) msg);
-                    synchronized (WebsocketIoClient.this) {
-                        LOG.fine("Connected: " + getClientUri());
-                        onConnectionStatusChanged(ConnectionStatus.CONNECTED);
-                    }
-
                     handshakeFuture.setSuccess();
                 } catch (WebSocketHandshakeException e) {
-                    LOG.log(Level.SEVERE, "Connection failed: " + getClientUri(), e);
-                    setPermanentError("Connection failed: " + e.getMessage());
                     handshakeFuture.setFailure(e);
                 }
+                WebsocketIoClient.this.onHandshakeComplete(handshakeFuture);
                 return;
             }
 
@@ -144,6 +137,7 @@ public class WebsocketIoClient<T> extends AbstractNettyIoClient<T, InetSocketAdd
     protected String authHeaderValue;
     protected String host;
     protected int port;
+    protected CompletableFuture<Boolean> connectedFuture;
 
     public WebsocketIoClient(URI uri, Map<String, List<String>> headers, OAuthGrant oAuthGrant) {
         this.uri = uri;
@@ -232,6 +226,10 @@ public class WebsocketIoClient<T> extends AbstractNettyIoClient<T, InetSocketAdd
         super.initChannel(channel);
     }
 
+    protected void onHandshakeComplete(ChannelFuture handshakeFuture) {
+        super.onConnectedFutureComplete(handshakeFuture, connectedFuture);
+    }
+
     @Override
     protected void addEncodersDecoders(Channel channel) {
 
@@ -294,5 +292,11 @@ public class WebsocketIoClient<T> extends AbstractNettyIoClient<T, InetSocketAdd
         }
 
         return super.doConnect();
+    }
+
+    @Override
+    protected CompletableFuture<Boolean> createConnectedFuture() {
+        connectedFuture = new CompletableFuture<>();
+        return connectedFuture;
     }
 }

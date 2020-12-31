@@ -355,13 +355,17 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public void writeAttributeValue(RequestParams requestParams, String assetId, String attributeName, String rawJson) {
+    public void writeAttributeValue(RequestParams requestParams, String assetId, String attributeName, String valueStr) {
         try {
-            JsonNode value = Values.parse(rawJson)
-                .orElse(null); // When parsing literal JSON "null"
+
+            // JAX-RS converts a null to empty string so simple check here - means cannot actually send an empty string
+            // but not sure you would want to as really it conveys the same meaning as no value
+            if (TextUtil.isNullOrEmpty(valueStr)) {
+                valueStr = null;
+            }
 
             AttributeEvent event = new AttributeEvent(
-                new AttributeRef(assetId, attributeName), value, timerService.getCurrentTimeMillis()
+                new AttributeRef(assetId, attributeName), valueStr, timerService.getCurrentTimeMillis()
             );
 
             LOG.info("Write attribute value request: " + event);

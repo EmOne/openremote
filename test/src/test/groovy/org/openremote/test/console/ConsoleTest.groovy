@@ -394,7 +394,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "a console's location is updated to be null"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, "null")
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, null)
 
         then: "no more alerts should have been sent and the welcome reset rule should have fired on the tenant rule engine"
         conditions.eventually {
@@ -666,6 +666,8 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         }
 
         cleanup: "the mock is removed"
-        notificationService.notificationHandlerMap.put(pushNotificationHandler.getTypeName(), pushNotificationHandler)
+        if (notificationService != null) {
+            notificationService.notificationHandlerMap.put(pushNotificationHandler.getTypeName(), pushNotificationHandler)
+        }
     }
 }

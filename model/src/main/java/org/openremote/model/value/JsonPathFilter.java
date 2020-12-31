@@ -74,16 +74,13 @@ public class JsonPathFilter extends ValueFilter {
             return null;
         }
 
-        Optional<String> valueStr = Values.asJSON(value);
-        if (!valueStr.isPresent()) {
+        String valueStr = Values.convert(value, String.class);
+
+        if (valueStr == null) {
             return null;
         }
 
-        if (value == null) {
-            return null;
-        }
-
-        Object obj = jsonPathParser.parse(valueStr.get()).read(path);
+        Object obj = jsonPathParser.parse(valueStr).read(path);
 
         if ((returnFirst || returnLast) && obj != null && Values.isArray(obj.getClass())) {
             ArrayNode arrayNode = Values.convert(obj, ArrayNode.class);

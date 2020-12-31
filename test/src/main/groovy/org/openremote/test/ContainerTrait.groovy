@@ -35,7 +35,9 @@ import org.openremote.container.util.MapAccess
 import org.openremote.container.web.DefaultWebsocketComponent
 import org.openremote.container.web.WebClient
 import org.openremote.manager.agent.AgentService
+import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
+import org.openremote.manager.gateway.GatewayClientService
 import org.openremote.manager.rules.RulesService
 import org.openremote.manager.rules.RulesetStorageService
 import org.openremote.manager.web.ManagerWebService
@@ -43,6 +45,8 @@ import org.openremote.model.Constants
 import org.openremote.model.ContainerService
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.UserAsset
+import org.openremote.model.asset.agent.Agent
+import org.openremote.model.gateway.GatewayConnection
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.RulesetQuery
 import org.openremote.model.rules.AssetRuleset
@@ -56,6 +60,7 @@ import javax.websocket.Session
 import javax.websocket.WebSocketContainer
 import javax.ws.rs.core.UriBuilder
 import java.util.logging.Handler
+import java.util.stream.Collectors
 import java.util.stream.IntStream
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -100,12 +105,13 @@ trait ContainerTrait {
                 println("Services and config matches already running container so checking state")
                 def counter = 0
 
-//                    // Crude way is to restart some services to reset the system but this isn't super fast
-//                    currentServiceList.find {it instanceof PersistenceService},
-//                    currentServiceList.find {it instanceof SetupService},
-//                    currentServiceList.find {it instanceof IdentityService},
-//                    currentServiceList.find {it instanceof AgentService},
-//                    currentServiceList.find {it instanceof RulesService}
+                // Reset gateway connections
+                if (container.hasService(GatewayClientService.class)) {
+                    def gatewayClientService = container.getService(GatewayClientService.class)
+                    def gatewayConnections = getGatewayConnections()
+                    println("Purging ${gatewayConnections.size()} gateway connection(s)")
+                    gatewayClientService.deleteConnections(gatewayConnections.stream().map{it.localRealm}.collect(Collectors.toList()))
+                }
 
                 // Reset rulesets
                 if (container.hasService(RulesetStorageService.class) && container.hasService(RulesService.class)) {
@@ -217,31 +223,79 @@ trait ContainerTrait {
                         }
                     }
                 }
-
-                return container
             } else {
                 System.out.println("Request to start container with different config and/or services as already running container so restarting")
                 stopContainer()
+                TestFixture.container = null
             }
         }
-        TestFixture.container = new Container(config, services)
-        container.startBackground()
 
-        // Block until container is actually running to aid in testing but also to record some state info
-        while (!container.isRunning()) {
-            Thread.sleep(100)
+        if (container == null) {
+            TestFixture.container = new Container(config, services)
+            container.startBackground()
+
+            // Block until container is actually running to aid in testing but also to record some state info
+            while (!container.isRunning()) {
+                Thread.sleep(100)
+            }
+
+            // Track rules (very basic)
+            TestFixture.globalRulesets = getRulesets(GlobalRuleset.class)
+            TestFixture.tenantRulesets = getRulesets(TenantRuleset.class)
+            TestFixture.assetRulesets = getRulesets(AssetRuleset.class)
+
+            // Track assets
+            TestFixture.assets = getAssets()
+            TestFixture.userAssets = getUserAssets()
+
+            // Track gateway connections
+            TestFixture.gatewayConnections = getGatewayConnections()
         }
 
-        // Track rules (very basic)
-        TestFixture.globalRulesets = getRulesets(GlobalRuleset.class)
-        TestFixture.tenantRulesets = getRulesets(TenantRuleset.class)
-        TestFixture.assetRulesets = getRulesets(AssetRuleset.class)
+        // Wait for agents and rulesets to be deployed - Just a very basic way of waiting for the system to be 'initialised'
+        def agentService = container.hasService(AgentService.class) ? container.getService(AgentService.class) : null
+        def rulesService = container.hasService(RulesService.class) ? container.getService(RulesService.class) : null
+        def assetProcessingService = container.hasService(AssetProcessingService.class) ? container.getService(AssetProcessingService.class) : null
 
-        // Track assets
-        TestFixture.assets = getAssets()
-        TestFixture.userAssets = getUserAssets()
+        if (agentService != null) {
+            println("Waiting for agents to be deployed")
+            while (TestFixture.assets.stream().filter { it instanceof Agent }.any { !agentService.agentMap.containsKey(it.id) }) {
+                Thread.sleep(100)
+            }
+            println("Agents are deployed")
+        }
 
-        container
+        if (rulesService != null) {
+            println("Waiting for global rulesets to be deployed")
+            while (TestFixture.globalRulesets.stream().filter { it.enabled }.any { rulesService.globalEngine == null || !rulesService.globalEngine.deployments.containsKey(it.id) }) {
+                Thread.sleep(100)
+            }
+            println("Global rulesets are deployed")
+
+            println("Waiting for tenant rulesets to be deployed")
+            while (TestFixture.tenantRulesets.stream().filter { it.enabled }.any { !rulesService.tenantEngines.containsKey(it.realm) || !rulesService.tenantEngines.get(it.realm).deployments.containsKey(it.id) }) {
+                Thread.sleep(100)
+            }
+            println("Tenant rulesets are deployed")
+
+            println("Waiting for asset rulesets to be deployed")
+            while (TestFixture.assetRulesets.stream().filter { it.enabled }.any { !rulesService.assetEngines.containsKey(it.assetId) || !rulesService.assetEngines.get(it.assetId).deployments.containsKey(it.id) }) {
+                Thread.sleep(100)
+            }
+            println("Asset rulesets are deployed")
+        }
+
+        if (assetProcessingService != null) {
+            println("Waiting for the system to settle down")
+            noEventProcessedIn(assetProcessingService, 300)
+        }
+
+        return container
+    }
+
+    boolean noEventProcessedIn(AssetProcessingService assetProcessingService, int milliseconds) {
+        return (assetProcessingService.lastProcessedEventTimestamp > 0
+            && assetProcessingService.lastProcessedEventTimestamp + milliseconds < System.currentTimeMillis())
     }
 
     List<Ruleset> getRulesets(Class<? extends Ruleset> clazz) {
@@ -280,6 +334,13 @@ trait ContainerTrait {
             return Collections.emptyList()
         }
         container.getService(AssetStorageService.class).findUserAssets(null, null, null)
+    }
+
+    List<GatewayConnection> getGatewayConnections() {
+        if (!container.hasService(GatewayClientService.class)) {
+            return Collections.emptyList();
+        }
+        container.getService(GatewayClientService.class).getConnections()
     }
 
     Container getContainer() {

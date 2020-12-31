@@ -20,6 +20,7 @@
 package org.openremote.model.asset;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.event.shared.SharedEvent;
@@ -36,7 +37,7 @@ public class ReadAttributeEvent extends SharedEvent {
     protected AttributeRef attributeRef;
 
     @JsonCreator
-    public ReadAttributeEvent(AttributeRef attributeRef) {
+    public ReadAttributeEvent(@JsonProperty("attributeRef") AttributeRef attributeRef) {
         this.attributeRef = attributeRef;
     }
 

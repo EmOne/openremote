@@ -294,7 +294,6 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
                 httpHandler.handleRequest(exchange);
             };
             WebService.RequestHandler requestHandler = pathStartsWithHandler(deploymentInfo.getDeploymentName(), deploymentInfo.getContextPath(), handlerWrapper);
-            deployment = new DeploymentInstance(deploymentInfo, requestHandler);
 
             LOG.info("Registering HTTP Server Protocol request handler '"
                     + this.getClass().getSimpleName()
@@ -302,6 +301,8 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
                     + deploymentInfo.getContextPath());
             // Add the handler before the greedy deployment handler
             webService.getRequestHandlers().add(0, requestHandler);
+
+            deployment = new DeploymentInstance(deploymentInfo, requestHandler);
         } catch (ServletException e) {
             LOG.severe("Failed to deploy deployment: " + deploymentInfo.getDeploymentName());
         }

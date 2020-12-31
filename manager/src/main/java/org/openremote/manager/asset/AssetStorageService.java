@@ -1140,6 +1140,10 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 // Fully load the asset
                 Asset<?> loadedAsset = find(new AssetQuery().ids(asset.getId()));
 
+                if (loadedAsset == null) {
+                    return;
+                }
+
                 clientEventService.publishEvent(
                     new AssetEvent(AssetEvent.Cause.CREATE, loadedAsset, null)
                 );

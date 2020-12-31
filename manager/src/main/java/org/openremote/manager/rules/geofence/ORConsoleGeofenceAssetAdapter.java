@@ -79,7 +79,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
     protected ManagerIdentityService identityService;
     protected ScheduledExecutorService executorService;
     protected Map<String, String> consoleIdRealmMap;
-    protected ScheduledFuture notifyAssetsScheduledFuture;
+    protected ScheduledFuture<?> notifyAssetsScheduledFuture;
     protected Set<String> notifyAssets;
 
     @Override
@@ -225,7 +225,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
 
         if (assetStateLocationPredicates == null) {
             // No geofences exist for this asset
-            LOG.info("Request for console '" + assetId + "' geofences: 0 found");
+            LOG.fine("Request for console '" + assetId + "' geofences: 0 found");
             return new GeofenceDefinition[0];
         }
 
@@ -235,13 +235,13 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
                     locationPredicate))
             .toArray(GeofenceDefinition[]::new);
 
-        LOG.info("Request for console '" + assetId + "' geofences: " + geofences.length + " found");
+        LOG.fine("Request for console '" + assetId + "' geofences: " + geofences.length + " found");
         return geofences;
     }
 
     protected GeofenceDefinition locationPredicateToGeofenceDefinition(String assetId, GeofencePredicate geofencePredicate) {
         RadialGeofencePredicate radialLocationPredicate = (RadialGeofencePredicate) geofencePredicate;
-        String id = assetId + "_" + Integer.toString(radialLocationPredicate.hashCode());
+        String id = assetId + "_" + radialLocationPredicate.hashCode();
         String url = getWriteAttributeUrl(new AttributeRef(assetId, Asset.LOCATION.getName()));
         return new GeofenceDefinition(id,
             radialLocationPredicate.getLat(),
@@ -277,7 +277,7 @@ public class ORConsoleGeofenceAssetAdapter extends RouteBuilder implements Geofe
                 executorService.schedule(() -> {
                     LOG.info("Notifiying consoles that geofences have changed: " + notification.getTargets());
                     notificationService.sendNotification(notification);
-                }, i * NOTIFY_ASSETS_BATCH_MILLIS, TimeUnit.MILLISECONDS);
+                }, (long) i * NOTIFY_ASSETS_BATCH_MILLIS, TimeUnit.MILLISECONDS);
             });
     }
 

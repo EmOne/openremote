@@ -26,12 +26,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.io.Serializable;
 
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = GeoJSONFeatureCollection.class, name = GeoJSONFeatureCollection.TYPE),
-    @JsonSubTypes.Type(value = GeoJSONFeature.class, name = GeoJSONFeature.TYPE)
+    @JsonSubTypes.Type(GeoJSONFeatureCollection.class),
+    @JsonSubTypes.Type(GeoJSONFeature.class),
+    @JsonSubTypes.Type(GeoJSONGeometry.class)
 })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    property = "type"
+    property = "type",
+    include = JsonTypeInfo.As.EXISTING_PROPERTY
 )
 public abstract class GeoJSON implements Serializable {
 

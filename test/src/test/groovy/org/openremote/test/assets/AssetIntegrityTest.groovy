@@ -78,7 +78,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         testAsset.getAttribute("foo").get().getValue().get() == "bar"
 
         when: "an asset attribute value is written directly"
-        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", "\"bar2\"")
+        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", "bar2")
 
         then: "the attribute value should match"
         new PollingConditions(timeout: 5, delay: 0.2).eventually {
@@ -87,7 +87,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         }
 
         when: "an asset attribute value null is written directly"
-        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", "null")
+        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", null)
 
         then: "the attribute value should match"
         new PollingConditions(timeout: 5, delay: 0.2).eventually {

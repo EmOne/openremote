@@ -315,7 +315,7 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
                 LOG.warning("WebsocketHttpSubscription returned an un-successful response code: " + response.getStatus());
             }
         } else {
-            Values.asJSON(subscription.body).ifPresent(jsonString -> client.ioClient.sendMessage(jsonString));
+            client.ioClient.sendMessage(Values.convert(subscription.body, String.class));
         }
     }
 }

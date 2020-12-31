@@ -162,9 +162,9 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
         }
 
         when: "the presence is detected in Living room of apartment 1"
-        assetProcessingService.sendAttributeEvent(new AttributeEvent(
-                managerTestSetup.apartment1LivingroomId, "presenceDetected", true
-        ))
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(
+            new AttributeEvent(managerTestSetup.apartment1LivingroomId, "presenceDetected", true)
+        )
 
         then: "that value should be stored"
         conditions.eventually {
@@ -218,9 +218,9 @@ class ResidenceNotifyAlarmTriggerTest extends Specification implements ManagerCo
 
         when: "the presence is no longer triggered in Living room of apartment 1"
         advancePseudoClock(5, TimeUnit.SECONDS, container)
-        assetProcessingService.sendAttributeEvent(new AttributeEvent(
-                managerTestSetup.apartment1LivingroomId, "presenceDetected", false
-        ))
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(
+            new AttributeEvent(managerTestSetup.apartment1LivingroomId, "presenceDetected", false)
+        )
 
         then: "that value should be stored"
         conditions.eventually {

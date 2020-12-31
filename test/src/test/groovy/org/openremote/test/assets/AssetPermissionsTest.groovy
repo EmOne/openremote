@@ -181,7 +181,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 404
 
         when: "an asset attribute is written in the authenticated realm"
-        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, BuildingAsset.STREET.name, Values.asJSON("Teststreet 123").orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, BuildingAsset.STREET.name, "Teststreet 123")
 
         then: "result should match"
         BuildingAsset asset
@@ -192,21 +192,21 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         }
 
         when: "an non-existent assets attribute is written in the authenticated realm"
-        assetResource.writeAttributeValue(null, "doesnotexist", BuildingAsset.STREET.name, Values.asJSON("Teststreet 123").orElse(null))
+        assetResource.writeAttributeValue(null, "doesnotexist", BuildingAsset.STREET.name, "Teststreet 123")
 
         then: "the attribute should be not found"
         ex = thrown()
         ex.response.status == 404
 
         when: "an non-existent attribute is written in the authenticated realm"
-        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, "doesnotexist", Values.asJSON("Teststreet 123").orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, "doesnotexist", "Teststreet 123")
 
         then: "the attribute should be not found"
         ex = thrown()
         ex.response.status == 404
 
         when: "an asset attribute is written in a foreign realm"
-        assetResource.writeAttributeValue(null, managerTestSetup.smartBuildingId, BuildingAsset.STREET.name, Values.asJSON("Teststreet 456").orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.smartBuildingId, BuildingAsset.STREET.name, "Teststreet 456")
 
         then: "result should match"
         conditions.eventually {
@@ -366,7 +366,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 403
 
         when: "an asset attribute is written in the authenticated realm"
-        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, BuildingAsset.STREET.name, Values.asJSON("Teststreet 123").orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.smartOfficeId, BuildingAsset.STREET.name, "Teststreet 123")
 
         then: "result should match"
         conditions.eventually {
@@ -375,7 +375,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         }
 
         when: "an asset attribute is written in a foreign realm"
-        assetResource.writeAttributeValue(null, managerTestSetup.smartBuildingId, BuildingAsset.STREET.name, Values.asJSON("Teststreet 456").orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.smartBuildingId, BuildingAsset.STREET.name, "Teststreet 456")
 
         then: "access should be forbidden"
         ex = thrown()
@@ -744,21 +744,21 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 403
 
         when: "a private asset attribute is written on a user asset"
-        assetResource.writeAttributeValue(null, managerTestSetup.apartment1LivingroomId, "lightSwitch", Values.asJSON(false).orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.apartment1LivingroomId, "lightSwitch", "false")
 
         then: "the attribute should be not found"
         ex = thrown()
         ex.response.status == 404
 
         when: "a restricted read-only asset attribute is written on a user asset"
-        assetResource.writeAttributeValue(null, managerTestSetup.apartment1LivingroomId, "currentTemperature", Values.asJSON(22.123d).orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.apartment1LivingroomId, "currentTemperature", "22.123")
 
         then: "the request should be forbidden"
         ex = thrown()
         ex.response.status == 403
 
         when: "an attribute is written on a non-existent user asset"
-        assetResource.writeAttributeValue(null, "doesnotexist", "lightSwitch", Values.asJSON(false).orElse(null))
+        assetResource.writeAttributeValue(null, "doesnotexist", "lightSwitch", "false")
 
         then: "the attribute should be not found"
         ex = thrown()
@@ -772,7 +772,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 404
 
         when: "an asset attribute is written on a non-user asset"
-        assetResource.writeAttributeValue(null, managerTestSetup.apartment3LivingroomId, "lightSwitch", Values.asJSON(false).orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.apartment3LivingroomId, "lightSwitch", "false")
 
         then: "access should be forbidden"
         ex = thrown()
@@ -786,7 +786,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         ex.response.status == 403
 
         when: "a non-writable attribute value is written on a user asset"
-        assetResource.writeAttributeValue(null, managerTestSetup.apartment1KitchenId, "presenceDetected", Values.asJSON(true).orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.apartment1KitchenId, "presenceDetected", "true")
 
         then: "access should be forbidden"
         ex = thrown()
@@ -820,7 +820,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         assert testAsset.getAttribute("myCustomAttribute").get().getValue().get() == 123
 
         when: "a writable attribute value is written on a user asset"
-        assetResource.writeAttributeValue(null, managerTestSetup.apartment1KitchenId, "myCustomAttribute", Values.asJSON(456).orElse(null))
+        assetResource.writeAttributeValue(null, managerTestSetup.apartment1KitchenId, "myCustomAttribute", "456")
 
         then: "result should match"
         conditions.eventually {
