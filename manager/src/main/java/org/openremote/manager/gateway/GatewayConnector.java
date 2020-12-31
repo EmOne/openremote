@@ -500,6 +500,7 @@ public class GatewayConnector {
         assetProcessingService.sendAttributeEvent(new AttributeEvent(gatewayId, GatewayAsset.STATUS, ConnectionStatus.CONNECTED), AttributeEvent.Source.GATEWAY);
     }
 
+    @SuppressWarnings("unchecked")
     protected <T extends Asset<?>> T mergeGatewayAsset(T asset, boolean isUpdate) {
 
         if (!isConnected() || isInitialSyncInProgress()) {
@@ -544,7 +545,6 @@ public class GatewayConnector {
 
                 T mergedAsset;
                 synchronized (pendingAssetMerges) {
-                    //noinspection unchecked
                     mergedAsset = (T)pendingAssetMerges.remove(asset.getId());
                 }
 

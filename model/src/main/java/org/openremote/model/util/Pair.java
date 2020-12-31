@@ -35,9 +35,9 @@ public class Pair<K, V> implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o instanceof Pair) {
-            Pair pair = (Pair) o;
-            return (key != null ? key.equals(pair.key) : pair.key == null)
-                    && (value != null ? value.equals(pair.value) : pair.value == null);
+            Pair<?,?> pair = (Pair<?,?>) o;
+            return (Objects.equals(key, pair.key))
+                    && (Objects.equals(value, pair.value));
         }
         return false;
     }

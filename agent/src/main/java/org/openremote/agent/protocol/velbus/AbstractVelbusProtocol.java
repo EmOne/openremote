@@ -40,7 +40,6 @@ import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Future;
@@ -229,9 +228,9 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
                                     }
                                     return attribute;
                                 })
-                            ).toArray(Attribute[]::new)
+                            ).toArray(Attribute<?>[]::new)
                         ))
-                        .orElse(new Attribute[0])
+                        .orElse(new Attribute<?>[0])
                 );
 
                 devices.add(device);

@@ -106,17 +106,17 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             this.binders = binders;
         }
 
-        protected void apply(EntityManager em, org.hibernate.query.Query query) {
+        protected void apply(EntityManager em, org.hibernate.query.Query<Object[]> query) {
             for (ParameterBinder binder : binders) {
                 binder.accept(em, query);
             }
         }
     }
 
-    protected interface ParameterBinder extends BiConsumer<EntityManager, org.hibernate.query.Query> {
+    protected interface ParameterBinder extends BiConsumer<EntityManager, org.hibernate.query.Query<Object[]>> {
 
         @Override
-        default void accept(EntityManager em, org.hibernate.query.Query st) {
+        default void accept(EntityManager em, org.hibernate.query.Query<Object[]> st) {
             try {
                 acceptStatement(em, st);
             } catch (SQLException ex) {
@@ -124,7 +124,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             }
         }
 
-        void acceptStatement(EntityManager em, org.hibernate.query.Query st) throws SQLException;
+        void acceptStatement(EntityManager em, org.hibernate.query.Query<Object[]> st) throws SQLException;
     }
 
     private static final Logger LOG = Logger.getLogger(AssetStorageService.class.getName());
@@ -211,7 +211,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
 
              return true;
          };
-    };
+    }
 
     protected TimerService timerService;
     protected PersistenceService persistenceService;
@@ -797,11 +797,13 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 return false;
             });
 
+            //noinspection ConstantConditions
             if (gatewayIdAssetIdMap.isEmpty() && ids.isEmpty()) {
                 return true;
             }
 
             // This is not atomic across gateways
+            //noinspection ConstantConditions
             if (!gatewayIdAssetIdMap.isEmpty()) {
                 for (Map.Entry<String, List<String>> gatewayIdAssetIds : gatewayIdAssetIdMap.entrySet()) {
                     String gatewayId = gatewayIdAssetIds.getKey();
@@ -1174,18 +1176,6 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     new AssetEvent(AssetEvent.Cause.UPDATE, loadedAsset, updatedProperties)
                 );
 
-                // Did the name change?
-                String previousName = persistenceEvent.getPreviousState("name");
-                String currentName = persistenceEvent.getCurrentState("name");
-
-                // Did the parent change?
-                String previousParentId = persistenceEvent.getPreviousState("parentId");
-                String currentParentId = persistenceEvent.getCurrentState("parentId");
-
-                // Did the realm change?
-                String previousRealm = persistenceEvent.getPreviousState("realm");
-                String currentRealm = persistenceEvent.getCurrentState("realm");
-
                 // Did any attributes change if so raise attribute events on the event bus
                 AttributeList oldAttributes = persistenceEvent.getPreviousState("attributes");
                 AttributeList newAttributes = persistenceEvent.getCurrentState("attributes");
@@ -1419,6 +1409,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
         return "";
     }
 
+    @SuppressWarnings("unchecked")
     protected static boolean appendWhereClause(StringBuilder sb, AssetQuery query, int level, List<ParameterBinder> binders, Supplier<Long> timeProvider) {
         // level = 1 is main query
         // level = 2 is union

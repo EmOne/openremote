@@ -137,16 +137,16 @@ public class VelbusNetwork {
             }
 
             // Initialise the devices
-            for (int i=0; i<devices.length; i++) {
-                if (devices[i] != null) {
-                    devices[i].initialise();
+            for (VelbusDevice device : devices) {
+                if (device != null) {
+                    device.initialise();
                 }
             }
         } else {
             // Reset the devices
-            for (int i=0; i<devices.length; i++) {
-                if (devices[i] != null) {
-                    devices[i].reset();
+            for (VelbusDevice device : devices) {
+                if (device != null) {
+                    device.reset();
                 }
             }
             // Clear out sub device registrations
@@ -222,8 +222,7 @@ public class VelbusNetwork {
     }
 
     protected void removeAllDevices() {
-        for (int i=0; i<devices.length; i++) {
-            VelbusDevice device = devices[i];
+        for (VelbusDevice device : devices) {
             if (device != null) {
                 device.removeAllPropertyValueConsumers();
             }
@@ -295,7 +294,7 @@ public class VelbusNetwork {
         client.sendMessage(packet);
     }
 
-    public ScheduledFuture scheduleTask(Runnable runnable, int delayMillis) {
+    public ScheduledFuture<?> scheduleTask(Runnable runnable, int delayMillis) {
         // Remove old completed tasks
         scheduledTasks.removeIf(Future::isDone);
 

@@ -130,7 +130,7 @@ public abstract class AbstractUdpServer<T> extends AbstractNettyIoServer<T, Data
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     protected void addEncoder(DatagramChannel channel, ChannelOutboundHandler encoder) {
         if (encoder instanceof DatagramPacketEncoder) {

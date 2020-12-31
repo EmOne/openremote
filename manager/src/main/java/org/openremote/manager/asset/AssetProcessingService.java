@@ -116,6 +116,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * Checks if attribute has {@link MetaItemType#STORE_DATA_POINTS} {@link MetaItem}, and if so the {@link AttributeEvent}
  * is stored in a time series of historical data. Then allows the message to continue if the commit was successful.
  */
+@SuppressWarnings("unchecked")
 public class AssetProcessingService extends RouteBuilder implements ContainerService {
 
     public static final int PRIORITY = AssetStorageService.PRIORITY + 1000;
@@ -367,7 +368,6 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                     // Create a copy of the attribute and set the new value and timestamp
                     @SuppressWarnings("rawtypes")
                     Attribute updatedAttribute = Values.clone(oldAttribute);
-                    //noinspection unchecked
                     updatedAttribute.setValue(value, eventTime);
 
                     // Push through all processors

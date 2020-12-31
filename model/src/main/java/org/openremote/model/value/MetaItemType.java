@@ -28,6 +28,7 @@ import org.openremote.model.rules.TemporaryFact;
 
 import javax.validation.constraints.Pattern;
 
+@SuppressWarnings("rawtypes")
 public final class MetaItemType {
 
     /* PROTOCOL / SERVICE META */

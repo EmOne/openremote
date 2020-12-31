@@ -17,13 +17,11 @@ import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
-import org.openremote.model.value.MetaItemType;
 
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static org.openremote.model.Constants.PROTOCOL_NAMESPACE;
 import static org.openremote.model.asset.impl.LightAsset.BRIGHTNESS;
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 import static org.openremote.model.value.MetaItemType.AGENT_LINK;
@@ -39,11 +37,6 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink.De
      * The logger for the IKEA TRÅDFRI protocol.
      */
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, TradfriProtocol.class);
-
-    /**
-     * The protocol name for the IKEA TRÅDFRI protocol.
-     */
-    public static final String PROTOCOL_NAME = PROTOCOL_NAMESPACE + ":tradfri";
 
     /**
      * The display name for the IKEA TRÅDFRI protocol.
@@ -207,7 +200,7 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink.De
             .filter(device -> !tradfriDevices.containsKey(getDeviceAssetId(device)))
             .forEach(device -> {
                 LOG.info("Creating device asset for device ID=" + device.getInstanceId());
-                Asset asset = createDeviceAsset(device);
+                Asset<?> asset = createDeviceAsset(device);
                 addDevice((TradfriAsset)asset, device);
 
                 if (asset == null) {
@@ -224,7 +217,7 @@ public class TradfriProtocol extends AbstractProtocol<TradfriAgent, AgentLink.De
 
         if (asset != null) {
             asset.initialiseAttributes(device);
-            assetService.mergeAsset((Asset)asset);
+            assetService.mergeAsset((Asset<?>)asset);
         }
     }
 

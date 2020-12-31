@@ -197,8 +197,8 @@ public class WebTargetBuilder {
             .httpEngine(engine)
             .connectionPoolSize(connectionPoolSize)
             .connectionCheckoutTimeout(CONNECTION_CHECKOUT_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS)
-            .socketTimeout(overrideSocketTimeout, TimeUnit.MILLISECONDS)
-            .establishConnectionTimeout(CONNECTION_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS)
+            .readTimeout(overrideSocketTimeout, TimeUnit.MILLISECONDS)
+            .connectTimeout(CONNECTION_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS)
             .register(new JacksonConfig());
 
         if (executorService != null) {
@@ -214,7 +214,7 @@ public class WebTargetBuilder {
 
     public static <K, V, W extends V> MultivaluedMap<K, V> mapToMultivaluedMap(Map<K, List<W>> map, MultivaluedMap<K, V> multivaluedMap) {
         for (Map.Entry<K, List<W>> e : map.entrySet()) {
-            multivaluedMap.put(e.getKey(), e.getValue() == null ? null : new ArrayList<V>(e.getValue()));
+            multivaluedMap.put(e.getKey(), e.getValue() == null ? null : new ArrayList<>(e.getValue()));
         }
 
         return multivaluedMap;

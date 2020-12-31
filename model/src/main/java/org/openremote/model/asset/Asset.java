@@ -244,7 +244,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 @JsonTypeIdResolver(AssetTypeIdResolver.class)
 @AssetValid(groups = Asset.AssetSave.class)
 @SuppressWarnings("unchecked")
-public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
+public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T> {
 
     public interface AssetSave {}
 
@@ -334,6 +334,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity {
         return id;
     }
 
+    @Override
     public T setId(String id) {
         this.id = id;
         return (T) this;

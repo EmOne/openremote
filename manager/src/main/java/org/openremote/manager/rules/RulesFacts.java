@@ -204,7 +204,7 @@ public class RulesFacts extends Facts implements RuleListener {
         return this;
     }
 
-    public RulesFacts putAssetState(AssetState assetState) {
+    public RulesFacts putAssetState(AssetState<?> assetState) {
         if (LOG.isLoggable(Level.FINEST)) {
             LOG.finest("Fact change (UPDATE): " + assetState + " - on: " + loggingContext);
         }
@@ -224,7 +224,7 @@ public class RulesFacts extends Facts implements RuleListener {
         return this;
     }
 
-    public RulesFacts removeAssetState(AssetState assetState) {
+    public RulesFacts removeAssetState(AssetState<?> assetState) {
         if (LOG.isLoggable(Level.FINEST)) {
             LOG.finest("Fact change (DELETE): " + assetState + " - on: " + loggingContext);
         }
@@ -245,11 +245,11 @@ public class RulesFacts extends Facts implements RuleListener {
         return this;
     }
 
-    public RulesFacts insertAssetEvent(String expires, AssetState assetState) {
+    public RulesFacts insertAssetEvent(String expires, AssetState<?> assetState) {
         return insertAssetEvent(TimeUtil.parseTimeDuration(expires), assetState);
     }
 
-    public RulesFacts insertAssetEvent(long expiresMilliSeconds, AssetState assetState) {
+    public RulesFacts insertAssetEvent(long expiresMilliSeconds, AssetState<?> assetState) {
         TemporaryFact<AssetState<?>> fact = new TemporaryFact<>(assetState.getTimestamp(), expiresMilliSeconds, assetState);
         if (LOG.isLoggable(Level.FINEST)) {
             LOG.finest("Fact change (INSERT): " + fact + " - on: " + loggingContext);
@@ -513,7 +513,7 @@ public class RulesFacts extends Facts implements RuleListener {
         sortedAssetStates.sort(Comparator.naturalOrder());
         if (sortedAssetStates.size() > 0) {
             logger.info("--------------------------------- ASSET STATES (" + sortedAssetStates.size() + ") ---------------------------------");
-            for (AssetState assetState : sortedAssetStates) {
+            for (AssetState<?> assetState : sortedAssetStates) {
                 logger.info(assetState.toString());
             }
             haveLog = true;

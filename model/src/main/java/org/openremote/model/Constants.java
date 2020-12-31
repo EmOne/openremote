@@ -45,7 +45,6 @@ public interface Constants {
     String PERSISTENCE_JSON_VALUE_TYPE = "jsonb";
     String PERSISTENCE_STRING_ARRAY_TYPE = "string-array";
     String NAMESPACE = "urn:openremote";
-    String PROTOCOL_NAMESPACE = NAMESPACE + ":protocol";
     String ASSET_NAMESPACE = NAMESPACE + ":asset";
     String AGENT_NAMESPACE = NAMESPACE + ":agent";
     String ASSET_META_NAMESPACE = ASSET_NAMESPACE + ":meta";

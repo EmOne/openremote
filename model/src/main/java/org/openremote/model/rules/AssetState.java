@@ -195,7 +195,7 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
     }
 
     @Override
-    public int compareTo(AssetState that) {
+    public int compareTo(AssetState<?> that) {
         int result = getId().compareTo(that.getId());
         if (result == 0)
             result = getName().compareTo(that.getName());

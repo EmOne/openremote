@@ -110,7 +110,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
         });
     }
 
-    public ValueDatapoint[] getValueDatapoints(AttributeRef attributeRef,
+    public ValueDatapoint<?>[] getValueDatapoints(AttributeRef attributeRef,
                                                String truncate,
                                                String interval,
                                                long fromTimestamp,
@@ -131,7 +131,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
         return persistenceService.doReturningTransaction(entityManager ->
             entityManager.unwrap(Session.class).doReturningWork(new AbstractReturningWork<ValueDatapoint<?>[]>() {
                 @Override
-                public ValueDatapoint[] execute(Connection connection) throws SQLException {
+                public ValueDatapoint<?>[] execute(Connection connection) throws SQLException {
 
 
                     Class<?> attributeType = attribute.getValueType().getType();
@@ -209,7 +209,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
                                 Object value = rs.getObject(2) != null ? Values.convert(rs.getString(2), attributeType) : null;
                                 result.add(new ValueDatapoint<>(rs.getTimestamp(1).getTime(), value));
                             }
-                            return result.toArray(new ValueDatapoint[0]);
+                            return result.toArray(new ValueDatapoint<?>[0]);
                         }
                     }
                 }
@@ -217,7 +217,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
         );
     }
 
-    public ValueDatapoint[] getValueDatapoints(AttributeRef attributeRef,
+    public ValueDatapoint<?>[] getValueDatapoints(AttributeRef attributeRef,
                                                DatapointInterval datapointInterval,
                                                long fromTimestamp,
                                                long toTimestamp) {

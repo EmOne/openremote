@@ -90,7 +90,7 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
                 errorEngines++;
             }
 
-            tenantEngines.put(tenantEngine.getId().getRealm().orElse(""), getEngineHealthStatus(tenantEngine));
+            tenantEngines.set(tenantEngine.getId().getRealm().orElse(""), getEngineHealthStatus(tenantEngine));
         }
 
         ObjectNode assetEngines = Values.createJsonObject();
@@ -104,7 +104,7 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
                 errorEngines++;
             }
 
-            assetEngines.put(assetEngine.getId().getAssetId().orElse(""), getEngineHealthStatus(assetEngine));
+            assetEngines.set(assetEngine.getId().getAssetId().orElse(""), getEngineHealthStatus(assetEngine));
         }
 
         ObjectNode objectValue = Values.createJsonObject();
@@ -112,10 +112,10 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
         objectValue.put("stoppedEngines", stoppedEngines);
         objectValue.put("errorEngines", errorEngines);
         if (rulesService.globalEngine != null) {
-            objectValue.put("global", getEngineHealthStatus(rulesService.globalEngine));
+            objectValue.set("global", getEngineHealthStatus(rulesService.globalEngine));
         }
-        objectValue.put("tenant", tenantEngines);
-        objectValue.put("asset", assetEngines);
+        objectValue.set("tenant", tenantEngines);
+        objectValue.set("asset", assetEngines);
         return objectValue;
     }
 
@@ -139,10 +139,10 @@ public class RulesHealthStatusProvider implements HealthStatusProvider, Containe
             dVal.put("name", deployment.getName());
             dVal.put("status", deployment.getStatus().name());
             dVal.put("error", deployment.getError() != null ? deployment.getError().getMessage() : null);
-            deployments.put(Long.toString(deployment.getId()), dVal);
+            deployments.set(Long.toString(deployment.getId()), dVal);
         }
 
-        val.put("deployments", deployments);
+        val.set("deployments", deployments);
 
         return val;
     }

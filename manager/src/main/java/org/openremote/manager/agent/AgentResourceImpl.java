@@ -185,7 +185,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
             }
 
             for (AssetTreeNode assetNode : assets) {
-                Asset asset = assetNode.asset;
+                Asset<?> asset = assetNode.asset;
 
                 if (asset == null) {
                     LOG.info("Skipping node as asset not set");

@@ -238,7 +238,7 @@ public final class AssetModelUtil {
         if (assetTypeMap == null) {
             initialise();
         }
-        return metaItemDescriptors.toArray(new MetaItemDescriptor[0]);
+        return metaItemDescriptors.toArray(new MetaItemDescriptor<?>[0]);
     }
 
     public static Optional<MetaItemDescriptor<?>[]> getMetaItemDescriptors(Class<? extends Asset<?>> assetType) {

@@ -18,7 +18,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
 
 
 @MappedSuperclass
-public class FlowObject implements IdentifiableEntity {
+public class FlowObject implements IdentifiableEntity<FlowObject> {
 
     @Id
     @Column(name = "ID", length = 43) // TODO Is this ideal long-term for reads when keys must be distributed on cluster?

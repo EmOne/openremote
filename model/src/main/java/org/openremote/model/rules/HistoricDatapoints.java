@@ -25,7 +25,7 @@ import org.openremote.model.datapoint.ValueDatapoint;
 
 public abstract class HistoricDatapoints {
 
-    public abstract ValueDatapoint[] getValueDataPoints(AttributeRef attributeRef,
+    public abstract ValueDatapoint<?>[] getValueDataPoints(AttributeRef attributeRef,
                                                         DatapointInterval interval,
                                                         long fromTimestamp,
                                                         long toTimestamp);

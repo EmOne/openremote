@@ -485,7 +485,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
                 contentType);
     }
 
-    protected ScheduledFuture schedulePollingRequest(AttributeRef attributeRef,
+    protected ScheduledFuture<?> schedulePollingRequest(AttributeRef attributeRef,
                                                      HttpClientRequest clientRequest,
                                                      String body,
                                                      int pollingMillis) {

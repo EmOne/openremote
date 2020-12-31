@@ -33,6 +33,7 @@ public class LogicGroup<T> {
     public LogicGroup() {
     }
 
+    @SafeVarargs
     public LogicGroup(T... items) {
         this(Arrays.asList(items));
     }
@@ -41,6 +42,7 @@ public class LogicGroup<T> {
         this.items = items;
     }
 
+    @SafeVarargs
     public LogicGroup(Operator operator, T... items) {
         this(operator, Arrays.asList(items));
     }
@@ -49,6 +51,7 @@ public class LogicGroup<T> {
         this(operator, null, items);
     }
 
+    @SafeVarargs
     public LogicGroup(Operator operator, List<LogicGroup<T>> groups, T... items) {
         this(operator, groups, Arrays.asList(items));
     }
@@ -76,7 +79,7 @@ public class LogicGroup<T> {
 
 
     public List<T> getItems() {
-        return items == null ? new ArrayList<T>() : items;
+        return items == null ? new ArrayList<>() : items;
     }
 
     @Override

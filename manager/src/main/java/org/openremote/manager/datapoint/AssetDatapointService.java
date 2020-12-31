@@ -325,7 +325,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                                     Object value = rs.getObject(2) != null ? Values.convert(rs.getString(2), Double.class) : null;
                                     result.add(new ValueDatapoint<>(rs.getTimestamp(1).getTime(), value));
                                 }
-                                return result.toArray(new ValueDatapoint[0]);
+                                return result.toArray(new ValueDatapoint<?>[0]);
                             }
                         }
                     }

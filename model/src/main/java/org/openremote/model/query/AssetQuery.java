@@ -293,7 +293,8 @@ public class AssetQuery {
         return this;
     }
 
-    public AssetQuery parents(Class<? extends Asset<?>>... assetTypes) {
+    @SafeVarargs
+    public final AssetQuery parents(Class<? extends Asset<?>>...assetTypes) {
         if (assetTypes == null || assetTypes.length == 0) {
             this.names = null;
             return this;

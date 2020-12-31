@@ -51,14 +51,13 @@ import java.util.logging.Logger;
 /**
  * Utilities for working with values and JSON
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "deprecation"})
 public class Values {
 
     private static final Logger LOG = Logger.getLogger(Values.class.getName());
     public static final ObjectMapper JSON;
 
     static {
-        //noinspection deprecation
         JSON = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .configure(SerializationFeature.WRITE_EMPTY_JSON_ARRAYS, false) // see https://github.com/FasterXML/jackson-databind/issues/1547
@@ -534,8 +533,8 @@ public class Values {
         return null;
     }
 
-    public static Map.Entry<?,?> findFirstNonNullEntry(Map<?, ?> map) {
-        for (Map.Entry entry : map.entrySet()) {
+    public static Map.Entry<?,?> findFirstNonNullEntry(Map<?,?> map) {
+        for (Map.Entry<?,?> entry : map.entrySet()) {
             if (entry.getKey() != null && entry.getValue() != null) {
                 return entry;
             }

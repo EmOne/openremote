@@ -48,7 +48,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  */
 // TODO: In Netty 5 you can pass in an executor service; can only pass in thread factory for now
 @SuppressWarnings("unchecked")
-public abstract class AbstractNettyIoServer<T, U extends Channel, V extends AbstractBootstrap, W extends SocketAddress> implements IoServer<T, U, W> {
+public abstract class AbstractNettyIoServer<T, U extends Channel, V extends AbstractBootstrap<?,?>, W extends SocketAddress> implements IoServer<T, U, W> {
 
     protected final static int INITIAL_RECONNECT_DELAY_MILLIS = 1000;
     protected final static int MAX_RECONNECT_DELAY_MILLIS = 60000;
@@ -65,7 +65,7 @@ public abstract class AbstractNettyIoServer<T, U extends Channel, V extends Abst
     protected final List<IoServerMessageConsumer<T, U, W>> messageConsumers = new ArrayList<>();
     protected final List<Consumer<ConnectionStatus>> connectionStatusConsumers = new ArrayList<>();
     protected final List<BiConsumer<U, ConnectionStatus>> clientConnectionStatusConsumers = new ArrayList<>();
-    protected ScheduledFuture reconnectTask;
+    protected ScheduledFuture<?> reconnectTask;
     protected int reconnectDelayMilliseconds = INITIAL_RECONNECT_DELAY_MILLIS;
 
     public AbstractNettyIoServer() {
@@ -90,10 +90,10 @@ public abstract class AbstractNettyIoServer<T, U extends Channel, V extends Abst
         try {
             bootstrap = createAndConfigureBootstrap();
 
-            bootstrap.handler(new ChannelInitializer() {
+            bootstrap.handler(new ChannelInitializer<U>() {
                 @Override
-                public void initChannel(Channel channel) {
-                    AbstractNettyIoServer.this.initChannel((U)channel);
+                public void initChannel(U channel) {
+                    AbstractNettyIoServer.this.initChannel(channel);
                 }
             });
 

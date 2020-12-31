@@ -761,7 +761,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
     protected void publishModification(PersistenceEvent.Cause cause, Tenant tenant) {
         // Fire persistence event although we don't use database for Tenant CUD but call Keycloak API
-        PersistenceEvent persistenceEvent = new PersistenceEvent<>(cause, tenant, new String[0], null);
+        PersistenceEvent<?> persistenceEvent = new PersistenceEvent<>(cause, tenant, new String[0], null);
 
         if (messageBrokerService.getProducerTemplate() != null) {
             messageBrokerService.getProducerTemplate().sendBodyAndHeader(

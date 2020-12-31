@@ -24,7 +24,7 @@ import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.asset.Asset;
-import org.openremote.model.attribute.Attribute;
+import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.datapoint.DatapointInterval;
 import org.openremote.model.datapoint.ValueDatapoint;
 import org.openremote.model.http.RequestParams;
@@ -52,7 +52,7 @@ public class AssetPredictedDatapointResourceImpl extends ManagerWebResource impl
     }
 
     @Override
-    public ValueDatapoint[] getPredictedDatapoints(@BeanParam RequestParams requestParams,
+    public ValueDatapoint<?>[] getPredictedDatapoints(@BeanParam RequestParams requestParams,
                                                    String assetId,
                                                    String attributeName,
                                                    DatapointInterval datapointInterval,
@@ -75,12 +75,8 @@ public class AssetPredictedDatapointResourceImpl extends ManagerWebResource impl
                 throw new WebApplicationException(Response.Status.FORBIDDEN);
             }
 
-            Attribute<?> attribute = asset.getAttributes().get(attributeName).orElseThrow(() ->
-                new WebApplicationException(Response.Status.NOT_FOUND)
-            );
-
-            return assetPredictedDatapointService.getValueDatapoints(assetId,
-                attributeName,
+            return assetPredictedDatapointService.getValueDatapoints(
+                new AttributeRef(assetId, attributeName),
                 datapointInterval,
                 fromTimestamp,
                 toTimestamp);

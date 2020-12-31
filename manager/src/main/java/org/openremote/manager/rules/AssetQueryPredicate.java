@@ -59,7 +59,7 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
     }
 
     @Override
-    public boolean test(AssetState assetState) {
+    public boolean test(AssetState<?> assetState) {
 
         if (query.ids != null && query.ids.length > 0) {
             if (Arrays.stream(query.ids).noneMatch(id -> assetState.getId().equals(id))) {

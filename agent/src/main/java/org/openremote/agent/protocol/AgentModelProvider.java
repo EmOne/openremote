@@ -40,7 +40,7 @@ public class AgentModelProvider implements AssetModelProvider {
 
     @Override
     public AssetDescriptor<?>[] getAssetDescriptors() {
-        return new AssetDescriptor[0];
+        return new AssetDescriptor<?>[0];
     }
 
     @Override

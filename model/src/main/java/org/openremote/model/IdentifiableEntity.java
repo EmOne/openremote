@@ -23,9 +23,9 @@ package org.openremote.model;
  * If used on a persistent {@link javax.persistence.Entity}, an identifier value will only be set
  * when an instance is persisted if there was no identifier already set.
  */
-public interface IdentifiableEntity {
+public interface IdentifiableEntity<T> {
 
-    <T> T setId(String id);
+    T setId(String id);
 
     String getId();
 }

@@ -24,6 +24,7 @@ import org.openremote.model.asset.agent.AgentLink;
 
 import java.util.Optional;
 
+@SuppressWarnings("unchecked")
 public abstract class IoAgent<T extends IoAgent<T, U, V>, U extends AbstractIoClientProtocol<U, T, ?, ?, V>, V extends AgentLink<?>> extends Agent<T, U, V> {
 
     protected IoAgent() {}

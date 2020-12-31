@@ -58,9 +58,9 @@ public class RulesEngine<T extends Ruleset> {
      */
     public static final class AssetStateChangeEvent {
         public PersistenceEvent.Cause cause;
-        public AssetState assetState;
+        public AssetState<?> assetState;
 
-        public AssetStateChangeEvent(PersistenceEvent.Cause cause, AssetState assetState) {
+        public AssetStateChangeEvent(PersistenceEvent.Cause cause, AssetState<?> assetState) {
             this.cause = cause;
             this.assetState = assetState;
         }
@@ -544,7 +544,7 @@ public class RulesEngine<T extends Ruleset> {
         }
     }
 
-    public void updateOrInsertAssetState(AssetState assetState, boolean insert) {
+    public void updateOrInsertAssetState(AssetState<?> assetState, boolean insert) {
         facts.putAssetState(assetState);
         // Make sure location predicate tracking is activated before notifying the deployments otherwise they won't report location predicates
         trackLocationPredicates(trackLocationPredicates || (insert && assetState.getName().equals(Asset.LOCATION.getName())));
@@ -554,7 +554,7 @@ public class RulesEngine<T extends Ruleset> {
         }
     }
 
-    public void removeAssetState(AssetState assetState) {
+    public void removeAssetState(AssetState<?> assetState) {
         facts.removeAssetState(assetState);
         // Make sure location predicate tracking is activated before notifying the deployments otherwise they won't report location predicates
         trackLocationPredicates(trackLocationPredicates || assetState.getName().equals(Asset.LOCATION.getName()));
@@ -564,7 +564,7 @@ public class RulesEngine<T extends Ruleset> {
         }
     }
 
-    public void insertAssetEvent(String expires, AssetState assetState) {
+    public void insertAssetEvent(String expires, AssetState<?> assetState) {
         facts.insertAssetEvent(expires, assetState);
         if (running) {
             scheduleFire();

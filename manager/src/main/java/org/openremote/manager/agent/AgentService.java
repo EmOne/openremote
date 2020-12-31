@@ -210,10 +210,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         return assetStorageService.delete(Arrays.asList(assetIds), false);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Asset<?> findAsset(String assetId) {
+    public <T extends Asset<?>> T findAsset(String assetId) {
         LOG.fine("Getting protocol-provided: " + assetId);
-        return assetStorageService.find(assetId);
+        return (T)assetStorageService.find(assetId);
     }
 
     @Override

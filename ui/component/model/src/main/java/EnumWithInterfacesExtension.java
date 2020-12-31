@@ -215,6 +215,7 @@ public class EnumWithInterfacesExtension extends Extension {
         }));
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     public void emitElements(Writer writer, Settings settings, boolean exportKeyword, TsModel model) {
 

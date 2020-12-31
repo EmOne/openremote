@@ -75,7 +75,6 @@ public class WebResource implements AuthContext {
         return securityContext.getUserPrincipal() != null;
     }
 
-    @SuppressWarnings("unchecked")
     public AuthContext getAuthContext() {
         // The securityContext is a thread-local proxy, careful when/how you call it
         Principal principal = securityContext.getUserPrincipal();
@@ -84,7 +83,7 @@ public class WebResource implements AuthContext {
         }
 
         if (principal instanceof KeycloakPrincipal) {
-            KeycloakPrincipal keycloakPrincipal = (KeycloakPrincipal) principal;
+            KeycloakPrincipal<?> keycloakPrincipal = (KeycloakPrincipal<?>) principal;
             return new AccessTokenAuthContext(
                 keycloakPrincipal.getKeycloakSecurityContext().getRealm(),
                 keycloakPrincipal.getKeycloakSecurityContext().getToken()

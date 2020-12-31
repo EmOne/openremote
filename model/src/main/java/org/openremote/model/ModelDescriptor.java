@@ -33,6 +33,7 @@ import java.lang.annotation.*;
  * AssetModelProvider#useAutoScan} is true), otherwise the descriptors must be explicitly specified in the appropriate
  * {@link AssetModelProvider} descriptor getter methods.
  */
+@SuppressWarnings("rawtypes")
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Repeatable(ModelDescriptors.class)

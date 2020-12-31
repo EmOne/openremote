@@ -19,7 +19,6 @@
  */
 package org.openremote.manager.asset;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.security.ManagerIdentityService;
@@ -55,7 +54,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
     private static final Logger LOG = Logger.getLogger(AssetResourceImpl.class.getName());
 
-    protected final static Asset[] EMPTY_ASSETS = new Asset[0];
+    protected final static Asset<?>[] EMPTY_ASSETS = new Asset<?>[0];
     protected final AssetStorageService assetStorageService;
     protected final MessageBrokerService messageBrokerService;
 
@@ -69,10 +68,10 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public Asset[] getCurrentUserAssets(RequestParams requestParams) {
+    public Asset<?>[] getCurrentUserAssets(RequestParams requestParams) {
         try {
             if (isSuperUser()) {
-                return new Asset[0];
+                return new Asset<?>[0];
             }
 
             if (!isRestrictedUser()) {
@@ -82,7 +81,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                         .parents(new ParentPredicate(true))
                         .tenant(new TenantPredicate(getAuthenticatedRealm()))
                 );
-                return result.toArray(new Asset[result.size()]);
+                return result.toArray(new Asset<?>[0]);
             }
 
             List<Asset<?>> assets = assetStorageService.findAll(
@@ -105,7 +104,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             // Compress response (the request attribute enables the interceptor)
             request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
 
-            return assets.toArray(new Asset[assets.size()]);
+            return assets.toArray(new Asset[0]);
         } catch (IllegalStateException ex) {
             throw new WebApplicationException(ex, BAD_REQUEST);
         }
@@ -229,7 +228,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     @Override
     public void update(RequestParams requestParams, String assetId, Asset<?> asset) {
         try {
-            Asset storageAsset = assetStorageService.find(assetId, true);
+            Asset<?> storageAsset = assetStorageService.find(assetId, true);
 
             if (storageAsset == null)
                 throw new WebApplicationException(NOT_FOUND);
@@ -502,7 +501,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public Asset[] queryAssets(RequestParams requestParams, AssetQuery query) {
+    public Asset<?>[] queryAssets(RequestParams requestParams, AssetQuery query) {
         try {
             if (query == null) {
                 return EMPTY_ASSETS;
@@ -539,7 +538,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             // Compress response (the request attribute enables the interceptor)
             request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
 
-            return result.toArray(new Asset[result.size()]);
+            return result.toArray(new Asset[0]);
 
         } catch (IllegalStateException ex) {
             throw new WebApplicationException(ex, BAD_REQUEST);
@@ -547,7 +546,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public Asset[] queryPublicAssets(RequestParams requestParams, AssetQuery query) {
+    public Asset<?>[] queryPublicAssets(RequestParams requestParams, AssetQuery query) {
 
         String requestRealm = getRequestRealm();
 
@@ -575,18 +574,18 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             // Compress response (the request attribute enables the interceptor)
             request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
 
-            return result.toArray(new Asset[result.size()]);
+            return result.toArray(new Asset[0]);
         } catch (IllegalStateException ex) {
             throw new WebApplicationException(ex, BAD_REQUEST);
         }
     }
 
     @Override
-    public Asset[] getPublicAssets(RequestParams requestParams, String q) {
+    public Asset<?>[] getPublicAssets(RequestParams requestParams, String q) {
         AssetQuery assetQuery = Values.parse(q, AssetQuery.class)
             .orElseThrow(() -> new WebApplicationException("Error parsing query parameter 'q' as JSON object", BAD_REQUEST));
 
-        Asset[] result = queryPublicAssets(requestParams, assetQuery);
+        Asset<?>[] result = queryPublicAssets(requestParams, assetQuery);
 
         // Compress response (the request attribute enables the interceptor)
         request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");

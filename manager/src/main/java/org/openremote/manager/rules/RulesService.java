@@ -19,7 +19,6 @@
  */
 package org.openremote.manager.rules;
 
-import org.apache.camel.Exchange;
 import org.apache.camel.Predicate;
 import org.apache.camel.builder.RouteBuilder;
 import org.openremote.container.message.MessageBrokerService;
@@ -76,7 +75,6 @@ import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_
 import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
 import static org.openremote.container.util.MapAccess.getString;
 import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
-import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes;
 
 /**
  * Manages {@link RulesEngine}s for stored {@link Ruleset}s and processes asset attribute updates.
@@ -198,12 +196,10 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
     }
 
     protected Predicate isNotForGW() {
-        return exchange -> {
-            boolean isNotForGateway = isNotForGateway(gatewayService).matches(exchange);
-            return isNotForGateway;
-        };
+        return exchange -> isNotForGateway(gatewayService).matches(exchange);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void configure() throws Exception {
         // If any ruleset was modified in the database then check its' status and undeploy, deploy, or update it
@@ -233,8 +229,8 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
             .routeId("RuleEngineAssetChanges")
             .filter(isPersistenceEventForEntityType(Asset.class))
             .process(exchange -> {
-                PersistenceEvent persistenceEvent = exchange.getIn().getBody(PersistenceEvent.class);
-                final Asset<?> eventAsset = (Asset) persistenceEvent.getEntity();
+                PersistenceEvent<Asset<?>> persistenceEvent = (PersistenceEvent<Asset<?>>) exchange.getIn().getBody(PersistenceEvent.class);
+                final Asset<?> eventAsset = persistenceEvent.getEntity();
                 processAssetChange(eventAsset, persistenceEvent);
             });
     }
@@ -274,6 +270,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
 
         LOG.info("Deploying asset rulesets");
         // Group by asset ID then tenant and check tenant is enabled
+        //noinspection ResultOfMethodCallIgnored
         deployAssetRulesets(
             rulesetStorageService.findAll(
                 AssetRuleset.class,
@@ -291,7 +288,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
             .forEach(pair -> {
                 Asset<?> asset = pair.key;
                 pair.value.forEach(ruleAttribute -> {
-                    AssetState assetState = new AssetState(asset, ruleAttribute, Source.INTERNAL);
+                    AssetState<?> assetState = new AssetState<>(asset, ruleAttribute, Source.INTERNAL);
                     updateAssetState(assetState);
                 });
             });
@@ -342,13 +339,13 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
 
         // First as asset state
         if (attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false)) {
-            updateAssetState(new AssetState(asset, attribute, source));
+            updateAssetState(new AssetState<>(asset, attribute, source));
         }
 
         // Then as asset event (if there wasn't an error), this will also fire the rules engines
         if (attribute.getMetaValue(MetaItemType.RULE_EVENT).orElse(false)) {
             insertAssetEvent(
-                new AssetState(asset, attribute, source),
+                new AssetState<>(asset, attribute, source),
                 attribute.getMetaValue(MetaItemType.RULE_EVENT_EXPIRES).orElse(configEventExpires)
             );
         }
@@ -478,7 +475,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                         if (loadedAsset == null)
                             return;
 
-                        AssetState assetState = buildAssetState.apply(loadedAsset, attribute);
+                        AssetState<?> assetState = buildAssetState.apply(loadedAsset, attribute);
                         LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), inserting fact: " + assetState);
                         updateAssetState(assetState);
                     });
@@ -500,7 +497,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                     persistenceEvent.<AttributeList>getPreviousState("attributes").stream()
                         .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
                         .forEach(attribute -> {
-                            AssetState assetState = buildAssetState.apply(loadedAsset, attribute);
+                            AssetState<?> assetState = buildAssetState.apply(loadedAsset, attribute);
                             LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), retracting fact: " + assetState);
                             retractAssetState(assetState);
                         });
@@ -509,7 +506,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                     persistenceEvent.<AttributeList>getCurrentState("attributes").stream()
                         .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
                         .forEach(attribute -> {
-                            AssetState assetState = buildAssetState.apply(loadedAsset, attribute);
+                            AssetState<?> assetState = buildAssetState.apply(loadedAsset, attribute);
                             LOG.fine("Asset was persisted (" + persistenceEvent.getCause() + "), inserting fact: " + assetState);
                             updateAssetState(assetState);
                         });
@@ -745,7 +742,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         });
     }
 
-    protected void insertAssetEvent(AssetState assetState, String expires) {
+    protected void insertAssetEvent(AssetState<?> assetState, String expires) {
         withLock(getClass().getSimpleName() + "::insertAssetEvent", () -> {
             // Get the chain of rule engines that we need to pass through
             List<RulesEngine<?>> rulesEngines = getEnginesInScope(assetState.getRealm(), assetState.getPath());
@@ -770,7 +767,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         });
     }
 
-    protected void updateAssetState(AssetState assetState) {
+    protected void updateAssetState(AssetState<?> assetState) {
         withLock(getClass().getSimpleName() + "::updateAssetState", () -> {
             // TODO: implement rules processing error state handling
 
@@ -790,7 +787,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         });
     }
 
-    protected void retractAssetState(AssetState assetState) {
+    protected void retractAssetState(AssetState<?> assetState) {
         // Get the chain of rule engines that we need to pass through
         List<RulesEngine<?>> rulesEngines = getEnginesInScope(assetState.getRealm(), assetState.getPath());
 
