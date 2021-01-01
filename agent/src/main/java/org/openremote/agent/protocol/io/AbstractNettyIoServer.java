@@ -46,7 +46,6 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 /**
  * Abstract implementation of {@link IoServer} that uses the Netty library.
  */
-// TODO: In Netty 5 you can pass in an executor service; can only pass in thread factory for now
 @SuppressWarnings("unchecked")
 public abstract class AbstractNettyIoServer<T, U extends Channel, V extends AbstractBootstrap<?,?>, W extends SocketAddress> implements IoServer<T, U, W> {
 

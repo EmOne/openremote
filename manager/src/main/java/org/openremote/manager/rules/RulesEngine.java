@@ -19,8 +19,8 @@
  */
 package org.openremote.manager.rules;
 
+import org.jeasy.rules.api.RulesEngineParameters;
 import org.jeasy.rules.core.InferenceRulesEngine;
-import org.jeasy.rules.core.RulesEngineParameters;
 import org.openremote.container.persistence.PersistenceEvent;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingService;

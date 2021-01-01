@@ -19,12 +19,14 @@
  */
 package org.openremote.manager.rules;
 
+import org.jeasy.rules.api.Fact;
 import org.jeasy.rules.api.Facts;
 import org.jeasy.rules.api.Rule;
 import org.jeasy.rules.api.RuleListener;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.model.asset.Asset;
+import org.openremote.model.asset.AssetEvent;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.filter.GeofencePredicate;
@@ -41,6 +43,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.openremote.model.query.filter.LocationAttributePredicate.getLocationPredicates;
 
@@ -77,10 +80,10 @@ public class RulesFacts extends Facts implements RuleListener {
         this.loggingContext = loggingContext;
         this.LOG = logger;
 
-        asMap().put(ASSET_STATES, new ArrayDeque(INITIAL_CAPACITY));
-        asMap().put(ASSET_EVENTS, new ArrayDeque(INITIAL_CAPACITY));
-        asMap().put(EXECUTION_VARS, new HashMap());
-        asMap().put(ANONYMOUS_FACTS, new ArrayDeque(INITIAL_CAPACITY));
+        super.put(ASSET_STATES, new ArrayDeque<AssetState<?>>(INITIAL_CAPACITY));
+        super.put(ASSET_EVENTS, new ArrayDeque<AssetEvent>(INITIAL_CAPACITY));
+        super.put(EXECUTION_VARS, new HashMap<>());
+        super.put(ANONYMOUS_FACTS, new ArrayDeque<>(INITIAL_CAPACITY));
     }
 
     protected void startTrackingLocationRules() {
@@ -106,22 +109,22 @@ public class RulesFacts extends Facts implements RuleListener {
 
     public void setClock(RulesClock clock) {
         this.clock = clock;
-        asMap().put(CLOCK, clock);
+        super.put(CLOCK, clock);
     }
 
     @SuppressWarnings("unchecked")
     public Collection<AssetState<?>> getAssetStates() {
-        return (Collection<AssetState<?>>) get(ASSET_STATES);
+        return get(ASSET_STATES);
     }
 
     @SuppressWarnings("unchecked")
     public Collection<TemporaryFact<AssetState<?>>> getAssetEvents() {
-        return (Collection<TemporaryFact<AssetState<?>>>) get(ASSET_EVENTS);
+        return get(ASSET_EVENTS);
     }
 
     @SuppressWarnings("unchecked")
     public Collection<Object> getAnonymousFacts() {
-        return (Collection<Object>) get(ANONYMOUS_FACTS);
+        return get(ANONYMOUS_FACTS);
     }
 
     public Map<String, Object> getNamedFacts() {
@@ -150,7 +153,7 @@ public class RulesFacts extends Facts implements RuleListener {
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> getVars() {
-        return (Map<String, Object>) get(EXECUTION_VARS);
+        return get(EXECUTION_VARS);
     }
 
     public RulesFacts bind(String var, Object value) {
@@ -167,8 +170,8 @@ public class RulesFacts extends Facts implements RuleListener {
     @Override
     public <T> T get(String name) {
         Object fact = super.get(name);
-        if (fact != null && fact instanceof TemporaryFact) {
-            TemporaryFact temporaryFact = (TemporaryFact) fact;
+        if (fact != null && fact instanceof TemporaryFact<?>) {
+            TemporaryFact<?> temporaryFact = (TemporaryFact<?>) fact;
             fact = temporaryFact.getFact();
         }
         return (T) fact;
@@ -179,7 +182,7 @@ public class RulesFacts extends Facts implements RuleListener {
     }
 
     @Override
-    public RulesFacts put(String name, Object fact) {
+    public <T> void put(String name, T fact) {
         switch (name) {
             case ANONYMOUS_FACTS:
             case ASSET_EVENTS:
@@ -192,7 +195,6 @@ public class RulesFacts extends Facts implements RuleListener {
             LOG.finest("Fact change (UPDATE): " + name + " => " + fact + " - on: " + loggingContext);
         }
         super.put(name, fact);
-        return this;
     }
 
     public RulesFacts put(Object o) {
@@ -292,26 +294,25 @@ public class RulesFacts extends Facts implements RuleListener {
         return getTemporaryFacts().count() > 0;
     }
 
-    public Stream<TemporaryFact> getTemporaryFacts() {
+    public Stream<TemporaryFact<?>> getTemporaryFacts() {
         return Stream.concat(
                 Stream.concat(
                         getAssetEvents().stream().parallel(),
-                        getNamedFacts().values().stream().parallel().filter(fact -> fact instanceof TemporaryFact).map(fact -> (TemporaryFact) fact)
+                        getNamedFacts().values().stream().parallel().filter(fact -> fact instanceof TemporaryFact<?>).map(fact -> (TemporaryFact<?>) fact)
                 ),
-                getAnonymousFacts().stream().parallel().filter(fact -> fact instanceof TemporaryFact).map(fact -> (TemporaryFact) fact)
+                getAnonymousFacts().stream().parallel().filter(fact -> fact instanceof TemporaryFact<?>).map(fact -> (TemporaryFact<?>) fact)
         ).parallel();
     }
 
     @Override
-    public RulesFacts remove(String name) {
+    public void remove(String name) {
         super.remove(name);
-        return this;
     }
 
     public RulesFacts remove(Object fact) {
         getAnonymousFacts().removeIf(anonFact -> {
-            if (anonFact instanceof TemporaryFact) {
-                anonFact = ((TemporaryFact) anonFact).getFact();
+            if (anonFact instanceof TemporaryFact<?>) {
+                anonFact = ((TemporaryFact<?>) anonFact).getFact();
             }
             return anonFact.equals(fact);
         });
@@ -365,8 +366,8 @@ public class RulesFacts extends Facts implements RuleListener {
     protected <T> Optional<T> matchFact(Object fact, Class<T> factType, Predicate<T> predicate) {
         if (fact == null)
             return Optional.empty();
-        if (fact instanceof TemporaryFact) {
-            TemporaryFact temporaryFact = (TemporaryFact) fact;
+        if (fact instanceof TemporaryFact<?>) {
+            TemporaryFact<?> temporaryFact = (TemporaryFact<?>) fact;
             fact = temporaryFact.getFact();
         }
         return Optional.ofNullable(
@@ -413,8 +414,8 @@ public class RulesFacts extends Facts implements RuleListener {
         return getAllFacts()
                 .filter(fact -> matchFact(fact, factType, predicate).isPresent())
                 .map(fact -> {
-                    if (fact instanceof TemporaryFact) {
-                        return ((TemporaryFact) fact).getFact();
+                    if (fact instanceof TemporaryFact<?>) {
+                        return ((TemporaryFact<?>) fact).getFact();
                     }
                     return fact;
                 })
@@ -473,25 +474,30 @@ public class RulesFacts extends Facts implements RuleListener {
             }
             return result;
         });
-        asMap().entrySet().removeIf(entry -> {
-            if (entry.getKey().equals(CLOCK)
-                    || entry.getKey().equals(ASSET_STATES)
-                    || entry.getKey().equals(ASSET_EVENTS)
-                    || entry.getKey().equals(EXECUTION_VARS)
-                    || entry.getKey().equals(ANONYMOUS_FACTS)
-                    || !(entry.getValue() instanceof TemporaryFact)) {
+
+        List<Fact<?>> expiredFacts = StreamSupport.stream(super.spliterator(), false).filter(fact -> {
+            if (fact.getName().equals(CLOCK)
+                || fact.getName().equals(ASSET_STATES)
+                || fact.getName().equals(ASSET_EVENTS)
+                || fact.getName().equals(EXECUTION_VARS)
+                || fact.getName().equals(ANONYMOUS_FACTS)
+                || !(fact.getValue() instanceof TemporaryFact<?>)) {
                 return false;
             }
-            boolean result = ((TemporaryFact) entry.getValue()).isExpired(currentTimestamp);
+
+            boolean result = ((TemporaryFact<?>) fact.getValue()).isExpired(currentTimestamp);
             if (result && LOG.isLoggable(Level.FINEST)) {
-                LOG.finest("Fact change (DELETE EXPIRED): " + entry.getValue() + " - on: " + loggingContext);
+                LOG.finest("Fact change (DELETE EXPIRED): " + fact.getValue() + " - on: " + loggingContext);
             }
             return result;
-        });
+        }).collect(Collectors.toList());
+
+        expiredFacts.forEach(this::remove);
+
         getAnonymousFacts().removeIf(fact -> {
             boolean result = false;
-            if (fact instanceof TemporaryFact) {
-                TemporaryFact temporaryFact = (TemporaryFact) fact;
+            if (fact instanceof TemporaryFact<?>) {
+                TemporaryFact<?> temporaryFact = (TemporaryFact<?>) fact;
                 result = temporaryFact.isExpired((long) getClock().getTimestamp());
             }
             if (result && LOG.isLoggable(Level.FINEST)) {
@@ -563,7 +569,7 @@ public class RulesFacts extends Facts implements RuleListener {
 
     public static Comparator<AssetState<?>> asComparator(AssetQuery.OrderBy orderBy) {
 
-        Function<AssetState, String> keyExtractor = AssetState::getAssetName;
+        Function<AssetState<?>, String> keyExtractor = AssetState::getAssetName;
         boolean reverse = orderBy.descending;
 
         switch (orderBy.property) {
