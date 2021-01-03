@@ -267,7 +267,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
         mockServer.putRequestWithHeadersCalled = false
     }
 
-    def "Check HTTP server protocol configuration and JAX-RS deployment"() {
+    def "Check HTTP server protocol and JAX-RS deployment"() {
 
         given: "expected conditions"
         def conditions = new PollingConditions(timeout: 10, initialDelay: 1)
@@ -299,7 +299,7 @@ class HttpServerProtocolTest extends Specification implements ManagerContainerTr
                         .path("test"),
                 null).proxy(TestResource.class)
 
-        when: "an agent with a test HTTP server protocol configuration is created"
+        when: "a test HTTP server agent with a test deployment is created"
         def agent = new HttpServerTestAgent("Test agent")
             .setRealm(MASTER_REALM)
             .setDeploymentPath("test")

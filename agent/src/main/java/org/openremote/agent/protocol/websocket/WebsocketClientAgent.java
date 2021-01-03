@@ -28,8 +28,6 @@ import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Entity
@@ -58,9 +56,6 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
         }
     }
 
-
-    /*--------------- META ITEMS TO BE USED ON PROTOCOL CONFIGURATIONS ---------------*/
-
     public static final ValueDescriptor<WebsocketSubscription> WEBSOCKET_SUBSCRIPTION_VALUE_DESCRIPTOR = new ValueDescriptor<>("Websocket subscription", WebsocketSubscription.class);
 
     /**
@@ -78,8 +73,6 @@ public class WebsocketClientAgent extends IoAgent<WebsocketClientAgent, Websocke
      * subscriptions are executed in the order specified in the array.
      */
     public static final AttributeDescriptor<WebsocketSubscription[]> CONNECT_SUBSCRIPTIONS = new AttributeDescriptor<>("connectSubscriptions", WEBSOCKET_SUBSCRIPTION_VALUE_DESCRIPTOR.asArray());
-
-    /*--------------- META ITEMS TO BE USED ON LINKED ATTRIBUTES ---------------*/
 
     public static final AgentDescriptor<WebsocketClientAgent, WebsocketClientProtocol, WebsocketClientAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         WebsocketClientAgent.class, WebsocketClientProtocol.class, WebsocketClientAgentLink.class, null

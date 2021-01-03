@@ -20,8 +20,7 @@
 package org.openremote.model.asset.agent;
 
 /**
- * Indicates the status of a protocol configuration (i.e. protocol instance); but can also be used internally by a
- * protocol if desired.
+ * Indicates the status of an agent's protocol instance; but can also be used internally by a protocol if desired.
  */
 public enum ConnectionStatus {
 

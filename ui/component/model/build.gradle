@@ -28,23 +28,21 @@ generateTypeScript {
             "org.openremote.model.**"
     ]
     excludeClassPatterns = [
-            "org.openremote.model.http.*Constraint**",
             "org.openremote.model.event.shared.*Filter**",
             "org.openremote.model.util.**",
-            "org.openremote.model.flow.**",
-            "org.openremote.model.interop.**",
-            "org.openremote.model.value.impl.**"
+            "org.openremote.model.flow.**"
     ]
+    customTypeProcessor = "TsIgnoreTypeProcessor"
     customTypeNamingFunction = "function(name, simpleName) { if (name.indexOf(\"\$\") > 0) return name.substr(name.lastIndexOf(\".\")+1).replace(\"\$\",\"\"); }"
-    customTypeMappings = [
-            "org.openremote.model.value.ObjectValue:{ [id: string]: any }",
-            "org.openremote.model.value.ArrayValue:any[]",
-            "org.openremote.model.value.NumberValue:number",
-            "org.openremote.model.value.StringValue:string",
-            "org.openremote.model.value.BooleanValue:boolean",
-            "org.openremote.model.value.Value:any",
-            "org.openremote.model.attribute.Meta:MetaItem[]"
-    ]
+//    customTypeMappings = [
+//            "org.openremote.model.value.ObjectValue:{ [id: string]: any }",
+//            "org.openremote.model.value.ArrayValue:any[]",
+//            "org.openremote.model.value.NumberValue:number",
+//            "org.openremote.model.value.StringValue:string",
+//            "org.openremote.model.value.BooleanValue:boolean",
+//            "org.openremote.model.value.Value:any",
+//            "org.openremote.model.attribute.Meta:MetaItem[]"
+//    ]
     optionalProperties = "all" // TODO: cleanup model to be more explicit about optional params
     mapEnum = cz.habarta.typescript.generator.EnumMapping.asEnum
     mapDate = cz.habarta.typescript.generator.DateMapping.asNumber
@@ -61,8 +59,7 @@ generateTypeScript {
     jackson2Modules = [
         "com.fasterxml.jackson.datatype.jdk8.Jdk8Module",
         "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
-        "com.fasterxml.jackson.module.paramnames.ParameterNamesModule",
-        "org.openremote.model.ModelModule"
+        "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
     ]
     extensionsWithConfiguration = [
             new cz.habarta.typescript.generator.Settings.ConfiguredExtension(

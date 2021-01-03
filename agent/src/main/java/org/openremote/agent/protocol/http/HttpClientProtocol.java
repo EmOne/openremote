@@ -422,7 +422,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
                     processedValue,
                     response -> onAttributeWriteResponse(request, response));
         } else {
-            LOG.finest("Ignoring attribute write request as either attribute or protocol configuration is not linked: " + event);
+            LOG.finest("Ignoring attribute write request as either attribute or agent is not linked: " + event);
         }
     }
 

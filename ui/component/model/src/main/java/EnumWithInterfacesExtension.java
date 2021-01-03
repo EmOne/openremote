@@ -210,7 +210,7 @@ public class EnumWithInterfacesExtension extends Extension {
                     }
                 }
 
-                return model.withoutEnums(matchedEnums);
+                return model.withRemovedEnums(matchedEnums);
             }
         }));
     }

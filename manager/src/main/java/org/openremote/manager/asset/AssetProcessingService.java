@@ -90,7 +90,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * <p>
  * The agent service's role is to communicate asset attribute writes to actuators, through protocols.
  * When the update messages' source is {@link Source#SENSOR}, the agent service ignores the message.
- * The message will also be ignored if the updated attribute is not linked to a protocol configuration.
+ * The message will also be ignored if the updated attribute is not linked to an agent.
  * <p>
  * If the updated attribute has a valid agent link, an {@link AttributeEvent} is sent on the {@link Protocol#ACTUATOR_TOPIC},
  * for execution on an actual device or service 'things'. The update is then considered complete, and no further processing
@@ -296,7 +296,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                             Optional<Protocol<?>> protocol = oldAttribute.getMetaValue(AGENT_LINK)
                                     .map(agentLink -> agentService.getProtocolInstance(agentLink.getId()));
 
-                            // Sensor event must be for an attribute linked to a protocol configuration
+                            // Sensor event must be for an attribute linked to an agent
                             if (!protocol.isPresent()) {
                                 throw new AssetProcessingException(INVALID_AGENT_LINK);
                             }

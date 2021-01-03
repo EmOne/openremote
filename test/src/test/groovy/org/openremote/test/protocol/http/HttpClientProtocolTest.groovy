@@ -230,7 +230,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
         mockServer.putRequestWithHeadersCalled = false
     }
 
-    def "Check HTTP client protocol configuration and linked attribute deployment"() {
+    def "Check HTTP client protocol and linked attribute deployment"() {
 
         given: "expected conditions"
         def conditions = new PollingConditions(timeout: 10, initialDelay: 1)
@@ -249,7 +249,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             HttpClientProtocol.client.register(mockServer, Integer.MAX_VALUE)
         }
 
-        and: "an agent with a HTTP client protocol configuration is created"
+        and: "a HTTP client agent is created"
         HttpClientAgent agent = new HttpClientAgent("Test agent")
             .setRealm(Constants.MASTER_REALM)
             .setBaseURI("https://mockapi")

@@ -282,7 +282,7 @@ public abstract class AbstractHttpServerProtocol<T extends AbstractHttpServerPro
         String agentRealm = agent.getRealm();
 
         if (TextUtil.isNullOrEmpty(agentRealm)) {
-            throw new IllegalStateException("Cannot determine the realm that this protocol configuration belongs to");
+            throw new IllegalStateException("Cannot determine the realm that this agent belongs to");
         }
 
         try {

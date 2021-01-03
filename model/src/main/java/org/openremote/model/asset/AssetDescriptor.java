@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.NameHolder;
 
 import java.io.IOException;
@@ -53,6 +54,7 @@ import java.io.IOException;
 @JsonDeserialize(using = AssetDescriptor.AssetDescriptorDeserialiser.class)
 public class AssetDescriptor<T extends Asset<?>> implements NameHolder {
 
+    @TsIgnore
     public static class AssetDescriptorDeserialiser extends StdDeserializer<AssetDescriptor<?>> {
 
         public AssetDescriptorDeserialiser() {

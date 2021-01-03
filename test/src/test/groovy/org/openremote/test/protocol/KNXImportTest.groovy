@@ -56,7 +56,7 @@ class KNXImportTest extends Specification implements ManagerContainerTrait {
         def agentService = container.getService(AgentService.class)
         def assetProcessingService = container.getService(AssetProcessingService.class)
 
-        when: "a KNX agent that uses the KNX protocol is created. to test the import we don't need a valid protocol configuration"
+        when: "a KNX agent is created. to test the import functionality"
         def knxAgent = new KNXAgent("KNX agent")
         knxAgent.setRealm(MASTER_REALM)
         knxAgent = assetStorageService.merge(knxAgent)

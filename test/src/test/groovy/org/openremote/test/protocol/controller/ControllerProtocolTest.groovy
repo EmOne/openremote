@@ -197,7 +197,7 @@ class ControllerProtocolTest extends Specification implements ManagerContainerTr
             assert ((ControllerProtocol)agentService.getProtocolInstance(agent1.id)).controllerHeartbeat.isCancelled()
         }
 
-        when: "an asset is created with attributes linked to the controller protocol configuration"
+        when: "an asset is created with attributes linked to the controller agent"
         def asset = new ThingAsset("Test Asset")
             .setParent(agent1)
             .addOrReplaceAttributes(
@@ -273,7 +273,7 @@ class ControllerProtocolTest extends Specification implements ManagerContainerTr
             assert ((ControllerProtocol)agentService.getProtocolInstance(agent3.id)).controllerHeartbeat.isCancelled()
         }
 
-        when: "an asset is created with attributes linked to the controller protocol configuration"
+        when: "an asset is created with attributes linked to the controller agent"
         def asset2 = new ThingAsset("Test Asset2")
             .setParent(agent3)
             .addOrReplaceAttributes(

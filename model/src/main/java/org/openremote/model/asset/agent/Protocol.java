@@ -62,10 +62,10 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * instance of its' own {@link Protocol}.
  * <p>
  * <h3>Connecting attributes to actuators and sensors</h3>
- * {@link Attribute}s of {@link Asset}s can be linked to a protocol configuration instance by creating an {@link
+ * {@link Attribute}s of {@link Asset}s can be linked to a protocol instance by creating an {@link
  * MetaItemType#AGENT_LINK} {@link MetaItem} on an attribute. Besides the {@link MetaItemType#AGENT_LINK}, other
- * protocol-specific meta items may also be required when an asset attribute is linked to a protocol configuration
- * instance. Attributes linked to a protocol configuration instance will get passed to the protocol via a call to {@link
+ * protocol-specific meta items may also be required when an asset attribute is linked to a protocol
+ * instance. Attributes linked to a protocol instance will get passed to the protocol via a call to {@link
  * #linkAttribute}.
  * <p>
  * The protocol handles read and write of linked attributes:
@@ -76,7 +76,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * #SENSOR_QUEUE_SOURCE_PROTOCOL}.
  * <p>
  * If the user writes a new value into the linked attribute, the protocol translates this value change into a device (or
- * service) action. Write operations on attributes linked to a protocol configuration can be consumed by the protocol on
+ * service) action. Write operations on attributes linked to an {@link Agent} can be consumed by the agent's protocol on
  * the {@link #ACTUATOR_TOPIC} where the message body will be an {@link AttributeEvent}. Each message also contains the
  * target protocol name in header {@link #ACTUATOR_TOPIC_TARGET_PROTOCOL}.
  * <p>
@@ -87,9 +87,9 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * <ol>
  * <li>Configurable value filtering which allows the value produced by the protocol to be filtered through any
  * number of {@link ValueFilter}s before being written to the linked attribute
- * (see {@link Agent#META_VALUE_FILTERS})</li>
+ * (see {@link AgentLink#getValueFilters})</li>
  * <li>Configurable value conversion which allows the value produced by the protocol to be converted in a configurable
- * way before being written to the linked attribute (see {@link Agent#META_VALUE_CONVERTER})</li>
+ * way before being written to the linked attribute (see {@link AgentLink#getValueConverter})</li>
  * <li>Automatic basic value conversion should be performed when the type of the value produced by the
  * protocol and any configured value conversion does not match the linked attributes underlying value type; this
  * basic conversion should use the {@link Values#convert} method</li>
@@ -98,11 +98,11 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * Standard value conversion should be performed in the following order:
  * <ol>
  * <li>Configurable value conversion which allows the value sent from the linked attribute to be converted in a
- * configurable way before being sent to the protocol for processing (see {@link Agent#META_WRITE_VALUE_CONVERTER})
+ * configurable way before being sent to the protocol for processing (see {@link AgentLink#getWriteValueConverter})
  * <li>Configurable dynamic value insertion (replacement of {@link #DYNAMIC_VALUE_PLACEHOLDER} strings within a
  * pre-defined JSON string with the value sent from the linked attribute (this allows for attribute values to be inserted
  * into a larger payload before processing by the protocol; it also allows the written value to be fixed or statically
- * converted.
+ * converted (see {@link AgentLink#getWriteValue}).
  * </ol>
  * When sending the converted value onto the actual protocol implementation for processing the original
  * {@link AttributeEvent} as well as the converted value should be made available.
@@ -133,18 +133,18 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
  * <li>{@link #stop}</li>
  * </ol>
  * <p>
- * Attribute linked to protocol configuration is created/loaded:
+ * Attribute linked to {@link Agent} is created/loaded:
  * <ol>
  * <li>{@link #linkAttribute}</li>
  * </ol>
  * <p>
- * Attribute linked to protocol configuration is modified:
+ * Attribute linked to {@link Agent} is modified:
  * <ol>
  * <li>{@link #unlinkAttribute}</li>
  * <li>{@link #linkAttribute}</li>
  * </ol>
  * <p>
- * Attribute link to protocol configuration is removed:
+ * Attribute link to {@link Agent} is removed:
  * <ol>
  * <li>{@link #unlinkAttribute}</li>
  * </ol>
@@ -175,7 +175,7 @@ public interface Protocol<T extends Agent<T, ?, ?>> {
      * Prefixes the log message with {@link #getProtocolName} and {@link #getProtocolInstanceUri}.
      */
     default String prefixLogMessage(String msg) {
-        return getProtocolName() + " [" + getProtocolInstanceUri()  + "]: " + msg;
+        return getProtocolName() + " [" + getProtocolInstanceUri() + "]: " + msg;
     }
 
     /**

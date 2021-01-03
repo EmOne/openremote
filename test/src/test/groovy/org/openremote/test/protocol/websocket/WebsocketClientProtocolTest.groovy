@@ -112,7 +112,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
     }
 
     @SuppressWarnings("GroovyAccessibility")
-    def "Check websocket client protocol configuration and linked attribute deployment"() {
+    def "Check websocket client protocol and linked attribute deployment"() {
 
         given: "expected conditions"
         def conditions = new PollingConditions(timeout: 10, delay: 0.2)
@@ -129,7 +129,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
             WebsocketClientProtocol.resteasyClient.register(mockServer, Integer.MAX_VALUE)
         }
 
-        and: "an agent with a websocket client protocol configuration is created to connect to this tests manager"
+        and: "a Websocket client agent is created to connect to this tests manager"
         def agent = new WebsocketClientAgent("Test agent")
             .setRealm(Constants.MASTER_REALM)
             .setConnectUri("ws://127.0.0.1:$serverPort/websocket/events?Auth-Realm=master")
@@ -174,7 +174,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
             assert mockServer.subscriptionDone
         }
 
-        when: "an asset is created with attributes linked to the protocol configuration"
+        when: "an asset is created with attributes linked to the agent"
         def asset = new ThingAsset("Test Asset")
             .setParent(agent)
             .addOrReplaceAttributes(

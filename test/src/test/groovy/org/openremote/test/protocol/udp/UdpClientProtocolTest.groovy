@@ -49,7 +49,7 @@ import static org.openremote.model.value.ValueType.*
 
 class UdpClientProtocolTest extends Specification implements ManagerContainerTrait {
 
-    def "Check UDP client protocol configuration and linked attribute deployment"() {
+    def "Check UDP client protocol and linked attribute deployment"() {
 
         given: "expected conditions"
         def conditions = new PollingConditions(timeout: 10, delay: 0.2)
@@ -94,7 +94,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
             assert echoServer.connectionStatus == ConnectionStatus.CONNECTED
         }
 
-        when: "an agent with a UDP client protocol configuration is created"
+        when: "a UDP client agent is created"
         def agent = new UdpClientAgent("Test agent")
         agent.setRealm(Constants.MASTER_REALM)
             .setHost("127.0.0.1")
@@ -112,7 +112,7 @@ class UdpClientProtocolTest extends Specification implements ManagerContainerTra
             assert agentService.agentMap.get(agent.id).getAgentStatus().orElse(null) == ConnectionStatus.CONNECTED
         }
 
-        when: "an asset is created with attributes linked to the protocol configuration"
+        when: "an asset is created with attributes linked to the agent"
         def asset = new ThingAsset("Test Asset")
             .setParent(agent)
             .addOrReplaceAttributes(
