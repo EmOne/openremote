@@ -25,12 +25,36 @@ import org.openremote.model.util.TsIgnore;
 
 import java.lang.reflect.Type;
 
-public class TsIgnoreTypeProcessor implements TypeProcessor {
+/**
+ * Will ignore types/super types annotated with {@link TsIgnore} as well as types that extend/implement the following
+ * super types:
+ * <ul>
+ * <li>Any type with a super type in the "com.fasterxml.jackson" package</li>
+ * </ul>
+ */
+public class ExcludeTypeProcessor implements TypeProcessor {
+
+    public static final String JACKSON_PACKAGE = "com.fasterxml.jackson";
+
     @Override
     public Result processType(Type javaType, Context context) {
-        final Class<?> rawClass = Utils.getRawClassOrNull(javaType);
-        if (rawClass != null && rawClass.getAnnotation(TsIgnore.class) != null) {
-            return new Result(TsType.Any);
+        Class<?> rawClass = Utils.getRawClassOrNull(javaType);
+
+        if (rawClass == null) {
+            return null;
+        }
+
+        // Look through type hierarchy
+        while (rawClass != null && rawClass != Object.class) {
+            // Look for TsIgnore annotation
+            if (rawClass.getAnnotation(TsIgnore.class) != null) {
+                return new Result(TsType.Any);
+            }
+
+            if (rawClass.getName().startsWith(JACKSON_PACKAGE)) {
+                return new Result(TsType.Any);
+            }
+            rawClass = rawClass.getSuperclass();
         }
         return null;
     }

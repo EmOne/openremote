@@ -39,7 +39,7 @@ public interface RulesResource {
      */
     @GET
     @Path("info/global")
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     RulesEngineInfo getGlobalEngineInfo(@BeanParam RequestParams requestParams);
 
     /**
@@ -47,7 +47,7 @@ public interface RulesResource {
      */
     @GET
     @Path("info/tenant/{realm}")
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     RulesEngineInfo getTenantEngineInfo(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
 
     /**
@@ -55,7 +55,7 @@ public interface RulesResource {
      */
     @GET
     @Path("info/asset/{assetId}")
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     RulesEngineInfo getAssetEngineInfo(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId);
 
     /**
@@ -64,7 +64,7 @@ public interface RulesResource {
      */
     @GET
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     GlobalRuleset[] getGlobalRulesets(@BeanParam RequestParams requestParams, @QueryParam("language") List<Ruleset.Lang> languages, @QueryParam("fullyPopulate") boolean fullyPopulate);
 
     /**
@@ -75,7 +75,7 @@ public interface RulesResource {
     @GET
     @Path("tenant/for/{realm}")
     @Produces(APPLICATION_JSON)
-TenantRuleset[] getTenantRulesets(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @QueryParam("language") List<Ruleset.Lang> languages, @QueryParam("fullyPopulate") boolean fullyPopulate);
+    TenantRuleset[] getTenantRulesets(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @QueryParam("language") List<Ruleset.Lang> languages, @QueryParam("fullyPopulate") boolean fullyPopulate);
 
     /**
      * Retrieve rules of an asset. The superuser can retrieve rules of all realms and assets, a 403 status is returned
@@ -85,7 +85,7 @@ TenantRuleset[] getTenantRulesets(@BeanParam RequestParams requestParams, @PathP
     @GET
     @Path("asset/for/{assetId}")
     @Produces(APPLICATION_JSON)
-AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @QueryParam("language") List<Ruleset.Lang> languages, @QueryParam("fullyPopulate") boolean fullyPopulate);
+    AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @QueryParam("language") List<Ruleset.Lang> languages, @QueryParam("fullyPopulate") boolean fullyPopulate);
 
     /* ################################################################################################# */
 
@@ -96,7 +96,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @POST
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     long createGlobalRuleset(@BeanParam RequestParams requestParams, @Valid GlobalRuleset ruleset);
 
     /**
@@ -106,7 +106,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @GET
     @Path("{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     GlobalRuleset getGlobalRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
     /**
@@ -116,7 +116,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @PUT
     @Path("{id}")
     @Consumes(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void updateGlobalRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id, @Valid GlobalRuleset ruleset);
 
     /**
@@ -126,7 +126,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @DELETE
     @Path("{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void deleteGlobalRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
     /* ################################################################################################# */
@@ -139,7 +139,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @Path("tenant")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     long createTenantRuleset(@BeanParam RequestParams requestParams, @Valid TenantRuleset ruleset);
 
     /**
@@ -149,7 +149,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @GET
     @Path("tenant/{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_RULES_ROLE})
+    @RolesAllowed({Constants.READ_RULES_ROLE})
     TenantRuleset getTenantRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
     /**
@@ -159,7 +159,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @PUT
     @Path("tenant/{id}")
     @Consumes(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void updateTenantRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id, @Valid TenantRuleset ruleset);
 
     /**
@@ -169,7 +169,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @DELETE
     @Path("tenant/{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void deleteTenantRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
     /* ################################################################################################# */
@@ -183,7 +183,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @Path("asset")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     long createAssetRuleset(@BeanParam RequestParams requestParams, @Valid AssetRuleset ruleset);
 
     /**
@@ -194,7 +194,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @GET
     @Path("asset/{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     AssetRuleset getAssetRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
     /**
@@ -205,7 +205,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @PUT
     @Path("asset/{id}")
     @Consumes(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void updateAssetRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id, @Valid AssetRuleset ruleset);
 
     /**
@@ -216,7 +216,7 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @DELETE
     @Path("asset/{id}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_RULES_ROLE})
+    @RolesAllowed({Constants.WRITE_RULES_ROLE})
     void deleteAssetRuleset(@BeanParam RequestParams requestParams, @PathParam("id") Long id);
 
 
@@ -228,5 +228,5 @@ AssetRuleset[] getAssetRulesets(@BeanParam RequestParams requestParams, @PathPar
     @GET
     @Path("geofences/{assetId}")
     @Produces(APPLICATION_JSON)
-GeofenceDefinition[] getAssetGeofences(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId);
+    GeofenceDefinition[] getAssetGeofences(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId);
 }

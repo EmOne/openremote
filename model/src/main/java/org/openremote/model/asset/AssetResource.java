@@ -23,6 +23,7 @@ import org.openremote.model.Constants;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.http.RequestParams;
 import org.openremote.model.query.AssetQuery;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.MetaItemType;
 
 import javax.annotation.security.RolesAllowed;
@@ -61,6 +62,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 @Path("asset")
 public interface AssetResource {
 
+    @TsIgnore
     class Util {
         public static final String WRITE_ATTRIBUTE_HTTP_METHOD = "PUT";
 

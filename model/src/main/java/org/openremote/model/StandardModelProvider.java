@@ -22,6 +22,7 @@ package org.openremote.model;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.syslog.SyslogCategory;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.*;
 
 import java.util.List;
@@ -35,6 +36,7 @@ import static org.openremote.model.syslog.SyslogCategory.MODEL_AND_VALUES;
  * Built in model provider that scans the model classes for asset classes and also includes {@link MetaItemType} and
  * {@link ValueType} classes.
  */
+@TsIgnore
 @ModelDescriptor(assetType = Asset.class, provider = MetaItemType.class)
 @ModelDescriptor(assetType = Asset.class, provider = ValueType.class)
 public class StandardModelProvider implements AssetModelProvider {

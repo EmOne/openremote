@@ -22,6 +22,7 @@ package org.openremote.model;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
@@ -40,6 +41,7 @@ import java.util.ServiceLoader;
  * descriptors; and also if the {@link AssetModelProvider} contains one or more  {@link ModelDescriptor} annotations
  * then those classes will also be scanned for descriptors.
  */
+@TsIgnore
 public interface AssetModelProvider {
 
     /**

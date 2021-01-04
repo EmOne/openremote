@@ -19,6 +19,9 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TsIgnore;
+
+@TsIgnore
 public interface Constants {
 
     String KEYCLOAK_CLIENT_ID = "openremote";

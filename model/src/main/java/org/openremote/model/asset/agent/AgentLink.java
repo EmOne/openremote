@@ -19,8 +19,7 @@
  */
 package org.openremote.model.asset.agent;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
@@ -29,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.query.filter.ValuePredicate;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.ValueFilter;
 
 import java.io.IOException;
@@ -47,6 +47,7 @@ public abstract class AgentLink<T extends AgentLink<?>> implements Serializable 
     /**
      * Resolves agent link type as agent type strings using {@link org.openremote.model.util.AssetModelUtil}
      */
+    @TsIgnore
     public static class AgentLinkTypeIdResolver extends TypeIdResolverBase {
         @Override
         public String idFromValue(Object value) {
@@ -56,7 +57,7 @@ public abstract class AgentLink<T extends AgentLink<?>> implements Serializable 
             if (!(value instanceof AgentLink)) {
                 throw new IllegalArgumentException("Type must be an agent link type");
             }
-            return value.getClass().getSimpleName();
+            return value.getClass().getSimpleName().replaceAll("\\$", ".");
         }
 
         @Override
@@ -80,6 +81,7 @@ public abstract class AgentLink<T extends AgentLink<?>> implements Serializable 
     /**
      * Does nothing other than hide the generic type parameter which causes problems with inference from class references
      */
+    @JsonTypeName("AgentLink.Default") // Needed for typescript generator - doesn't seem to use type id resolver
     public static class Default extends AgentLink<Default> {
 
         protected Default() {}

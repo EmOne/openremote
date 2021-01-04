@@ -19,10 +19,13 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TsIgnore;
+
 /**
  * If used on a persistent {@link javax.persistence.Entity}, an identifier value will only be set
  * when an instance is persisted if there was no identifier already set.
  */
+@TsIgnore
 public interface IdentifiableEntity<T> {
 
     T setId(String id);

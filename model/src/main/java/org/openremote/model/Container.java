@@ -19,10 +19,13 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TsIgnore;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
+@TsIgnore
 public interface Container {
 
     boolean isDevMode();

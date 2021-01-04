@@ -41,18 +41,18 @@ public interface SyslogResource {
 
     @DELETE
     @Path("event")
-@RolesAllowed({Constants.WRITE_ADMIN_ROLE})
+    @RolesAllowed({Constants.WRITE_ADMIN_ROLE})
     void clearEvents(@BeanParam RequestParams requestParams);
 
     @GET
     @Path("config")
-@Consumes(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
     @RolesAllowed({Constants.READ_ADMIN_ROLE})
     SyslogConfig getConfig(@BeanParam RequestParams requestParams);
 
     @PUT
     @Path("config")
-@Consumes(APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
     @RolesAllowed({Constants.WRITE_ADMIN_ROLE})
     void updateConfig(@BeanParam RequestParams requestParams, @Valid SyslogConfig config);
 }

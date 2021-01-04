@@ -36,11 +36,11 @@ public interface ConsoleAppResource {
      */
     @GET
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_APPS_ROLE})
+    @RolesAllowed({Constants.READ_APPS_ROLE})
     String[] getInstalledApps(@BeanParam RequestParams requestParams);
 
     @GET
     @Path("config")
     @Produces(APPLICATION_JSON)
-ConsoleAppConfig getAppConfig(@BeanParam RequestParams requestParams);
+    ConsoleAppConfig getAppConfig(@BeanParam RequestParams requestParams);
 }

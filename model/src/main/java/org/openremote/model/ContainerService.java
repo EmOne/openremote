@@ -19,6 +19,8 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TsIgnore;
+
 /**
  * The {@link Container} is a registry of services, the order of services in a container is important and is determined
  * by the {@link #getPriority} value; when starting the {@link Container} using the auto service discovery mechanism.
@@ -37,6 +39,7 @@ package org.openremote.model;
  * <li>{@link #stop} in <b>reverse</b> registry order</li>
  * </ol>
  */
+@TsIgnore
 public interface ContainerService {
 
     int DEFAULT_PRIORITY = 1000;

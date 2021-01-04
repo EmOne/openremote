@@ -22,6 +22,7 @@ package org.openremote.model.attribute;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.openremote.model.util.TsIgnore;
 
 @Deprecated
 public class MetaValidationFailure extends AttributeValidationFailure {

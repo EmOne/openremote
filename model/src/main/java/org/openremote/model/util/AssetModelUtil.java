@@ -463,7 +463,7 @@ public final class AssetModelUtil {
 
                 if (assetInfo.getAssetDescriptor() instanceof AgentDescriptor) {
                     AgentDescriptor<?,?,?> agentDescriptor = (AgentDescriptor<?,?,?>)assetInfo.getAssetDescriptor();
-                    agentLinkMap.put(agentDescriptor.getAgentLinkClass().getSimpleName(), agentDescriptor.getAgentLinkClass());
+                    agentLinkMap.put(agentDescriptor.getAgentLinkClass().getSimpleName().replaceAll("\\$", "."), agentDescriptor.getAgentLinkClass());
                 }
             }
         });

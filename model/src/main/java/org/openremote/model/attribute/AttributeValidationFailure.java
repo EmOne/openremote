@@ -19,8 +19,10 @@
  */
 package org.openremote.model.attribute;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.openremote.model.util.TsIgnore;
 
 import java.util.Optional;
 
@@ -36,6 +38,7 @@ import java.util.Optional;
 public class AttributeValidationFailure {
 
     public interface ReasonString {
+        @JsonProperty
         String name();
     }
 

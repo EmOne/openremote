@@ -42,13 +42,13 @@ public interface GatewayClientResource {
     @GET
     @Path("connection/{realm}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_ADMIN_ROLE})
+    @RolesAllowed({Constants.READ_ADMIN_ROLE})
     GatewayConnection getConnection(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
 
     @GET
     @Path("status/{realm}")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_ADMIN_ROLE})
+    @RolesAllowed({Constants.READ_ADMIN_ROLE})
     ConnectionStatus getConnectionStatus(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
 
     /**
@@ -57,7 +57,7 @@ public interface GatewayClientResource {
     @GET
     @Path("connection")
     @Produces(APPLICATION_JSON)
-@RolesAllowed({Constants.READ_ADMIN_ROLE})
+    @RolesAllowed({Constants.READ_ADMIN_ROLE})
     List<GatewayConnection> getConnections(@BeanParam RequestParams requestParams);
 
     /**
@@ -66,16 +66,16 @@ public interface GatewayClientResource {
     @PUT
     @Path("connection/{realm}")
     @Consumes(APPLICATION_JSON)
-@RolesAllowed({Constants.WRITE_ADMIN_ROLE})
+    @RolesAllowed({Constants.WRITE_ADMIN_ROLE})
     void setConnection(@BeanParam RequestParams requestParams, @PathParam("realm") String realm, @Valid GatewayConnection connection);
 
     @DELETE
     @Path("connection/{realm}")
-@RolesAllowed({Constants.WRITE_ADMIN_ROLE})
+    @RolesAllowed({Constants.WRITE_ADMIN_ROLE})
     void deleteConnection(@BeanParam RequestParams requestParams, @PathParam("realm") String realm);
 
     @DELETE
     @Path("connection")
-@RolesAllowed({Constants.WRITE_ADMIN_ROLE})
+    @RolesAllowed({Constants.WRITE_ADMIN_ROLE})
     void deleteConnections(@BeanParam RequestParams requestParams, @QueryParam("realm") List<String> realms);
 }

@@ -19,6 +19,8 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TsIgnore;
+
 import java.util.List;
 
 /**
@@ -26,6 +28,7 @@ import java.util.List;
  * custom {@link org.openremote.model.asset.Asset} types etc. Instances should be registered using the standard
  * {@link java.util.ServiceLoader} mechanism.
  */
+@TsIgnore
 public interface EntityClassProvider {
 
     List<Class<?>> getEntityClasses();
