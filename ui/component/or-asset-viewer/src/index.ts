@@ -1089,10 +1089,10 @@ export class OrAssetViewer extends subscribe(manager)(translate(i18next)(LitElem
 
         if (event.eventType === "attribute") {
             const attributeEvent = event as AttributeEvent;
-            if (attributeEvent.attributeState!.attributeRef!.assetId !== this.assetId) {
+            if (attributeEvent.attributeState!.ref!.assetId !== this.assetId) {
                 return;
             }
-            const attrName = attributeEvent.attributeState!.attributeRef!.attributeName!;
+            const attrName = attributeEvent.attributeState!.ref!.attributeName!;
 
             if (this.asset && this.asset.attributes && this.asset.attributes.hasOwnProperty(attrName)) {
                 if (attributeEvent.attributeState!.deleted) {

@@ -10,11 +10,9 @@ import {
     Attribute,
     AttributeEvent,
     MetaItem,
-    Attribute,
     AttributeDescriptor,
     MetaItemType,
     MetaItemDescriptor,
-    AttributeValueDescriptor,
     AssetDescriptor
 } from "@openremote/model";
 import i18next from "i18next";
@@ -290,10 +288,9 @@ export function getEnumKeyAsString(enm: object, val: string): string {
     return key!;
 }
 
-export function getAttribute(asset: Asset, attributeName: string): Attribute | undefined {
+export function getAttribute<T>(asset: Asset<any>, attributeName: string): Attribute<T> | undefined {
     if (asset && asset.attributes && asset.attributes.hasOwnProperty(attributeName)) {
-        const attr = {...asset.attributes[attributeName], name: attributeName, assetId: asset.id} as Attribute;
-        return attr;
+        return {...asset.attributes[attributeName], name: attributeName};
     }
 }
 
@@ -434,7 +431,7 @@ export function getAttributeValueFormatted(attribute: Attribute, descriptor: Att
  */
 export function updateAsset(asset: Asset, event: AttributeEvent): Asset {
 
-    const attributeName = event.attributeState!.attributeRef!.attributeName!;
+    const attributeName = event.attributeState!.ref!.attributeName!;
 
     if (asset.attributes) {
         if (event.attributeState!.deleted) {
@@ -443,7 +440,7 @@ export function updateAsset(asset: Asset, event: AttributeEvent): Asset {
             const attribute = getAttribute(asset, attributeName);
             if (attribute) {
                 attribute.value = event.attributeState!.value;
-                attribute.valueTimestamp = event.timestamp;
+                attribute.timestamp = event.timestamp;
             }
         }
     }

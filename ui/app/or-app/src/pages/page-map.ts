@@ -50,7 +50,7 @@ const pageMapSlice = createSlice({
         },
         attributeEventReceived(state: MapState, action: PayloadAction<AttributeEvent>) {
             let assets = state.assets;
-            const assetId = action.payload.attributeState.attributeRef.assetId;
+            const assetId = action.payload.attributeState.ref.assetId;
             const index = assets.findIndex((asst) => asst.id === assetId);
             let asset = index >= 0 ? assets[index] : null;
 

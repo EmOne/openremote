@@ -93,7 +93,7 @@ class OrSmartNotify extends LitElement {
         const isChecked = e.target.checked;
         if (isChecked) {
             this.smartNotify.attributes.SMART_NOTIFY_ENABLED.value = moment();
-            this.smartNotify.attributes.SMART_NOTIFY_ENABLED.valueTimestamp = moment();
+            this.smartNotify.attributes.SMART_NOTIFY_ENABLED.timestamp = moment();
             this.isActive = true;
         } else {
             this.smartNotify.attributes.SMART_NOTIFY_ENABLED.value = null;
@@ -322,7 +322,7 @@ class OrSmartNotify extends LitElement {
                 ${this.isActive ? html`
                     <div class="layout horizontal">
                         <div style="background-color: var(--app-lightgrey-color, #dedede);" class="flex padding-10">Starttijd</div>
-                        <div class="flex t-center">${this.isActive ? moment(this.smartNotify.attributes.SMART_NOTIFY_ENABLED.valueTimestamp).format("HH:mm")  : "-"}</div>
+                        <div class="flex t-center">${this.isActive ? moment(this.smartNotify.attributes.SMART_NOTIFY_ENABLED.timestamp).format("HH:mm")  : "-"}</div>
                     </div>
                 ` : ``}
             </div>

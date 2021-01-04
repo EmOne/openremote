@@ -59,7 +59,7 @@ interface EventSubscriptionInfo<T extends SharedEvent> {
 
 interface AssetSubscriptionInfo {
     callbacks: Map<string, (attributeEvent: AttributeEvent) => void>;
-    asset?: Asset;
+    asset?: Asset<any>;
     promise?: Promise<void>;
 }
 
@@ -353,11 +353,11 @@ abstract class EventProviderImpl implements EventProvider {
                         // Keep cached asset in sync
                         if (assetSubscription.asset) {
                             if (evt.attributeState!.deleted) {
-                                delete assetSubscription.asset.attributes![evt.attributeState!.attributeRef!.attributeName!];
+                                delete assetSubscription.asset.attributes![evt.attributeState!.ref!.attributeName!];
                             } else {
-                                const attr = assetSubscription.asset.attributes![evt.attributeState!.attributeRef!.attributeName!] as Attribute;
+                                const attr = assetSubscription.asset.attributes![evt.attributeState!.ref!.attributeName!];
                                 attr.value = evt.attributeState!.value;
-                                attr.valueTimestamp = evt.timestamp;
+                                attr.timestamp = evt.timestamp;
                             }
                         }
 
@@ -393,7 +393,7 @@ abstract class EventProviderImpl implements EventProvider {
 
                 info.callbacks.set(subscriptionId, (evt) => {
                     if (assetAttributes) {
-                        if (assetAttributes.find((attributeRef) => evt.attributeState!.attributeRef!.attributeName === attributeRef.attributeName)) {
+                        if (assetAttributes.find((attributeRef) => evt.attributeState!.ref!.attributeName === attributeRef.attributeName)) {
                             callback(evt);
                         }
                     } else {
@@ -411,15 +411,14 @@ abstract class EventProviderImpl implements EventProvider {
             assetIds.forEach((assetId) => {
                 const info = this._assetSubscriptionMap.get(assetId);
                 if (info && info.asset) {
-                    Object.entries(info.asset.attributes!).forEach(([attributeName, v]) => {
-                        const attr = v as Attribute;
+                    Object.entries(info.asset.attributes!).forEach(([attributeName, attr]) => {
                         if (!attributes || attributes.find((attributeRef) => attributeRef.assetId === info.asset!.id && attributeRef.attributeName === attributeName)) {
                             callback({
                                 eventType: "attribute",
-                                timestamp: attr.valueTimestamp,
+                                timestamp: attr.timestamp,
                                 attributeState: {
                                     value: attr.value,
-                                    attributeRef: {
+                                    ref: {
                                         assetId: assetId,
                                         attributeName: attributeName
                                     }

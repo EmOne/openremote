@@ -642,15 +642,15 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
 
             if (oldAttr && attr) {
                 const oldValue = oldAttr.value;
-                const oldTimestamp = oldAttr.valueTimestamp;
+                const oldTimestamp = oldAttr.timestamp;
 
                 // Compare attributes ignoring the timestamp and value
                 oldAttr.value = attr.value;
-                oldAttr.valueTimestamp = attr.valueTimestamp;
+                oldAttr.timestamp = attr.timestamp;
                 if (Util.objectsEqual(oldAttr, attr)) {
                     // Compare value and timestamp
-                    if (!Util.objectsEqual(oldValue, attr.value) || oldTimestamp !== attr.valueTimestamp) {
-                        this._onAttributeValueChanged(oldValue, attr.value, attr.valueTimestamp);
+                    if (!Util.objectsEqual(oldValue, attr.value) || oldTimestamp !== attr.timestamp) {
+                        this._onAttributeValueChanged(oldValue, attr.value, attr.timestamp);
                     } else if (_changedProperties.size === 1) {
                         // Only the attribute has 'changed' and we've handled it so don't perform update
                         return false;
@@ -903,7 +903,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
     }
 
     protected getTimestamp(): number | undefined {
-        return this._attributeEvent ? this._attributeEvent.timestamp : this.attribute ? this.attribute.valueTimestamp : undefined;
+        return this._attributeEvent ? this._attributeEvent.timestamp : this.attribute ? this.attribute.timestamp : undefined;
     }
 
     protected inputTypeSupportsButton() {
@@ -943,7 +943,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
     protected _onAttributeValueChanged(oldValue: any, newValue: any, timestamp?: number) {
         if (this.attribute) {
             this.attribute.value = newValue;
-            this.attribute.valueTimestamp = timestamp;
+            this.attribute.timestamp = timestamp;
         }
 
         this._clearWriteTimeout();

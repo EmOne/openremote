@@ -35,7 +35,9 @@ generateTypeScript {
     customTypeProcessor = "ExcludeTypeProcessor"
     customTypeNamingFunction = "function(name, simpleName) { if (name.indexOf(\"\$\") > 0) return name.substr(name.lastIndexOf(\".\")+1).replace(\"\$\",\"\"); }"
     customTypeMappings = [
-        "com.fasterxml.jackson.databind.node.ObjectNode:{ [id: string]: any }"
+        "com.fasterxml.jackson.databind.node.ObjectNode:{ [id: string]: any }",
+        "org.openremote.model.attribute.AttributeList:{ [id: string]: Attribute<any> }",
+        "org.openremote.model.attribute.MetaList:{ [id: string]: MetaItem<any> }"
     ]
     optionalProperties = "all" // TODO: cleanup model to be more explicit about optional params
     mapEnum = cz.habarta.typescript.generator.EnumMapping.asEnum

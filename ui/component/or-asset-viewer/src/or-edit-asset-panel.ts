@@ -248,7 +248,7 @@ export class OrEditAssetPanel extends LitElement {
 
     protected _onAttributeModified(attribute: Attribute, newValue: any) {
         attribute.value = newValue;
-        attribute.valueTimestamp = undefined; // Clear timestamp so server will set this
+        attribute.timestamp = undefined; // Clear timestamp so server will set this
         this._onModified();
     }
 
