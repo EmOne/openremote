@@ -483,17 +483,16 @@ public class PushNotificationHandler extends RouteBuilder implements Notificatio
 
         LOG.log(Level.WARNING, "FCM send failed: " + e.getErrorCode(), e);
 
-        // TODO: Implement backoff and blacklisting
-        switch (e.getErrorCode()) {
-
-            case "invalid-argument":
-            case "authentication-error":
-                LOG.severe("FCM critical error so marking FCM as invalid no more messages will be sent");
-                break;
-            case "server-unavailable":
-            case "internal-error":
-
-                break;
-        }
+//        // TODO: Implement backoff and blacklisting
+//        switch (e.getErrorCode()) {
+//
+//            case INVALID_ARGUMENT:
+//            case UNAUTHENTICATED:
+//                LOG.severe("FCM critical error so marking FCM as invalid no more messages will be sent");
+//                break;
+//            case UNAVAILABLE:
+//            case INTERNAL:
+//                break;
+//        }
     }
 }

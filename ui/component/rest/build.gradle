@@ -33,14 +33,16 @@ task generateTypescriptModelInfo(type: cz.habarta.typescript.generator.gradle.Ge
         "org.openremote.model.**Resource**"
     ]
     customTypeNamingFunction = "function(name, simpleName) { if (name.indexOf(\"\$\") > 0) return name.substr(name.lastIndexOf(\".\")+1).replace(\"\$\",\"\"); }"
+    customTypeMappings = [
+        "com.fasterxml.jackson.databind.node.ObjectNode:{ [id: string]: any }"
+    ]
     optionalProperties = "all" // TODO: cleanup model to be more explicit about optional params
     mapEnum = cz.habarta.typescript.generator.EnumMapping.asEnum
     mapDate = cz.habarta.typescript.generator.DateMapping.asNumber
     jackson2Modules = [
         "com.fasterxml.jackson.datatype.jdk8.Jdk8Module",
         "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
-        "com.fasterxml.jackson.module.paramnames.ParameterNamesModule",
-        "org.openremote.model.ModelModule"
+        "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
     ]
 }
 
@@ -48,6 +50,9 @@ generateTypeScript {
     dependsOn generateTypescriptModelInfo
     jsonLibrary = "jackson2"
     customTypeNamingFunction = "function(name, simpleName) { if (name.indexOf(\"\$\") > 0) return name.substr(name.lastIndexOf(\".\")+1).replace(\"\$\",\"\"); }"
+    customTypeMappings = [
+        "com.fasterxml.jackson.databind.node.ObjectNode:{ [id: string]: any }"
+    ]
     classPatterns = [
         "org.openremote.model.**Resource"
     ]

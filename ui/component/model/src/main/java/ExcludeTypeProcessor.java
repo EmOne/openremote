@@ -18,6 +18,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+import com.fasterxml.jackson.databind.JsonNode;
 import cz.habarta.typescript.generator.TsType;
 import cz.habarta.typescript.generator.TypeProcessor;
 import cz.habarta.typescript.generator.util.Utils;
@@ -29,7 +30,7 @@ import java.lang.reflect.Type;
  * Will ignore types/super types annotated with {@link TsIgnore} as well as types that extend/implement the following
  * super types:
  * <ul>
- * <li>Any type with a super type in the "com.fasterxml.jackson" package</li>
+ * <li>Any type with a super type in the "com.fasterxml.jackson" package excluding those implementing {@link com.fasterxml.jackson.databind.JsonNode}</li>
  * </ul>
  */
 public class ExcludeTypeProcessor implements TypeProcessor {
@@ -49,6 +50,10 @@ public class ExcludeTypeProcessor implements TypeProcessor {
             // Look for TsIgnore annotation
             if (rawClass.getAnnotation(TsIgnore.class) != null) {
                 return new Result(TsType.Any);
+            }
+
+            if (JsonNode.class.isAssignableFrom(rawClass)) {
+                return null;
             }
 
             if (rawClass.getName().startsWith(JACKSON_PACKAGE)) {
