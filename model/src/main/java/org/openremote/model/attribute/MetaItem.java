@@ -59,11 +59,11 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
     @SuppressWarnings("unchecked")
     public MetaItem(MetaItemDescriptor<T> metaDescriptor) {
         // If it's a boolean meta descriptor assume the caller wants it to be true as a default
-        this(metaDescriptor, (T) (Boolean.valueOf(metaDescriptor.getValueType().getType() == Boolean.class)));
+        this(metaDescriptor, (T) (Boolean.valueOf(metaDescriptor.getType().getType() == Boolean.class)));
     }
 
     public MetaItem(MetaItemDescriptor<T> metaDescriptor, T value) {
-        super(metaDescriptor.getName(), metaDescriptor.getValueType(), value);
+        super(metaDescriptor.getName(), metaDescriptor.getType(), value);
     }
 
     // For JPA/Hydrators

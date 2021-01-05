@@ -29,28 +29,25 @@ import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.*;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-@JsonDeserialize(using = MetaList.MetaObjectDeserializer.class)
-public class MetaList extends NamedList<MetaItem<?>> {
+@JsonDeserialize(using = MetaMap.MetaObjectDeserializer.class)
+public class MetaMap extends NamedMap<MetaItem<?>> {
     /**
-     * Deserialise a {@link MetaList} that is represented as a JSON object where each key is the name of a
+     * Deserialise a {@link MetaMap} that is represented as a JSON object where each key is the name of a
      * {@link MetaItemDescriptor}
      */
-    public static class MetaObjectDeserializer extends StdDeserializer<MetaList> {
+    public static class MetaObjectDeserializer extends StdDeserializer<MetaMap> {
 
         public MetaObjectDeserializer() {
-            super(MetaList.class);
+            super(MetaMap.class);
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
-        public MetaList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+        public MetaMap deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
             if (!jp.isExpectedStartObjectToken()) {
-                throw new InvalidFormatException(jp, "Expected an object but got something else", jp.nextValue(), MetaList.class);
+                throw new InvalidFormatException(jp, "Expected an object but got something else", jp.nextValue(), MetaMap.class);
             }
 
             List<MetaItem<?>> list = new ArrayList<>();
@@ -66,7 +63,7 @@ public class MetaList extends NamedList<MetaItem<?>> {
                     // Find the meta descriptor for this meta item as this will give us value type also; fallback to
                     // OBJECT type meta item to allow deserialization of meta that doesn't exist in the current asset model
                     Optional<ValueDescriptor<?>> valueDescriptor = AssetModelUtil.getMetaItemDescriptor(metaItemName)
-                        .map(MetaItemDescriptor::getValueType);
+                        .map(MetaItemDescriptor::getType);
 
                     Class valueType = valueDescriptor.map(ValueDescriptor::getType).orElseGet(() -> (Class) Object.class);
                     metaItem.setValue(jp.readValueAs(valueType));
@@ -84,17 +81,21 @@ public class MetaList extends NamedList<MetaItem<?>> {
                 }
             }
 
-            MetaList metaList = new MetaList();
-            metaList.addAllSilent(list);
-            return metaList;
+            MetaMap metaMap = new MetaMap();
+            metaMap.putAllSilent(list);
+            return metaMap;
         }
     }
 
-    public MetaList() {
+    public MetaMap() {
     }
 
-    public MetaList(Collection<MetaItem<?>> meta) {
-        super(meta);
+    public MetaMap(Collection<? extends MetaItem<?>> c) {
+        super(c);
+    }
+
+    public MetaMap(Map<? extends String, ? extends MetaItem<?>> map) {
+        super(map);
     }
 
     // This works around the crappy type system and avoids the need for a type witness
@@ -103,7 +104,7 @@ public class MetaList extends NamedList<MetaItem<?>> {
     }
 
     public <U extends MetaItemDescriptor<?>> void remove(U nameHolder) {
-        removeIf(item -> item.getName().equals(nameHolder.getName()));
+        super.remove(nameHolder.getName());
     }
 
     public <S> MetaItem<S> getOrCreate(MetaItemDescriptor<S> metaDescriptor) {

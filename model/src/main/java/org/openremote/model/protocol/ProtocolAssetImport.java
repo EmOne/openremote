@@ -25,6 +25,7 @@ import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.asset.AssetTreeNode;
 import org.openremote.model.file.FileInfo;
+import org.openremote.model.util.TsIgnore;
 
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -39,6 +40,7 @@ import java.util.function.Consumer;
  * <p>
  * It is the caller's responsibility to ensure that only a single import occurs at a given time.
  */
+@TsIgnore
 @FunctionalInterface
 public interface ProtocolAssetImport {
 

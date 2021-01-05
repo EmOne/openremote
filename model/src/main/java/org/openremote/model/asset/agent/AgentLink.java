@@ -81,7 +81,7 @@ public abstract class AgentLink<T extends AgentLink<?>> implements Serializable 
     /**
      * Does nothing other than hide the generic type parameter which causes problems with inference from class references
      */
-    @JsonTypeName("AgentLink.Default") // Needed for typescript generator - doesn't seem to use type id resolver
+    @JsonTypeName("Default") // Needed for typescript generator - doesn't seem to use type id resolver
     public static class Default extends AgentLink<Default> {
 
         protected Default() {}

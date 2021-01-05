@@ -1,19 +1,18 @@
 import {
+    Asset,
+    AssetDescriptor,
+    Attribute,
+    AttributeDescriptor,
+    AttributeEvent,
     AttributePredicate,
     GeofencePredicate,
     JsonRulesetDefinition,
+    LogicGroup,
+    MetaItem,
+    NameHolder,
     PushNotificationMessage,
     RuleActionUnion,
-    RuleCondition,
-    LogicGroup,
-    Asset,
-    Attribute,
-    AttributeEvent,
-    MetaItem,
-    AttributeDescriptor,
-    MetaItemType,
-    MetaItemDescriptor,
-    AssetDescriptor
+    RuleCondition
 } from "@openremote/model";
 import i18next from "i18next";
 import Qs from "qs";
@@ -288,60 +287,24 @@ export function getEnumKeyAsString(enm: object, val: string): string {
     return key!;
 }
 
-export function getAttribute<T>(asset: Asset<any>, attributeName: string): Attribute<T> | undefined {
-    if (asset && asset.attributes && asset.attributes.hasOwnProperty(attributeName)) {
-        return {...asset.attributes[attributeName], name: attributeName};
-    }
-}
-
-export function getAttributes(asset: Asset, exclude?: string[]): Attribute[] {
-    if (asset.attributes) {
-        return Object.entries(asset.attributes as {[s: string]: Attribute}).filter(([name, attr]) => !exclude || exclude.indexOf(name) >= 0).map(([name, attr]) => {
-            attr = {...attr, name: name, assetId: asset.id};
-            return attr;
-        });
-    }
-
-    return [];
-}
-
-
-export function getFirstMetaItem(attribute: Attribute | undefined, name: string): MetaItem | undefined {
-    if (!attribute || !attribute.meta) {
-        return;
-    }
-
-    return attribute.meta.find((metaItem) => metaItem.name === name);
-}
-
-export function hasMetaItem(attribute: Attribute, name: string): boolean {
-    return !!getFirstMetaItem(attribute, name);
-}
-
-export function getMetaValue(metaItemUrn: string | MetaItemDescriptor, attribute: Attribute | undefined, descriptor: AttributeDescriptor | undefined, valueDescriptor?: AttributeValueDescriptor): any {
-    const urn = typeof metaItemUrn === "string" ? metaItemUrn : (metaItemUrn as MetaItemDescriptor).urn;
+export function getMetaItem(name: string | NameHolder, attribute: Attribute<any> | undefined): MetaItem<any> | undefined {
+    const metaName = typeof name === "string" ? name : (name as NameHolder).name!;
 
     if (attribute && attribute.meta) {
-        const metaItem = attribute.meta.find((mi) => mi.name === urn);
-        if (metaItem) {
-            return metaItem.value;
-        }
-    }
-
-    if (descriptor && descriptor.metaItemDescriptors) {
-        const metaItemDescriptor = descriptor.metaItemDescriptors.find((mid) => mid.urn === urn);
-        if (metaItemDescriptor) {
-            return metaItemDescriptor.initialValue;
-        }
-    }
-
-    if (valueDescriptor && valueDescriptor.metaItemDescriptors) {
-        const metaItemDescriptor = valueDescriptor.metaItemDescriptors.find((mid) => mid.urn === urn);
-        if (metaItemDescriptor) {
-            return metaItemDescriptor.initialValue;
-        }
+        return attribute.meta[metaName];
     }
 }
+
+export function hasMetaItem(attribute: Attribute<any>, name: string): boolean {
+    return !!getMetaItem(name, attribute);
+}
+
+export function getMetaValue(name: string | NameHolder, attribute: Attribute<any> | undefined): any {
+    const metaItem = getMetaItem(name, attribute);
+    if (metaItem) {
+        return metaItem.value;
+    }
+}1
 
 export function getAttributeLabel(attribute: Attribute | undefined, descriptor: AttributeDescriptor | undefined, valueDescriptor: AttributeValueDescriptor | undefined, showUnits: boolean, fallback?: string): string {
     if (!attribute && !descriptor) {

@@ -19,11 +19,9 @@
  */
 package org.openremote.model.value;
 
-import org.openremote.model.attribute.MetaItem;
-
-import java.util.Collection;
+import org.openremote.model.attribute.MetaMap;
 
 public interface MetaHolder {
 
-    Collection<MetaItem<?>> getMeta();
+    MetaMap getMeta();
 }

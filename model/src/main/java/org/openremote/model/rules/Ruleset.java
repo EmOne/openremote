@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueType;
@@ -194,7 +194,7 @@ public abstract class Ruleset {
 
     @Column(name = "META", columnDefinition = "jsonb")
     @org.hibernate.annotations.Type(type = PERSISTENCE_JSON_VALUE_TYPE)
-    protected MetaList meta;
+    protected MetaMap meta;
 
     @Transient
     protected RulesetStatus status;
@@ -295,14 +295,14 @@ public abstract class Ruleset {
         return this;
     }
 
-    public MetaList getMeta() {
+    public MetaMap getMeta() {
         if (meta == null) {
-            meta = new MetaList();
+            meta = new MetaMap();
         }
         return meta;
     }
 
-    public Ruleset setMeta(MetaList meta) {
+    public Ruleset setMeta(MetaMap meta) {
         this.meta = meta;
         return this;
     }

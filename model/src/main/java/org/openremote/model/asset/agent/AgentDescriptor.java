@@ -19,6 +19,7 @@
  */
 package org.openremote.model.asset.agent;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -47,7 +48,9 @@ public class AgentDescriptor<T extends Agent<T, U, V>, U extends Protocol<T>, V 
 
     public static final String ICON = "cogs";
     public static final String ICON_COLOUR = "000000";
+    @JsonIgnore
     protected Class<U> protocolClass;
+    @JsonIgnore
     protected Class<V> agentLinkClass;
     @JsonSerialize(converter = DiscoveryBooleanConverter.class)
     protected Class<? extends ProtocolInstanceDiscovery> instanceDiscoveryProvider;

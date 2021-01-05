@@ -19,6 +19,8 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import javax.validation.constraints.Pattern;
 
 /**
@@ -27,6 +29,7 @@ import javax.validation.constraints.Pattern;
  */
 public interface NameHolder {
 
+    @JsonProperty
     @Pattern(regexp =  "^\\w+$")
     String getName();
 }

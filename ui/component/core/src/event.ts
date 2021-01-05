@@ -59,7 +59,7 @@ interface EventSubscriptionInfo<T extends SharedEvent> {
 
 interface AssetSubscriptionInfo {
     callbacks: Map<string, (attributeEvent: AttributeEvent) => void>;
-    asset?: Asset<any>;
+    asset?: Asset;
     promise?: Promise<void>;
 }
 

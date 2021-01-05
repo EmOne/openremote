@@ -41,7 +41,7 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.impl.GatewayAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
-import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.event.shared.SharedEvent;
 import org.openremote.model.gateway.GatewayDisconnectEvent;
 import org.openremote.model.query.AssetQuery;
@@ -522,7 +522,7 @@ public class GatewayService extends RouteBuilder implements ContainerService, As
                     : -1;
                 if (attributeIndex >= 0) {
                     // Check if disabled attribute has changed
-                    AttributeList oldAttributes = persistenceEvent.getPreviousState("attributes");
+                    AttributeMap oldAttributes = persistenceEvent.getPreviousState("attributes");
                     boolean wasDisabled = oldAttributes.getValue(GatewayAsset.DISABLED).orElse(false);
 
                     if (wasDisabled != isNowDisabled) {

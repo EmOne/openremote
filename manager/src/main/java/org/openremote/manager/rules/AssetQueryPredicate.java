@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.model.asset.impl.ThingAsset;
-import org.openremote.model.attribute.MetaItem;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.LogicGroup;
 import org.openremote.model.query.filter.*;
@@ -211,7 +211,7 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
                             .reduce(x->true, Predicate::and);
 
                         metaPredicate.set(assetState -> {
-                            Collection<MetaItem<?>> metaItems = ((MetaHolder)assetState).getMeta();
+                            MetaMap metaItems = ((MetaHolder)assetState).getMeta();
                             return metaItems.stream().anyMatch(metaItem ->
                                 innerMetaPredicate.test(assetState)
                             );

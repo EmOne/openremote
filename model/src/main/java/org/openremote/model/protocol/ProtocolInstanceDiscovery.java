@@ -23,8 +23,8 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.util.TsIgnore;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
@@ -37,6 +37,7 @@ import java.util.function.Consumer;
  * discovery is requested for the associated {@link org.openremote.model.asset.agent.Protocol}. Implementations are
  * not re-used.
  */
+@TsIgnore
 @FunctionalInterface
 public interface ProtocolInstanceDiscovery {
 

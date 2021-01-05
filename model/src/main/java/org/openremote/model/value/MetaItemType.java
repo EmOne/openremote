@@ -25,9 +25,11 @@ import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeLink;
 import org.openremote.model.rules.AssetState;
 import org.openremote.model.rules.TemporaryFact;
+import org.openremote.model.util.TsIgnore;
 
 import javax.validation.constraints.Pattern;
 
+@TsIgnore
 @SuppressWarnings("rawtypes")
 public final class MetaItemType {
 

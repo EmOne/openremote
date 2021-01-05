@@ -38,7 +38,6 @@ import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.value.ValueDescriptor;
-import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
 
 import javax.ws.rs.ProcessingException;
@@ -413,7 +412,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
      */
     private void updateAttributeValue(AttributeRef attributeRef, String value) {
         LOG.finest("### Updating attribute " + attributeRef + " with value " + value);
-        ValueDescriptor<?> valueType = this.linkedAttributes.get(attributeRef).getValueType();
+        ValueDescriptor<?> valueType = this.linkedAttributes.get(attributeRef).getType();
         Object valueObj = Values.convert(value, valueType.getType());
         this.updateLinkedAttribute(new AttributeState(attributeRef, valueObj));
     }

@@ -28,16 +28,17 @@ generateTypeScript {
             "org.openremote.model.**"
     ]
     excludeClassPatterns = [
-            "org.openremote.model.event.shared.*Filter**",
-            "org.openremote.model.util.**",
-            "org.openremote.model.flow.**"
+        "org.openremote.model.event.shared.*Filter**",
+        "org.openremote.model.util.**",
+        "org.openremote.model.flow.**",
+        "java.io.Serializable",
+        "java.lang.Comparable"
     ]
-    customTypeProcessor = "ExcludeTypeProcessor"
+    customTypeProcessor = "CustomTypeProcessor"
     customTypeNamingFunction = "function(name, simpleName) { if (name.indexOf(\"\$\") > 0) return name.substr(name.lastIndexOf(\".\")+1).replace(\"\$\",\"\"); }"
     customTypeMappings = [
         "com.fasterxml.jackson.databind.node.ObjectNode:{ [id: string]: any }",
-        "org.openremote.model.attribute.AttributeList:{ [id: string]: Attribute<any> }",
-        "org.openremote.model.attribute.MetaList:{ [id: string]: MetaItem<any> }"
+        "java.lang.Class<T>:string"
     ]
     optionalProperties = "all" // TODO: cleanup model to be more explicit about optional params
     mapEnum = cz.habarta.typescript.generator.EnumMapping.asEnum
@@ -56,6 +57,10 @@ generateTypeScript {
         "com.fasterxml.jackson.datatype.jdk8.Jdk8Module",
         "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
         "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
+    ]
+    extensions = [
+        "CustomExtension",
+        "JsonSerializeExtension"
     ]
 }
 

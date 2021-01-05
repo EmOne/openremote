@@ -44,7 +44,7 @@ import org.openremote.model.ContainerService;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent.Source;
-import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.RulesetQuery;
 import org.openremote.model.query.filter.AttributePredicate;
@@ -494,7 +494,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                         return;
 
                     // Retract old attribute facts
-                    persistenceEvent.<AttributeList>getPreviousState("attributes").stream()
+                    persistenceEvent.<AttributeMap>getPreviousState("attributes").stream()
                         .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
                         .forEach(attribute -> {
                             AssetState<?> assetState = buildAssetState.apply(loadedAsset, attribute);
@@ -503,7 +503,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
                         });
 
                     // Insert new attribute facts
-                    persistenceEvent.<AttributeList>getCurrentState("attributes").stream()
+                    persistenceEvent.<AttributeMap>getCurrentState("attributes").stream()
                         .filter(attribute -> attribute.getMetaValue(MetaItemType.RULE_STATE).orElse(false))
                         .forEach(attribute -> {
                             AssetState<?> assetState = buildAssetState.apply(loadedAsset, attribute);

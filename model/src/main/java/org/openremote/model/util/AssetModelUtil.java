@@ -65,6 +65,7 @@ import static org.openremote.model.syslog.SyslogCategory.MODEL_AND_VALUES;
  * {@link #getModelProviders()} collection.
  */
 @SuppressWarnings("unchecked")
+@TsIgnore
 public final class AssetModelUtil {
 
     /**
@@ -121,6 +122,7 @@ public final class AssetModelUtil {
         ServiceLoader.load(AssetModelProvider.class).forEach(assetModelProviders::add);
     }
 
+    @TsIgnore
     public static class AssetModelInfo {
         protected AssetDescriptor<?> assetDescriptor;
         protected AttributeDescriptor<?>[] attributeDescriptors;
@@ -611,7 +613,7 @@ public final class AssetModelUtil {
                     } else if (descriptor instanceof AttributeDescriptor) {
                         attributeDescriptors.stream().filter(d -> d.equals(descriptor)).findFirst()
                             .ifPresent(existingDescriptor -> {
-                                if (!existingDescriptor.getValueType().equals(((AttributeDescriptor<?>) descriptor).getValueType())) {
+                                if (!existingDescriptor.getType().equals(((AttributeDescriptor<?>) descriptor).getType())) {
                                     throw new IllegalStateException("Attribute descriptor override cannot change the value type found: asset type=" + assetClass + ", descriptor=" + existingDescriptor + ", duplicate descriptor=" + descriptor);
                                 }
                                 attributeDescriptors.remove(existingDescriptor);

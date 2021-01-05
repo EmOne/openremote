@@ -39,7 +39,6 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 import static org.openremote.model.attribute.AttributeEvent.Source.ATTRIBUTE_LINKING_SERVICE;
-import static org.openremote.model.query.AssetQuery.Select;
 
 /**
  * This service processes asset updates on attributes that have one or more {@link MetaItemType#ATTRIBUTE_LINKS} meta items.
@@ -163,11 +162,11 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
             if (value[0] != null) {
 
                 // Do basic value conversion
-                if (!attribute.getValueType().getType().isAssignableFrom(value[0].getClass())) {
-                    Object val = Values.convert(value[0], attribute.getValueType().getType());
+                if (!attribute.getType().getType().isAssignableFrom(value[0].getClass())) {
+                    Object val = Values.convert(value[0], attribute.getType().getType());
 
                     if (val == null) {
-                        LOG.warning("Failed to convert value: " + value[0].getClass() + " -> " + attribute.getValueType().getType());
+                        LOG.warning("Failed to convert value: " + value[0].getClass() + " -> " + attribute.getType().getType());
                         LOG.warning("Cannot send linked attribute update");
                         return;
                     }
@@ -235,7 +234,7 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
                             "cannot toggle value as attribute cannot be found: " + linkedAttributeRef
                         )
                     );
-                    if (!Values.isBoolean(currentAttribute.getValueType().getType())) {
+                    if (!Values.isBoolean(currentAttribute.getType().getType())) {
                         throw new AssetProcessingException(
                             Reason.LINKED_ATTRIBUTE_CONVERSION_FAILURE,
                             "cannot toggle value as attribute is not of type BOOLEAN: " + linkedAttributeRef
@@ -256,7 +255,7 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
                             "cannot toggle value as attribute cannot be found: " + linkedAttributeRef
                         )
                     );
-                    if (!Values.isNumber(currentAttribute.getValueType().getType())) {
+                    if (!Values.isNumber(currentAttribute.getType().getType())) {
                         throw new AssetProcessingException(
                             Reason.LINKED_ATTRIBUTE_CONVERSION_FAILURE,
                             "cannot increment/decrement value as attribute is not of type NUMBER: " + linkedAttributeRef

@@ -31,8 +31,9 @@ import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.TsIgnore;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -62,8 +63,9 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
      * A class that represents an array {@link ValueDescriptor} which avoids the need to explicitly define
      * {@link ValueDescriptor}s for every value type in array form (e.g. string and string[])
      */
+    @TsIgnore
     static class ValueArrayDescriptor<T> extends ValueDescriptor<T> {
-        public ValueArrayDescriptor(String name, Class<T> type, MetaList meta) {
+        public ValueArrayDescriptor(String name, Class<T> type, MetaMap meta) {
             super(name, type, meta);
         }
     }
@@ -125,7 +127,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
 
             String name;
             String type;
-            MetaList meta = null;
+            MetaMap meta = null;
             JsonNode node = p.getCodec().readTree(p);
 
             if (!node.isObject()) {
@@ -137,11 +139,11 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
             if (node.has("meta")) {
                 JsonParser metaParser = node.get("meta").traverse(p.getCodec());
                 metaParser.nextToken();
-                meta = ctxt.readValue(metaParser, MetaList.class);
+                meta = ctxt.readValue(metaParser, MetaMap.class);
             }
 
             // Look for an existing value descriptor with this name
-            MetaList finalMeta = meta;
+            MetaMap finalMeta = meta;
             return AssetModelUtil.getValueDescriptor(name).orElseGet(() -> {
                 Class<?> typeClass = ValueType.JSON_OBJECT.type;
                 boolean isArray = name.endsWith("[]");
@@ -171,21 +173,21 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     protected String name;
     @JsonSerialize(converter = ValueDescriptor.ValueTypeStringConverter.class)
     protected Class<T> type;
-    protected MetaList meta;
+    protected MetaMap meta;
 
     public ValueDescriptor(String name, Class<T> type) {
-        this(name, type, (MetaList)null);
+        this(name, type, (MetaMap)null);
     }
 
     public ValueDescriptor(String name, Class<T> type, MetaItem<?>...meta) {
-        this(name, type, new MetaList(Arrays.asList(meta)));
+        this(name, type, new MetaMap(Arrays.asList(meta)));
     }
 
     public ValueDescriptor(String name, Class<T> type, Collection<MetaItem<?>> meta) {
-        this(name, type, new MetaList(meta));
+        this(name, type, new MetaMap(meta));
     }
 
-    public ValueDescriptor(String name, Class<T> type, MetaList meta) {
+    public ValueDescriptor(String name, Class<T> type, MetaMap meta) {
         this.name = name;
         this.type = type;
         this.meta = meta;
@@ -200,7 +202,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     }
 
     @Override
-    public Collection<MetaItem<?>> getMeta() {
+    public MetaMap getMeta() {
         return meta;
     }
 
@@ -248,13 +250,13 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     }
 
     public ValueDescriptor<T> addOrReplaceMeta(Collection<MetaItem<?>> meta) {
-        MetaList metaList = new MetaList(this.meta);
-        metaList.addOrReplace(meta);
-        return new ValueDescriptor<>(name, type, metaList);
+        MetaMap metaMap = new MetaMap(this.meta);
+        metaMap.addOrReplace(meta);
+        return new ValueDescriptor<>(name, type, metaMap);
     }
 
-    public ValueDescriptor<T> addOrReplaceMeta(MetaList meta) {
-        return addOrReplaceMeta((Collection<MetaItem<?>>)meta);
+    public ValueDescriptor<T> addOrReplaceMeta(MetaMap meta) {
+        return addOrReplaceMeta(meta.values());
     }
 
     @Override

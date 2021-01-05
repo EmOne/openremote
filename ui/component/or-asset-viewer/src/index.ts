@@ -382,10 +382,10 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
 
                 if (attributeHistory) {
 
-                    let attribute: Attribute | undefined;
+                    let attribute: Attribute<any> | undefined;
 
                     if (attributeName) {
-                        attribute = Util.getAttribute(asset, attributeName);
+                        attribute = asset.attributes[attributeName];
                     }
 
                     attributeHistory.attribute = attribute;
@@ -447,7 +447,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
         }
 
         // Get child asset type attribute value
-        const childAssetTypeAttribute = Util.getAttribute(asset, "childAssetType");
+        const childAssetTypeAttribute = asset.attributes["childAssetType"];
         const groupConfig = panelConfig as GroupPanelConfig;
 
         if (!childAssetTypeAttribute || typeof childAssetTypeAttribute.value !== "string") {

@@ -161,7 +161,7 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
             !TextUtil.isNullOrEmpty(it.asset.id) &&
                 !TextUtil.isNullOrEmpty(it.asset.getName()) &&
                 !it.asset.getAttributes().isEmpty() &&
-                it.asset.getAttributes().every {attr ->
+                it.asset.getAttributes().values().every {attr ->
                     attr.getMetaValue(AGENT_LINK).map{
                         Values.getValue(it, VelbusAgent.VelbusAgentLink.class)
                                 .map({agentLink -> agentLink.id == agent.id && agentLink.deviceAddress.isPresent() && agentLink.deviceValueLink.isPresent()})
@@ -174,7 +174,7 @@ class VelbusProtocolTest extends Specification implements ManagerContainerTrait 
         def asset = assets.find {it.asset.name == "VMBGPOD"}
         assert asset != null
         assert asset.asset.getAttributes().size() == 304
-        def memoTextAttribute = asset.asset.getAttributes().find {it.getMetaValue(AGENT_LINK).map{(it as VelbusAgent.VelbusAgentLink).deviceValueLink.orElse(null) == "MEMO_TEXT"}.orElse(false)}
+        def memoTextAttribute = asset.asset.getAttributes().values().find {it.getMetaValue(AGENT_LINK).map{(it as VelbusAgent.VelbusAgentLink).deviceValueLink.orElse(null) == "MEMO_TEXT"}.orElse(false)}
         assert memoTextAttribute != null
         assert memoTextAttribute.getMetaValue(AGENT_LINK).flatMap(){(it as VelbusAgent.VelbusAgentLink).deviceAddress}.orElse(null) == 24
 

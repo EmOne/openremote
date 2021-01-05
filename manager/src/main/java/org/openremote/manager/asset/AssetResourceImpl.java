@@ -269,7 +269,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                 }
 
                 // Merge updated with existing attributes
-                for (Attribute<?> updatedAttribute : asset.getAttributes()) {
+                for (Attribute<?> updatedAttribute : asset.getAttributes().values()) {
 
                     // Proper validation happens on merge(), here we only need the name to continue
                     String updatedAttributeName = updatedAttribute.getName();
@@ -286,7 +286,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                         }
 
                         // Merge updated with existing meta items (modifying a copy)
-                        MetaList updatedMetaItems = updatedAttribute.getMeta();
+                        MetaMap updatedMetaItems = updatedAttribute.getMeta();
                         // Ensure access meta is not modified
                         updatedMetaItems.removeIf(mi -> {
                             if (mi.getName().equals(ACCESS_RESTRICTED_READ.getName())) {
@@ -304,7 +304,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                             return false;
                         });
 
-                        MetaList existingMetaItems = Values.clone(existingAttribute.getMeta());
+                        MetaMap existingMetaItems = Values.clone(existingAttribute.getMeta());
 
                         existingMetaItems.addOrReplace(updatedMetaItems);
 

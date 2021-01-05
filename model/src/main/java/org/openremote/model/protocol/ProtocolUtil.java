@@ -31,6 +31,7 @@ import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.query.filter.ValuePredicate;
 import org.openremote.model.util.Pair;
 import org.openremote.model.util.TextUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.ValueFilter;
 import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
@@ -46,6 +47,7 @@ import static org.openremote.model.asset.agent.Protocol.DYNAMIC_VALUE_PLACEHOLDE
 import static org.openremote.model.value.Values.NULL_LITERAL;
 import static org.openremote.model.value.Values.applyValueFilters;
 
+@TsIgnore
 public final class ProtocolUtil {
 
     protected ProtocolUtil() {
@@ -90,7 +92,7 @@ public final class ProtocolUtil {
         Pair<Boolean, Object> ignoreAndConvertedValue;
 
         // Check if attribute type is executable
-        if (attribute.getValueType().equals(ValueType.EXECUTION_STATUS)) {
+        if (attribute.getType().equals(ValueType.EXECUTION_STATUS)) {
             AttributeExecuteStatus status = Values.getValueCoerced(value, AttributeExecuteStatus.class).orElse(null);
 
             if (status == AttributeExecuteStatus.REQUEST_START && writeValue != null) {
@@ -166,7 +168,7 @@ public final class ProtocolUtil {
         }
 
         // built in value conversion
-        Class<?> toType = attribute.getValueType().getType();
+        Class<?> toType = attribute.getType().getType();
         Class<?> fromType = valRef.get().getClass();
 
         if (toType != fromType) {

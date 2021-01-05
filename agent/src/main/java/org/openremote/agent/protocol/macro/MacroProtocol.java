@@ -163,7 +163,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
 
         // Check for executable meta item
-        if (attribute.getValueType().getType() == AttributeExecuteStatus.class) {
+        if (attribute.getType().getType() == AttributeExecuteStatus.class) {
             LOG.fine("Macro linked attribute is marked as executable so it will be linked to the firing of the macro");
             // Update the command Status of this attribute
             updateLinkedAttribute(
@@ -203,7 +203,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
     @Override
     protected void doLinkedAttributeWrite(Attribute<?> attribute, MacroAgent.MacroAgentLink agentLink, AttributeEvent event, Object processedValue) {
 
-        if (attribute.getValueType().getType() == AttributeExecuteStatus.class) {
+        if (attribute.getType().getType() == AttributeExecuteStatus.class) {
             // This is a macro execution related write operation
             AttributeExecuteStatus status = Values.getValueCoerced(event.getValue(), AttributeExecuteStatus.class)
                 .orElse(null);
@@ -264,7 +264,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
         // Update linked attribute of type AttributeExecuteStatus
         linkedAttributes.entrySet().stream()
             .filter(assetIdAndAttribute ->
-                assetIdAndAttribute.getValue().getValueType().equals(ValueType.EXECUTION_STATUS))
+                assetIdAndAttribute.getValue().getType().equals(ValueType.EXECUTION_STATUS))
             .forEach(assetIdAndAttribute ->
                 updateLinkedAttribute(new AttributeState(assetIdAndAttribute.getKey(), executeStatus)));
     }

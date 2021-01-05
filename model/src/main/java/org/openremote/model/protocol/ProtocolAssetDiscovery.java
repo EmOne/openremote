@@ -24,6 +24,7 @@ import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.asset.AssetTreeNode;
+import org.openremote.model.util.TsIgnore;
 
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -39,6 +40,7 @@ import java.util.function.Consumer;
  * It is the caller's responsibility to ensure that only a single discovery request occurs at a given time.
  */
 @FunctionalInterface
+@TsIgnore
 public interface ProtocolAssetDiscovery {
 
     /**

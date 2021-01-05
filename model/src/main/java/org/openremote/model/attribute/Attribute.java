@@ -102,7 +102,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
                     }
                     switch (propName) {
                         case "meta":
-                            attribute.meta = jp3.readValueAs(MetaList.class);
+                            attribute.meta = jp3.readValueAs(MetaMap.class);
                             break;
                         case "name":
                             attribute.name = jp3.readValueAs(String.class);
@@ -134,7 +134,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
     }
 
     @Valid
-    protected MetaList meta;
+    protected MetaMap meta;
     @JsonProperty
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     protected long timestamp;
@@ -146,7 +146,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
     }
 
     public Attribute(AttributeDescriptor<T> attributeDescriptor, T value) {
-        this(attributeDescriptor.getName(), attributeDescriptor.getValueType(), value);
+        this(attributeDescriptor.getName(), attributeDescriptor.getType(), value);
 
         // Auto merge meta from attribute descriptor
         if (attributeDescriptor.getMeta() != null) {
@@ -183,20 +183,20 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         this.name = name;
     }
 
-    public MetaList getMeta() {
+    public MetaMap getMeta() {
         if (meta == null) {
-            meta = new MetaList();
+            meta = new MetaMap();
         }
 
         return meta;
     }
 
-    public Attribute<T> setMeta(MetaList meta) {
+    public Attribute<T> setMeta(MetaMap meta) {
         this.meta = meta;
         return this;
     }
 
-    public Attribute<T> addMeta(@NotNull MetaList meta) {
+    public Attribute<T> addMeta(@NotNull MetaMap meta) {
         getMeta().addAll(meta);
         return this;
     }
@@ -211,7 +211,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         return this;
     }
 
-    public Attribute<T> addOrReplaceMeta(@NotNull MetaList meta) {
+    public Attribute<T> addOrReplaceMeta(@NotNull MetaMap meta) {
         getMeta().addAll(meta);
         return this;
     }
@@ -270,222 +270,13 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         return this;
     }
 
-    //    public boolean hasLabel() {
-//        return getMetaStream().anyMatch(isMetaNameEqualTo(LABEL));
-//    }
-//
-//    public Optional<String> getLabel() {
-//        return Optional.ofNullable(getMetaStream()
-//            .filter(isMetaNameEqualTo(LABEL))
-//            .findFirst()
-//            .flatMap(AbstractValueHolder::getValueAsString)
-//            .orElseGet(() -> getName().orElse(null)));
-//    }
-//
-//    public Optional<String> getLabelOrName() {
-//        return getLabel().map(Optional::of).orElseGet(this::getName);
-//    }
-//
-//    public void setLabel(String label) {
-//        if (!isNullOrEmpty(label)) {
-//            replaceMetaByName(getMeta(), LABEL, label);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(LABEL));
-//        }
-//    }
-//
-//    public boolean isExecutable() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(EXECUTABLE))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setExecutable(boolean executable) {
-//        if (executable) {
-//            replaceMetaByName(getMeta(), EXECUTABLE, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(EXECUTABLE));
-//        }
-//    }
-//
-//    public boolean hasAgentLink() {
-//        return getMetaStream().anyMatch(isMetaNameEqualTo(AGENT_LINK));
-//    }
-//
-//    public boolean isProtocolConfiguration() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(PROTOCOL_CONFIGURATION))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public boolean isShowOnDashboard() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(SHOW_ON_DASHBOARD))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setShowOnDashboard(boolean show) {
-//        if (show) {
-//            replaceMetaByName(getMeta(), SHOW_ON_DASHBOARD, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(SHOW_ON_DASHBOARD));
-//        }
-//    }
-//
-//    public boolean hasFormat() {
-//        return getMetaStream().anyMatch(isMetaNameEqualTo(FORMAT));
-//    }
-//
-//    public Optional<String> getFormat() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(FORMAT))
-//            .findFirst()
-//            .flatMap(AbstractValueHolder::getValueAsString);
-//    }
-//
-//    public void setFormat(String format) {
-//        if (!isNullOrEmpty(format)) {
-//            replaceMetaByName(getMeta(), FORMAT, format);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(FORMAT));
-//        }
-//    }
-//
-//    public boolean hasDescription() {
-//        return getMetaStream().anyMatch(isMetaNameEqualTo(DESCRIPTION));
-//    }
-//
-//    public Optional<String> getDescription() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(DESCRIPTION))
-//            .findFirst()
-//            .flatMap(AbstractValueHolder::getValueAsString);
-//    }
-//
-//    public void setDescription(String description) {
-//        if (!isNullOrEmpty(description)) {
-//            replaceMetaByName(getMeta(), DESCRIPTION, description);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(DESCRIPTION));
-//        }
-//    }
-//
-//    public boolean isAccessRestrictedRead() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(MetaItemType.ACCESS_RESTRICTED_READ))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public boolean isAccessRestrictedWrite() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(MetaItemType.ACCESS_RESTRICTED_WRITE))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public boolean isAccessPublicRead() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(MetaItemType.ACCESS_PUBLIC_READ))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public boolean isReadOnly() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(READ_ONLY))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setReadOnly(boolean readOnly) {
-//        if (readOnly) {
-//            replaceMetaByName(getMeta(), READ_ONLY, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(READ_ONLY));
-//        }
-//    }
-//
-//    public boolean isStoreDatapoints() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(STORE_DATA_POINTS))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setStoreDatapoints(boolean storeDatapoints) {
-//        if (storeDatapoints) {
-//            replaceMetaByName(getMeta(), STORE_DATA_POINTS, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(STORE_DATA_POINTS));
-//        }
-//    }
-//
-//    public boolean isRuleState() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(RULE_STATE))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setRuleState(boolean ruleState) {
-//        if (ruleState) {
-//            replaceMetaByName(getMeta(), RULE_STATE, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(RULE_STATE));
-//        }
-//    }
-//
-//    public boolean isRuleEvent() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(RULE_EVENT))
-//            .findFirst()
-//            .map(metaItem -> metaItem.getValueAsBoolean().orElse(false))
-//            .orElse(false);
-//    }
-//
-//    public void setRuleEvent(boolean ruleEvent) {
-//        if (ruleEvent) {
-//            replaceMetaByName(getMeta(), RULE_EVENT, true);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(RULE_EVENT));
-//        }
-//    }
-//
-//    public Optional<String> getRuleEventExpires() {
-//        return getMetaStream()
-//            .filter(isMetaNameEqualTo(RULE_EVENT_EXPIRES))
-//            .findFirst()
-//            .flatMap(AbstractValueHolder::getValueAsString);
-//    }
-//
-//    public void setRuleEventExpires(String expiry) {
-//        if (!isNullOrEmpty(expiry)) {
-//            replaceMetaByName(getMeta(), RULE_EVENT_EXPIRES, expiry);
-//        } else {
-//            getMeta().removeIf(isMetaNameEqualTo(RULE_EVENT_EXPIRES));
-//        }
-//    }
-
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "name='" + name + '\'' +
             ", value='" + value + '\'' +
             ", timestamp='" + getTimestamp().orElse(0L) + '\'' +
-            ", meta='" + getMeta().stream().map(MetaItem::toString).collect(Collectors.joining(",")) + '\'' +
+            ", meta='" + getMeta().values().stream().map(MetaItem::toString).collect(Collectors.joining(",")) + '\'' +
             "} ";
     }
 
@@ -533,16 +324,16 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
     /**
      * @return All attributes that exist only in the new list or are different than any attribute in the old list.
      */
-    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(List<Attribute<?>> oldAttributes,
-                                                                 List<Attribute<?>> newAttributes) {
+    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(Collection<Attribute<?>> oldAttributes,
+                                                                 Collection<Attribute<?>> newAttributes) {
         return getAddedOrModifiedAttributes(oldAttributes, newAttributes, null);
     }
 
     /**
      * @return All attributes that exist only in the new list or are different than any attribute in the old list.
      */
-    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(List<Attribute<?>> oldAttributes,
-                                                                    List<Attribute<?>> newAttributes,
+    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(Collection<Attribute<?>> oldAttributes,
+                                                                    Collection<Attribute<?>> newAttributes,
                                                                     Predicate<String> ignoredAttributeNames) {
         return getAddedOrModifiedAttributes(
             oldAttributes,
@@ -554,8 +345,8 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
     /**
      * @return All attributes that exist only in the new list or are different than any attribute in the old list
      */
-    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(List<Attribute<?>> oldAttributes,
-                                                                    List<Attribute<?>> newAttributes,
+    public static Stream<Attribute<?>> getAddedOrModifiedAttributes(Collection<Attribute<?>> oldAttributes,
+                                                                    Collection<Attribute<?>> newAttributes,
                                                                     Predicate<String> limitToAttributeNames,
                                                                     Predicate<String> ignoredAttributeNames) {
         return newAttributes.stream()

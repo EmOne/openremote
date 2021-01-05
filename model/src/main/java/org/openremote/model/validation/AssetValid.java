@@ -22,6 +22,7 @@ package org.openremote.model.validation;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.AttributeDescriptor;
 
 import javax.validation.Constraint;
@@ -43,6 +44,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Repeatable(AssetValid.List.class)
 @Constraint(validatedBy = AssetValid.AssetValidValidator.class)
 @Documented
+@TsIgnore
 public @interface AssetValid {
 
     String message() default "{org.openremote.model.validation.AssetValid.message}";
@@ -64,6 +66,7 @@ public @interface AssetValid {
      * {@link Asset#getAttributes} are valid based on the {@link org.openremote.model.value.AttributeDescriptor}s
      * for the given {@link Asset} type.
      */
+    @TsIgnore
     class AssetValidValidator implements ConstraintValidator<AssetValid, Asset<?>> {
 
         public static final String ASSET_TYPE_INVALID = "{Asset.type.Invalid}";
@@ -94,13 +97,13 @@ public @interface AssetValid {
                 }
             });
 
-            value.getAttributes().forEach(attribute -> {
+            value.getAttributes().values().forEach(attribute -> {
                     AttributeDescriptor<?> descriptor = Arrays.stream(assetModelInfo.getAttributeDescriptors())
                         .filter(attributeDescriptor -> attributeDescriptor.getName().equals(attribute.getName()))
                         .findFirst()
                         .orElse(null);
 
-                    if (descriptor != null && !Objects.equals(attribute.getValueType(), descriptor.getValueType())) {
+                    if (descriptor != null && !Objects.equals(attribute.getType(), descriptor.getType())) {
                         context.buildConstraintViolationWithTemplate(ASSET_ATTRIBUTE_TYPE_MISMATCH).addPropertyNode("attributes").addPropertyNode(attribute.getName()).addConstraintViolation();
                         valid.set(false);
                     }

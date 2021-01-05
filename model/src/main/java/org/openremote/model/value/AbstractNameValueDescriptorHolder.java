@@ -19,6 +19,7 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -26,26 +27,28 @@ import java.util.Objects;
 
 public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescriptorHolder<T>, NameHolder {
 
+    @JsonIgnore
     protected String name;
-    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
-    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
-    protected ValueDescriptor<T> valueDescriptor;
+    @JsonIgnore
+    protected ValueDescriptor<T> type;
 
     AbstractNameValueDescriptorHolder() {}
 
-    public AbstractNameValueDescriptorHolder(String name, ValueDescriptor<T> valueDescriptor) {
+    public AbstractNameValueDescriptorHolder(String name, ValueDescriptor<T> type) {
         this.name = name;
-        this.valueDescriptor = valueDescriptor;
+        this.type = type;
     }
 
+    @JsonIgnore
     @Override
     public String getName() {
         return name;
     }
 
+    @JsonIgnore
     @Override
-    public ValueDescriptor<T> getValueType() {
-        return valueDescriptor;
+    public ValueDescriptor<T> getType() {
+        return type;
     }
 
     @Override

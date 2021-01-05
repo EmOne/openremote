@@ -9,11 +9,10 @@ import org.openremote.model.asset.impl.BuildingAsset
 import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.attribute.Attribute
 import org.openremote.model.attribute.MetaItem
-import org.openremote.model.attribute.MetaList
+import org.openremote.model.attribute.MetaMap
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.ParentPredicate
 import org.openremote.model.query.filter.TenantPredicate
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -651,10 +650,10 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         def resultAttributes = apartment1Livingroom.getAttributes()
         resultAttributes.size() == 7
         def currentTemperatureAttr = apartment1Livingroom.getAttribute("currentTemperature", NUMBER.type).orElse(null)
-        currentTemperatureAttr.getValueType() == NUMBER
+        currentTemperatureAttr.getType() == NUMBER
         !currentTemperatureAttr.getValue().isPresent()
 
-        MetaList resultMeta = currentTemperatureAttr.getMeta()
+        MetaMap resultMeta = currentTemperatureAttr.getMeta()
         resultMeta.size() == 9
         resultMeta.getValueOrDefault(LABEL) == "Current temperature"
         resultMeta.getValue(READ_ONLY).orElse(false)

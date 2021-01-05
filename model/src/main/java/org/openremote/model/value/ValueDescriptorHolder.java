@@ -19,10 +19,17 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 /**
  * Identifies an item that holds a {@link ValueDescriptor}.
  */
 public interface ValueDescriptorHolder<T> {
 
-    ValueDescriptor<T> getValueType();
+    @JsonProperty
+    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
+    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
+    ValueDescriptor<T> getType();
 }

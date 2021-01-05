@@ -251,7 +251,7 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                                 throw new IllegalArgumentException("Can't handle interval: " + datapointInterval);
                         }
 
-                        Class<?> attributeType = attribute.getValueType().getType();
+                        Class<?> attributeType = attribute.getType().getType();
                         boolean isNumber = Number.class.isAssignableFrom(attributeType);
                         boolean isBoolean = Boolean.class.isAssignableFrom(attributeType);
                         StringBuilder query = new StringBuilder();

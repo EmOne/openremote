@@ -22,7 +22,7 @@ package org.openremote.model.value;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaMap;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,13 +41,13 @@ import java.util.Collection;
  */
 public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T> implements MetaHolder {
 
-    protected MetaList meta;
+    protected MetaMap meta;
     protected boolean required;
 
     AttributeDescriptor() {}
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
-        this(name, valueDescriptor, (MetaList) null);
+        this(name, valueDescriptor, (MetaMap) null);
     }
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaItem<?>... meta) {
@@ -55,21 +55,21 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     }
 
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, Collection<MetaItem<?>> meta) {
-        this(name, valueDescriptor, meta instanceof MetaList ? (MetaList) meta : new MetaList(meta));
+        this(name, valueDescriptor, meta instanceof MetaMap ? (MetaMap) meta : new MetaMap(meta));
     }
 
-    public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaList meta) {
+    public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaMap meta) {
         super(name, valueDescriptor);
         this.meta = meta;
     }
 
     @Override
-    public Collection<MetaItem<?>> getMeta() {
+    public MetaMap getMeta() {
         return meta;
     }
 
-    public AttributeDescriptor<T> setMeta(MetaList meta) {
-        AttributeDescriptor<T> newDescriptor = new AttributeDescriptor<T>(this.name, this.valueDescriptor, meta);
+    public AttributeDescriptor<T> setMeta(MetaMap meta) {
+        AttributeDescriptor<T> newDescriptor = new AttributeDescriptor<T>(this.name, this.type, meta);
         return newDescriptor;
     }
 
@@ -78,7 +78,7 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     }
 
     public AttributeDescriptor<T> setRequired(boolean required) {
-        AttributeDescriptor<T> newDescriptor = new AttributeDescriptor<T>(this.name, this.valueDescriptor, this.meta);
+        AttributeDescriptor<T> newDescriptor = new AttributeDescriptor<T>(this.name, this.type, this.meta);
         newDescriptor.required = required;
         return newDescriptor;
     }
@@ -87,7 +87,7 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     public String toString() {
         return AttributeDescriptor.class.getSimpleName() + "{" +
             "name='" + name + '\'' +
-            ", valueDescriptor=" + valueDescriptor +
+            ", valueDescriptor=" + type +
             '}';
     }
 }

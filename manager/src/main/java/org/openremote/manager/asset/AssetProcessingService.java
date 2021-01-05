@@ -304,7 +304,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                     }
 
                     // For executable attributes, non-sensor sources can set a writable attribute execute status
-                    if (oldAttribute.getValueType() == ValueType.EXECUTION_STATUS && source != SENSOR) {
+                    if (oldAttribute.getType() == ValueType.EXECUTION_STATUS && source != SENSOR) {
                         Optional<AttributeExecuteStatus> status = event.getValue()
                             .flatMap(Values::getString)
                             .flatMap(AttributeExecuteStatus::fromString);
@@ -316,7 +316,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
 
                     // Type coercion
                     Object value = event.getValue().map(eventValue -> {
-                        Class<?> attributeValueType = oldAttribute.getValueType().getType();
+                        Class<?> attributeValueType = oldAttribute.getType().getType();
                         return Values.getValueCoerced(eventValue, attributeValueType).orElseThrow(() -> {
                             LOG.info("Failed to coerce attribute event value into the correct value type: event value type=" + eventValue.getClass() + ", attribute value type=" + attributeValueType);
                             return new AssetProcessingException(INVALID_VALUE_FOR_WELL_KNOWN_ATTRIBUTE);

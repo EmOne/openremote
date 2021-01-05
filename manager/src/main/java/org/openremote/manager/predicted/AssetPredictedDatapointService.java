@@ -134,7 +134,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
                 public ValueDatapoint<?>[] execute(Connection connection) throws SQLException {
 
 
-                    Class<?> attributeType = attribute.getValueType().getType();
+                    Class<?> attributeType = attribute.getType().getType();
                     boolean isNumber = Number.class.isAssignableFrom(attributeType);
                     boolean isBoolean = Boolean.class.isAssignableFrom(attributeType);
                     StringBuilder query = new StringBuilder();

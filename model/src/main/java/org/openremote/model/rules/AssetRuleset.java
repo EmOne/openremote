@@ -20,7 +20,7 @@
 package org.openremote.model.rules;
 
 import org.hibernate.annotations.Formula;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.calendar.CalendarEvent;
 
 import javax.persistence.Column;
@@ -130,7 +130,7 @@ public class AssetRuleset extends Ruleset {
     }
 
     @Override
-    public AssetRuleset setMeta(MetaList meta) {
+    public AssetRuleset setMeta(MetaMap meta) {
         super.setMeta(meta);
         return this;
     }

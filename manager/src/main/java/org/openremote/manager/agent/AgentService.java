@@ -341,12 +341,12 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
                 // Unlink old agent linked attributes and relink new ones
                 Map<Agent<?,?,?>, List<Attribute<?>>> oldAgentLinkedAttributes = getGroupedAgentLinkAttributes(
-                    ((AttributeList)persistenceEvent.getPreviousState()[attributesIndex]).stream(),
+                    ((AttributeMap)persistenceEvent.getPreviousState()[attributesIndex]).stream(),
                     attribute -> true
                 );
 
                 Map<Agent<?,?,?>, List<Attribute<?>>> newAgentLinkedAttributes = getGroupedAgentLinkAttributes(
-                    ((AttributeList)persistenceEvent.getCurrentState()[attributesIndex]).stream(),
+                    ((AttributeMap)persistenceEvent.getCurrentState()[attributesIndex]).stream(),
                     attribute -> true
                 );
 

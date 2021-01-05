@@ -38,7 +38,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("Kitchen Number Attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery().names("Kitchen 1"))
-                            .filter({ assetState -> assetState.valueType == NUMBER })
+                            .filter({ assetState -> assetState.type == NUMBER })
                             .findFirst().isPresent()
         })
         .then(
@@ -52,7 +52,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("Boolean attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery())
-                            .filter({ assetState -> assetState.valueType == BOOLEAN })
+                            .filter({ assetState -> assetState.type == BOOLEAN })
                             .findFirst().isPresent()
         })
         .then(
@@ -66,7 +66,7 @@ rules.add()
         { facts ->
             !facts.matchFirst("String Attributes").isPresent() &&
                     facts.matchAssetState(new AssetQuery())
-                            .filter({ assetState -> assetState.valueType == STRING })
+                            .filter({ assetState -> assetState.type == STRING })
                             .findFirst().isPresent()
         })
         .then(

@@ -22,14 +22,13 @@ package org.openremote.model.asset;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import org.hibernate.annotations.Check;
-import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Formula;
 import org.openremote.model.Constants;
 import org.openremote.model.IdentifiableEntity;
 import org.openremote.model.asset.impl.ThingAsset;
 import org.openremote.model.asset.impl.UnknownAsset;
 import org.openremote.model.attribute.Attribute;
-import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.jackson.AssetTypeIdResolver;
 import org.openremote.model.util.AssetModelUtil;
@@ -317,7 +316,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     @Column(name = "ATTRIBUTES", columnDefinition = "jsonb")
     @org.hibernate.annotations.Type(type = PERSISTENCE_JSON_VALUE_TYPE)
     @Valid
-    protected AttributeList attributes;
+    protected AttributeMap attributes;
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
@@ -468,16 +467,16 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
         return path != null && Arrays.asList(getPath()).contains(assetId);
     }
 
-    public AttributeList getAttributes() {
+    public AttributeMap getAttributes() {
         if (attributes == null) {
-            attributes = new AttributeList();
+            attributes = new AttributeMap();
         }
         return attributes;
     }
 
-    public T setAttributes(AttributeList attributes) {
+    public T setAttributes(AttributeMap attributes) {
         if (attributes == null) {
-            attributes = new AttributeList();
+            attributes = new AttributeMap();
         }
         this.attributes = attributes;
         return (T) this;
@@ -488,7 +487,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     }
 
     public T setAttributes(Collection<Attribute<?>> attributes) {
-        this.attributes = new AttributeList(attributes);
+        this.attributes = new AttributeMap(attributes);
         return (T) this;
     }
 
@@ -502,7 +501,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
 
     public <U> Optional<Attribute<U>> getAttribute(String attributeName, Class<U> valueType) {
         return getAttributes().get(attributeName).map(attribute -> {
-            if (attribute.getValueType().getType() == valueType) {
+            if (attribute.getType().getType() == valueType) {
                 return (Attribute<U>) attribute;
             } else {
                 return null;

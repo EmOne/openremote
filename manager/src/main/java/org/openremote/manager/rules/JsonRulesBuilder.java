@@ -880,7 +880,7 @@ public class JsonRulesBuilder extends RulesBuilder {
 
                 matchingAssetStates.forEach(assetState -> {
                     Object value = assetState.getValue().orElse(null);
-                    Class<?> valueType = assetState.getValueType().getType();
+                    Class<?> valueType = assetState.getType().getType();
                     boolean isArray = Values.isArray(valueType);
 
                     if (!isArray && !Values.isObject(valueType)) {

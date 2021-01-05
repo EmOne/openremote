@@ -24,6 +24,7 @@ import cz.habarta.typescript.generator.TypeProcessor;
 import cz.habarta.typescript.generator.util.Utils;
 import org.openremote.model.util.TsIgnore;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /**
@@ -32,8 +33,10 @@ import java.lang.reflect.Type;
  * <ul>
  * <li>Any type with a super type in the "com.fasterxml.jackson" package excluding those implementing {@link com.fasterxml.jackson.databind.JsonNode}</li>
  * </ul>
+ * <p>
+ * Also removes type parameters from field types listed in {@link Constants#IGNORE_TYPE_PARAMS_ON_CLASSES}
  */
-public class ExcludeTypeProcessor implements TypeProcessor {
+public class CustomTypeProcessor implements TypeProcessor {
 
     public static final String JACKSON_PACKAGE = "com.fasterxml.jackson";
 
@@ -61,6 +64,15 @@ public class ExcludeTypeProcessor implements TypeProcessor {
             }
             rawClass = rawClass.getSuperclass();
         }
+
+        rawClass = Utils.getRawClassOrNull(javaType);
+
+        if (Constants.IGNORE_TYPE_PARAMS_ON_CLASSES.contains(rawClass)) {
+            if (javaType instanceof ParameterizedType) {
+                return new Result(new TsType.BasicType(rawClass.getSimpleName()));
+            }
+        }
+
         return null;
     }
 }

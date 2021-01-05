@@ -29,6 +29,7 @@ import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.console.ConsoleProviders;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.util.TimeUtil;
+import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.impl.ColourRGB;
 import org.openremote.model.value.impl.ColourRGBA;
 import org.openremote.model.value.impl.ColourRGBAW;
@@ -43,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@TsIgnore
 public final class ValueType {
 
     /* SOME CUSTOM TYPES TO AVOID GENERIC TYPE SO THESE CAN BE CONSUMED IN VALUE DESCRIPTORS */

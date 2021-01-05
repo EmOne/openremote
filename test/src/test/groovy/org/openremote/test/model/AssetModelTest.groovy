@@ -5,14 +5,15 @@ import org.openremote.agent.protocol.http.HttpClientAgent
 import org.openremote.agent.protocol.simulator.SimulatorAgent
 import org.openremote.agent.protocol.velbus.VelbusTcpAgent
 import org.openremote.manager.asset.AssetModelService
-import org.openremote.model.Constants
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.AssetModelResource
 import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.impl.LightAsset
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.Attribute
+import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.attribute.MetaItem
+import org.openremote.model.rules.AssetState
 import org.openremote.model.util.AssetModelUtil
 import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.SubStringValueFilter
@@ -25,12 +26,8 @@ import org.openremote.test.protocol.http.HttpServerTestAgent
 import spock.lang.Shared
 import spock.lang.Specification
 
-import java.util.stream.Collectors
-
 import static org.openremote.model.Constants.MASTER_REALM
-import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes
 import static org.openremote.model.value.ValueType.BIG_NUMBER
-import static org.openremote.model.value.ValueType.STRING
 
 // TODO: Define new asset model tests (setValue - equality checking etc.)
 class AssetModelTest extends Specification implements ManagerContainerTrait {
@@ -61,7 +58,7 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         thingAssetInfo2.get().getAssetDescriptor().type == ThingAsset.class
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) } != null
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.required
-        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.valueType == ValueType.GEO_JSON_POINT
+        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.type == ValueType.GEO_JSON_POINT
 
         when: "All asset model infos are retrieved"
         def assetInfos = assetModelResource.getAssetInfos(null, null, null);
@@ -94,7 +91,7 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         AssetModelUtil.getAgentDescriptor(HttpServerTestAgent.DESCRIPTOR.name).isPresent()
     }
 
-    def "Serialize/Deserialize Asset"() {
+    def "Serialize/Deserialize asset model"() {
         given: "An asset"
         def asset = new LightAsset("Test light")
             .setRealm(MASTER_REALM)
@@ -153,5 +150,27 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.orElse(null) instanceof HttpClientAgent.HttpClientAgentLink
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.path}.orElse("") == "test_path"
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.pagingMode}.orElse(false)
+
+        when: "an attribute is cloned"
+        def attribute = asset2.getAttribute(LightAsset.COLOUR_RGB).get()
+        def clonedAttribute = Values.clone(attribute)
+
+        then: "the cloned attribute should match the source"
+        clonedAttribute.getName() == attribute.getName()
+        clonedAttribute.getValue().orElse(null) == attribute.getValue().orElse(null)
+        clonedAttribute.getMeta() == attribute.getMeta()
+
+        when: "an asset state is serialized"
+        def assetState = new AssetState(asset2, attribute, null)
+        def assetStateStr = Values.asJSON(assetState).orElse(null)
+
+        then: "it should look as expected"
+        def assetStateObjectNode = Values.parse(assetStateStr, ObjectNode.class).get()
+        assetStateObjectNode.get("name").asText() == LightAsset.COLOUR_RGB.name
+        assetStateObjectNode.get("value").isArray()
+        assetStateObjectNode.get("value").size() == 3
+        assetStateObjectNode.get("value").get(0).asInt() == 50I
+        assetStateObjectNode.get("value").get(1).asInt() == 100I
+        assetStateObjectNode.get("value").get(2).asInt() == 200I
     }
 }

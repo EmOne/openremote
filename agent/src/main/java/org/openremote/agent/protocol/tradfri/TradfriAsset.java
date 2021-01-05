@@ -3,7 +3,7 @@ package org.openremote.agent.protocol.tradfri;
 import org.openremote.agent.protocol.tradfri.device.Device;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
-import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
@@ -24,7 +24,7 @@ public interface TradfriAsset {
 
     String getId();
 
-    AttributeList getAttributes();
+    AttributeMap getAttributes();
 
     void addEventHandlers(Device device, Consumer<AttributeEvent> attributeEventConsumer);
 

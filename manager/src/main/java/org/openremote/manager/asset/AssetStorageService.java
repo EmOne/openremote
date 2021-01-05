@@ -42,7 +42,7 @@ import org.openremote.model.asset.*;
 import org.openremote.model.asset.impl.GroupAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
-import org.openremote.model.attribute.AttributeList;
+import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.event.TriggeredEventSubscription;
 import org.openremote.model.event.shared.AssetInfo;
@@ -1177,8 +1177,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 );
 
                 // Did any attributes change if so raise attribute events on the event bus
-                AttributeList oldAttributes = persistenceEvent.getPreviousState("attributes");
-                AttributeList newAttributes = persistenceEvent.getCurrentState("attributes");
+                AttributeMap oldAttributes = persistenceEvent.getPreviousState("attributes");
+                AttributeMap newAttributes = persistenceEvent.getCurrentState("attributes");
 
                 // Get removed attributes and raise an attribute event with deleted flag in attribute state
                 oldAttributes.stream()
@@ -1192,8 +1192,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     ));
 
                 // Get new or modified attributes
-                getAddedOrModifiedAttributes(oldAttributes,
-                    newAttributes)
+                getAddedOrModifiedAttributes(oldAttributes.values(),
+                    newAttributes.values())
                     .forEach(newOrModifiedAttribute ->
                         clientEventService.publishEvent(
                             new AttributeEvent(
@@ -1211,7 +1211,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 );
 
                 // Raise attribute event with deleted flag for each attribute
-                AttributeList deletedAttributes = asset.getAttributes();
+                AttributeMap deletedAttributes = asset.getAttributes();
                 deletedAttributes.forEach(obsoleteAttribute ->
                     clientEventService.publishEvent(
                         AttributeEvent.deletedAttribute(asset.getId(), obsoleteAttribute.getName())

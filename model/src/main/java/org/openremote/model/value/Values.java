@@ -33,6 +33,7 @@ import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import org.hibernate.internal.util.SerializationHelper;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.util.TextUtil;
+import org.openremote.model.util.TsIgnore;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -52,6 +53,7 @@ import java.util.logging.Logger;
  * Utilities for working with values and JSON
  */
 @SuppressWarnings({"unchecked", "deprecation"})
+@TsIgnore
 public class Values {
 
     private static final Logger LOG = Logger.getLogger(Values.class.getName());
@@ -507,14 +509,14 @@ public class Values {
             try {
                 return (T) SerializationHelper.clone((Serializable) object);
             } catch (Exception e) {
-                LOG.log(Level.WARNING, "Failed to clone using standard java serialisation, falling back to jackson object of type: " + object.getClass(), e);
+                LOG.log(Level.INFO, "Failed to clone using standard java serialisation, falling back to jackson object of type: " + object.getClass(), e);
             }
         }
 
         try {
             return JSON.readValue(JSON.writeValueAsBytes(object), (Class<T>) object.getClass());
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Failed to clone object of type: " + object.getClass(), e);
+            LOG.log(Level.INFO, "Failed to clone object of type: " + object.getClass(), e);
         }
 
         return null;

@@ -11,7 +11,7 @@ import {
 } from "@openremote/or-map";
 import manager, {Util} from "@openremote/core";
 import {createSelector} from "reselect";
-import {Asset, AssetEvent, AssetEventCause, AttributeEvent, AttributeType, MetaItemType} from "@openremote/model";
+import {Asset, AssetEvent, AssetEventCause, AttributeEvent, GeoJSONPoint, Attribute} from "@openremote/model";
 import {getAssetsRoute} from "./page-assets";
 import {Page, router} from "../types";
 import {AppStateKeyed} from "../app";
@@ -264,7 +264,7 @@ export class PageMap<S extends MapStateKeyed> extends Page<S> {
             <or-map id="map" class="or-map">
                 ${
                     this._assets.filter((asset) => {
-                        const attr = Util.getAttribute(asset, AttributeType.LOCATION.attributeName!);
+                        const attr = asset.attributes["location"] as Attribute<GeoJSONPoint>;
                         const showOnMapMeta = Util.getFirstMetaItem(attr, MetaItemType.SHOW_ON_DASHBOARD.urn!);
                         return showOnMapMeta && showOnMapMeta.value;
                     }).map((asset) => {

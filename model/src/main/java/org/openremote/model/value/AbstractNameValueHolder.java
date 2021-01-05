@@ -20,6 +20,8 @@
 package org.openremote.model.value;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -36,13 +38,14 @@ import java.util.Optional;
 @JsonFilter("excludeNameFilter")
 public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, Serializable {
 
-    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
-    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
+    @JsonIgnore
     protected ValueDescriptor<T> type;
+    @JsonIgnore
     @Valid
     protected T value;
     @NotBlank(message = "{Asset.valueHolder.name.NotBlank}")
     @Pattern(regexp = "^\\w+$")
+    @JsonIgnore
     protected String name;
 
     protected AbstractNameValueHolder() {
@@ -60,11 +63,13 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
         this.value = value;
     }
 
+    @JsonIgnore
     @Override
-    public ValueDescriptor<T> getValueType() {
+    public ValueDescriptor<T> getType() {
         return type;
     }
 
+    @JsonIgnore
     @Override
     public Optional<T> getValue() {
         return Optional.ofNullable(value);
@@ -73,7 +78,7 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
     @SuppressWarnings("unchecked")
     @Override
     public <U> Optional<U> getValueAs(Class<U> valueType) {
-        if (valueType.isAssignableFrom(getValueType().getType())) {
+        if (valueType.isAssignableFrom(getType().getType())) {
             return Optional.ofNullable((U)value);
         }
         return Optional.empty();
@@ -84,6 +89,7 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
         this.value = value;
     }
 
+    @JsonIgnore
     @Override
     public String getName() {
         return name;

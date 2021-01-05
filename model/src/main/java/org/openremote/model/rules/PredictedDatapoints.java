@@ -22,7 +22,12 @@ package org.openremote.model.rules;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.datapoint.DatapointInterval;
 import org.openremote.model.datapoint.ValueDatapoint;
+import org.openremote.model.util.TsIgnore;
 
+/**
+ * Facade for predicted datapoints in rules
+ */
+@TsIgnore
 public abstract class PredictedDatapoints {
 
 

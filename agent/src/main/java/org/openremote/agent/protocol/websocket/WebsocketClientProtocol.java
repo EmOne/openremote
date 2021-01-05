@@ -119,7 +119,7 @@ public class WebsocketClientProtocol extends AbstractIoClientProtocol<WebsocketC
     @Override
     protected String createWriteMessage(Attribute<?> attribute, WebsocketClientAgent.WebsocketClientAgentLink agentLink, AttributeEvent event, Object processedValue) {
 
-        if (attribute.getValueType().equals(ValueType.EXECUTION_STATUS)) {
+        if (attribute.getType().equals(ValueType.EXECUTION_STATUS)) {
             boolean isRequestStart = event.getValue()
                 .flatMap(v -> Values.getValue(v, AttributeExecuteStatus.class))
                 .map(status -> status == AttributeExecuteStatus.REQUEST_START)

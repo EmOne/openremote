@@ -19,12 +19,14 @@
  */
 package org.openremote.model.rules;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
-import org.openremote.model.attribute.MetaList;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.value.*;
 
 import java.util.Date;
@@ -40,10 +42,10 @@ import java.util.Optional;
  */
 public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder<T>, MetaHolder {
 
+    @JsonIgnore
     final protected String attributeName;
 
-    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
-    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
+    @JsonIgnore
     final protected ValueDescriptor<T> attributeValueType;
 
     final protected T value;
@@ -74,15 +76,15 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
 
     final protected String realm;
 
-    final protected MetaList meta;
+    final protected MetaMap meta;
 
     public AssetState(Asset<?> asset, Attribute<T> attribute, AttributeEvent.Source source) {
         this.attributeName = attribute.getName();
-        this.attributeValueType = attribute.getValueType();
+        this.attributeValueType = attribute.getType();
         this.value = attribute.getValue().orElse(null);
         this.timestamp = attribute.getTimestamp().orElse(-1L);
         this.source = source;
-        this.oldValue = asset.getAttribute(attributeName, attribute.getValueType().getType()).flatMap(Attribute::getValue).orElse(null);
+        this.oldValue = asset.getAttribute(attributeName, attribute.getType().getType()).flatMap(Attribute::getValue).orElse(null);
         this.oldValueTimestamp = asset.getAttributes().get(attributeName).flatMap(Attribute::getTimestamp).orElse(-1L);
         this.id = asset.getId();
         this.assetName = asset.getName();
@@ -101,8 +103,9 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         return attributeName;
     }
 
+    @JsonIgnore
     @Override
-    public ValueDescriptor<T> getValueType() {
+    public ValueDescriptor<T> getType() {
         return attributeValueType;
     }
 
@@ -172,7 +175,7 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         return realm;
     }
 
-    public MetaList getMeta() {
+    public MetaMap getMeta() {
         return meta;
     }
 
@@ -226,7 +229,7 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
             ", parentName='" + getParentName() + '\'' +
             ", type='" + getAssetType() + '\'' +
             ", attributeName='" + getName() + '\'' +
-            ", attributeValueDescriptor=" + getValueType() +
+            ", attributeValueDescriptor=" + getType() +
             ", value=" + getValue() +
             ", timestamp=" + getTimestamp() +
             ", oldValue=" + getOldValue() +
