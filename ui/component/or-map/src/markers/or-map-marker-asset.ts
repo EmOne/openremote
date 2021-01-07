@@ -1,6 +1,6 @@
 import {customElement, property, PropertyValues} from "lit-element";
 import {OrMapMarker} from "./or-map-marker";
-import {AttributeEvent, AttributeType, GeoJSONPoint, AssetType, AssetEvent, AssetEventCause, Asset, MetaItemType, SharedEvent} from "@openremote/model";
+import {AttributeEvent, AttributeType, GeoJSONPoint, AssetType, AssetEvent, AssetEventCause, Asset, WellknownMetaItems, SharedEvent} from "@openremote/model";
 import {subscribe} from "@openremote/core";
 import manager, {AssetModelUtil} from "@openremote/core";
 import {Util} from "@openremote/core";
@@ -14,8 +14,8 @@ export function getMarkerIconAndColorFromAssetType(type: string | undefined): {i
     const icon = descriptor && descriptor.icon ? descriptor.icon : AssetType.THING.icon!;
     let color: string | undefined;
 
-    if (descriptor && descriptor.color) {
-        color = descriptor.color;
+    if (descriptor && descriptor.colour) {
+        color = descriptor.colour;
     }
 
     return {
@@ -54,7 +54,7 @@ export class OrMapMarkerAsset extends subscribe(manager)(OrMapMarker) {
             this.icon = iconAndColor.icon;
         }
 
-        this.markerColor = iconAndColor.color;
+        this.markerColor = iconAndColor.colour;
         this.updateColor(this.markerContainer);
         this.visible = true;
     }
@@ -124,7 +124,7 @@ export class OrMapMarkerAsset extends subscribe(manager)(OrMapMarker) {
     }
 
     protected getColor() {
-        if (this.markerColor && !this.color) {
+        if (this.markerColor && !this.colour) {
             return "#" + this.markerColor;
         }
         return super.getColor();

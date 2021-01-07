@@ -19,13 +19,20 @@
  */
 
 import cz.habarta.typescript.generator.Extension;
+import cz.habarta.typescript.generator.Settings;
+import cz.habarta.typescript.generator.TsType;
 import cz.habarta.typescript.generator.compiler.ModelCompiler;
 import cz.habarta.typescript.generator.compiler.TsModelTransformer;
 import cz.habarta.typescript.generator.emitter.EmitterExtensionFeatures;
 import cz.habarta.typescript.generator.emitter.TsBeanModel;
+import cz.habarta.typescript.generator.emitter.TsModel;
+import cz.habarta.typescript.generator.emitter.TsPropertyModel;
+import org.openremote.agent.protocol.AgentModelProvider;
+import org.openremote.model.asset.AssetTypeInfo;
+import org.openremote.model.util.AssetModelUtil;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Does some custom processing for our specific model:
@@ -45,30 +52,21 @@ public class CustomExtension extends Extension {
         return Arrays.asList(
             new TransformerDefinition(ModelCompiler.TransformationPhase.BeforeEnums, (TsModelTransformer) (context, model) -> {
 
+                // Special processing for AssetModelInfo meta item value descriptors as JsonSerialize extension doesn't support
+                // @JsonSerialize(contentConverter=...)
+                TsBeanModel assetTypeInfoBean = model.getBean(AssetTypeInfo.class);
+
+                if (assetTypeInfoBean != null) {
+                    assetTypeInfoBean.getProperties().replaceAll(p -> p.getName().equals("metaItemDescriptors") || p.getName().equals("valueDescriptors") ? new TsPropertyModel(p.getName(), TsType.String, p.modifiers, p.ownProperty, p.comments) : p);
+                }
+
                 Constants.IGNORE_TYPE_PARAMS_ON_CLASSES.forEach(beanClass -> {
                     TsBeanModel bean = model.getBean(beanClass);
 
-                    if (bean != null) {
-
+                    if (bean != null && bean.getTypeParameters() != null) {
                         // Remove the type parameter - this works in conjunction with the CustomTypeProcessor which replaces
                         // field references
-                        TsBeanModel newBean = new TsBeanModel(
-                            bean.getOrigin(),
-                            bean.getCategory(),
-                            bean.isClass(),
-                            bean.getName(),
-                            null, // Remove Type param
-                            bean.getParent(),
-                            bean.getExtendsList(),
-                            bean.getImplementsList(),
-                            bean.getProperties(),
-                            bean.getConstructor(),
-                            bean.getMethods(),
-                            bean.getComments()
-                        );
-
-                        model.getBeans().remove(bean);
-                        model.getBeans().add(newBean);
+                        bean.getTypeParameters().clear();
                     }
                 });
 

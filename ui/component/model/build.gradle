@@ -16,6 +16,7 @@ buildscript {
 
 dependencies {
     compile resolveProject(":model")
+    compile resolveProject(":agent")
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion"
     compile "com.fasterxml.jackson.module:jackson-module-parameter-names:$jacksonVersion"
@@ -59,6 +60,7 @@ generateTypeScript {
         "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
     ]
     extensions = [
+        "AssetModelInfoExtension",
         "CustomExtension",
         "JsonSerializeExtension"
     ]

@@ -42,7 +42,7 @@ import java.util.Collection;
 public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T> implements MetaHolder {
 
     protected MetaMap meta;
-    protected boolean required;
+    protected boolean optional;
 
     AttributeDescriptor() {}
 
@@ -61,6 +61,13 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
     public AttributeDescriptor(String name, ValueDescriptor<T> valueDescriptor, MetaMap meta) {
         super(name, valueDescriptor);
         this.meta = meta;
+        if (valueDescriptor.getMeta() != null) {
+            MetaMap m = new MetaMap(valueDescriptor.getMeta());
+            if (meta != null) {
+                m.addOrReplace(meta);
+            }
+            this.meta = m;
+        }
     }
 
     @Override
@@ -73,13 +80,13 @@ public class AttributeDescriptor<T> extends AbstractNameValueDescriptorHolder<T>
         return newDescriptor;
     }
 
-    public boolean isRequired() {
-        return required;
+    public boolean isOptional() {
+        return optional;
     }
 
-    public AttributeDescriptor<T> setRequired(boolean required) {
+    public AttributeDescriptor<T> setOptional(boolean optional) {
         AttributeDescriptor<T> newDescriptor = new AttributeDescriptor<T>(this.name, this.type, this.meta);
-        newDescriptor.required = required;
+        newDescriptor.optional = optional;
         return newDescriptor;
     }
 

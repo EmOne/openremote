@@ -168,7 +168,6 @@ public final class ValueType {
         new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
     );
 
-
     protected ValueType() {
     }
 }

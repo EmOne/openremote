@@ -12,7 +12,7 @@ import {
     AttributeValueType,
     LogicGroup,
     LogicGroupOperator,
-    MetaItemType,
+    WellknownMetaItems,
     RuleCondition,
     ValuePredicateUnion,
     ValueType
@@ -150,10 +150,10 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
         if (asset) {
             attribute = attributeName ? Util.getAttribute(asset, attributeName) : undefined;
             attributes = Util.getAttributes(asset)
-                .filter((attr) => Util.hasMetaItem(attr, MetaItemType.RULE_STATE.urn!))
+                .filter((attr) => Util.hasMetaItem(WellknownMetaItems.RULESTATE, attr))
                 .map((attr) => {
                     const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type, attr);
-                    const label = Util.getAttributeLabel(attr, descriptors[0], descriptors[1], false);
+                    const label = Util.getAttributeLabel(attr, descriptors[0], false);
                     return [attr.name!, label];
                 });
         } else {
@@ -161,7 +161,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
                 : assetDescriptor.attributeDescriptors
                     .map((ad) => {
                         const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(undefined, ad);
-                        const label = Util.getAttributeLabel(attribute, descriptors[0], descriptors[1], false);
+                        const label = Util.getAttributeLabel(attribute, descriptors[0],  false);
                         return [ad.attributeName!, label];
                     });
         }
@@ -190,7 +190,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
         const attribute = asset && attributeName ? Util.getAttribute(asset, attributeName) : undefined;
         const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(attributeName, assetDescriptor);
         // TODO: Fix once asset model working correctly
-        const attributeValueDescriptor = attributeDescriptor && attributeDescriptor.valueDescriptor ? typeof attributeDescriptor.valueDescriptor === "string" ? AssetModelUtil.getAttributeValueDescriptor(attributeDescriptor.valueDescriptor as string) : attributeDescriptor.valueDescriptor : attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : undefined;
+        const attributeValueDescriptor = attributeDescriptor && attributeDescriptor.valueDescriptor ? typeof attributeDescriptor.valueDescriptor === "string" ? AssetModelUtil.getValueDescriptor(attributeDescriptor.valueDescriptor as string) : attributeDescriptor.valueDescriptor : attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : undefined;
 
         // @ts-ignore
         const value = valuePredicate ? valuePredicate.value : undefined;
@@ -375,7 +375,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
         }
 
         const descriptor = assetDescriptor.attributeDescriptors ? assetDescriptor.attributeDescriptors.find((ad) => ad.attributeName === attributeName) : undefined;
-        const valueDescriptor = attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : descriptor ? descriptor.valueDescriptor : undefined;
+        const valueDescriptor = attribute ? AssetModelUtil.getValueDescriptor(attribute.type as string) : descriptor ? descriptor.valueDescriptor : undefined;
         const valueType = valueDescriptor ? valueDescriptor.valueType : undefined;
         let operators: AssetQueryOperator[] | undefined;
 
@@ -476,7 +476,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
         }
 
         const descriptor = assetDescriptor.attributeDescriptors ? assetDescriptor.attributeDescriptors.find((ad) => ad.attributeName === attributeName) : undefined;
-        const valueDescriptor = attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : descriptor ? descriptor.valueDescriptor : undefined;
+        const valueDescriptor = attribute ? AssetModelUtil.getValueDescriptor(attribute.type as string) : descriptor ? descriptor.valueDescriptor : undefined;
         const valueType = valueDescriptor ? valueDescriptor.valueType : undefined;
         const value = operator as AssetQueryOperator;
 

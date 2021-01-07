@@ -668,7 +668,6 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
                     select: {
                         excludeParentInfo: true,
                         excludePath: true,
-                        excludeAttributeMeta: true,
                         attributes: [
                             attributeName
                         ]
@@ -681,7 +680,7 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
 
             if (attr) {
                 const attributeType = attr.type as string;
-                const attrDescriptor = AssetModelUtil.getAttributeValueDescriptor(attributeType, this.assetType, attributeName);
+                const attrDescriptor = AssetModelUtil.getValueDescriptor(attributeType, this.assetType, attributeName);
 
                 if (attrDescriptor && attrDescriptor.valueType) {
                     this._type = attrDescriptor.valueType;

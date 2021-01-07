@@ -1,4 +1,4 @@
-import {Asset, AssetQuery, AssetQueryMatch} from "@openremote/model";
+import {Asset, AssetQuery, AssetQueryMatch, WellknownAssets} from "@openremote/model";
 import manager from "@openremote/core";
 
 export async function getApartment1Asset(): Promise<Asset | undefined> {
@@ -8,11 +8,7 @@ export async function getApartment1Asset(): Promise<Asset | undefined> {
             match: AssetQueryMatch.EXACT,
             value: "Apartment 1"
         }],
-        types: [{
-            predicateType: "string",
-            match: AssetQueryMatch.EXACT,
-            value: "urn:openremote:asset:residence"
-        }],
+        types: [WellknownAssets.BUILDINGASSET],
         select: {
             excludePath: true,
             excludeAttributes: true,

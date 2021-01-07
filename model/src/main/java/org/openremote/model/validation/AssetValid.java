@@ -21,6 +21,7 @@ package org.openremote.model.validation;
 
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.asset.AssetTypeInfo;
 import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.AttributeDescriptor;
@@ -77,7 +78,7 @@ public @interface AssetValid {
         public boolean isValid(Asset<?> value, ConstraintValidatorContext context) {
 
             String type = value.getType();
-            AssetModelUtil.AssetModelInfo assetModelInfo = AssetModelUtil.getAssetInfo(type).orElse(null);
+            AssetTypeInfo assetModelInfo = AssetModelUtil.getAssetInfo(type).orElse(null);
 
             if (assetModelInfo == null || value.getClass() != assetModelInfo.getAssetDescriptor().getType()) {
                 context.buildConstraintViolationWithTemplate(ASSET_TYPE_INVALID).addConstraintViolation();
@@ -87,7 +88,7 @@ public @interface AssetValid {
             // Validate the attributes
             AtomicBoolean valid = new AtomicBoolean(true);
             Arrays.stream(assetModelInfo.getAttributeDescriptors())
-            .filter(AttributeDescriptor::isRequired)
+            .filter(attributeDescriptor -> !attributeDescriptor.isOptional())
             .forEach(requiredAttributeDescriptor -> {
                 Attribute<?> foundAttribute = value.getAttribute(requiredAttributeDescriptor).orElse(null);
 

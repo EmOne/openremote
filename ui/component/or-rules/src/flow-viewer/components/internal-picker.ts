@@ -1,5 +1,5 @@
 import { LitElement, property, customElement, html, css, TemplateResult } from "lit-element";
-import { Node, PickerType, AttributeInternalValue, AssetState, MetaItemType, Asset, NodeDataType } from "@openremote/model";
+import { Node, PickerType, AttributeInternalValue, AssetState, WellknownMetaItems, Asset, NodeDataType } from "@openremote/model";
 import { nodeConverter } from "../converters/node-converter";
 import { OrInputChangedEvent } from "@openremote/or-input";
 import rest from "@openremote/rest";
@@ -60,7 +60,7 @@ export class InternalPicker extends translate(i18next)(LitElement) {
                 if (this.internal.value && !this.assetIntialised) { this.readAssetOnCreation(); }
                 return this.assetAttributeInput;
             case PickerType.COLOR:
-                return this.colorInput;
+                return this.colourInput;
             case PickerType.DOUBLE_DROPDOWN:
                 return this.doubleDropdownInput;
             case PickerType.CHECKBOX:
@@ -104,7 +104,8 @@ export class InternalPicker extends translate(i18next)(LitElement) {
         const response = await rest.api.AssetResource.queryAssets({
             ids: [this.internal.value.assetId],
             select: {
-                excludeAttributes: false, excludeAttributeMeta: false
+                excludeParentInfo: true,
+                excludePath: true
             }
         });
 
@@ -119,8 +120,8 @@ export class InternalPicker extends translate(i18next)(LitElement) {
             for (const att of Object.keys(this.selectedAsset.attributes)) {
                 const meta = (this.selectedAsset.attributes[att] as AssetState).meta;
                 if (!meta) { continue; }
-                if (meta.find((m) => m.name === MetaItemType.RULE_STATE.urn && m.value === true)) {
-                    const foundLabel = meta.find((b) => b.name === MetaItemType.LABEL.urn && b.value);
+                if (meta.find((m) => m.name === WellknownMetaItems.RULE_STATE.urn && m.value === true)) {
+                    const foundLabel = meta.find((b) => b.name === WellknownMetaItems.LABEL.urn && b.value);
                     let label = att;
                     if (foundLabel) { label = foundLabel.value; }
                     this.attributeNames.push({

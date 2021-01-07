@@ -18,7 +18,7 @@ import {
     AttributeRef,
     AttributeValueDescriptor,
     AttributeValueType,
-    MetaItemType,
+    WellknownMetaItems,
     SharedEvent,
     ValueType
 } from "@openremote/model";
@@ -231,7 +231,7 @@ export const GeoJsonPointInputTemplateProvider: AttributeInputCustomProvider = (
                 }
             </style>
             <or-map id="geo-json-point-map" class="or-map" @or-map-clicked="${(ev: OrMapClickedEvent) => {if (ev.detail.doubleClick) {setPos(ev.detail.lngLat);}}}" .center="${center}" .controls="${[centerControl, [coordinatesControl, "top-left"]]}">
-                <or-map-marker id="geo-json-point-marker" active .lng="${pos ? pos.lng : undefined}" .lat="${pos ? pos.lat : undefined}" .icon="${iconAndColor ? iconAndColor.icon : undefined}" .activeColor="${iconAndColor ? "#" + iconAndColor.color : undefined}" .color="${iconAndColor ? "#" + iconAndColor.color : undefined}"></or-map-marker>
+                <or-map-marker id="geo-json-point-marker" active .lng="${pos ? pos.lng : undefined}" .lat="${pos ? pos.lat : undefined}" .icon="${iconAndColor ? iconAndColor.icon : undefined}" .activeColor="${iconAndColor ? "#" + iconAndColor.colour : undefined}" .colour="${iconAndColor ? "#" + iconAndColor.colour : undefined}"></or-map-marker>
             </or-map>
         `;
 
@@ -799,16 +799,16 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
         }
 
         if (this._inputType) {
-            this._min = Util.getMetaValue(MetaItemType.RANGE_MIN, this.attribute, this._attributeDescriptor, this._attributeValueDescriptor) as number;
-            this._max = Util.getMetaValue(MetaItemType.RANGE_MAX, this.attribute, this._attributeDescriptor, this._attributeValueDescriptor) as number;
-            this._unit = Util.getMetaValue(MetaItemType.UNIT_TYPE, this.attribute, this._attributeDescriptor, this._attributeValueDescriptor) as string;
-            this._step = Util.getMetaValue(MetaItemType.STEP, this.attribute, this._attributeDescriptor, this._attributeValueDescriptor) as number;
-            this._options = Util.getMetaValue(MetaItemType.ALLOWED_VALUES, this.attribute, this._attributeDescriptor);
+            this._min = Util.getMetaValue(WellknownMetaItems.RANGE_MIN, this.attribute, this._attributeDescriptor) as number;
+            this._max = Util.getMetaValue(WellknownMetaItems.RANGE_MAX, this.attribute, this._attributeDescriptor) as number;
+            this._unit = Util.getMetaValue(WellknownMetaItems.UNIT_TYPE, this.attribute, this._attributeDescriptor) as string;
+            this._step = Util.getMetaValue(WellknownMetaItems.STEP, this.attribute, this._attributeDescriptor) as number;
+            this._options = Util.getMetaValue(WellknownMetaItems.ALLOWED_VALUES, this.attribute, this._attributeDescriptor);
 
             if (this._inputType === InputType.TEXT) {
                 if (this._options && Array.isArray(this._options) && this._options.length > 0) {
                     this._inputType = InputType.SELECT;
-                } else if (Util.getMetaValue(MetaItemType.MULTILINE, this.attribute, this._attributeDescriptor, this._attributeValueDescriptor)) {
+                } else if (Util.getMetaValue(WellknownMetaItems.MULTILINE, this.attribute, this._attributeDescriptor)) {
                     this._inputType = InputType.TEXTAREA;
                 }
             }
@@ -822,7 +822,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
                 }
             }
 
-            this._valueFormat = Util.getAttributeValueFormat(this.attribute, this._attributeDescriptor, this._attributeValueDescriptor);
+            this._valueFormat = Util.getAttributeValueFormat(this.attribute, this._attributeDescriptor);
             this._showButton = !this.isReadonly() && !this.disabled && !this.disableButton && this.inputTypeSupportsButton() && !!this._getAttributeRef();
         }
     }
@@ -834,14 +834,14 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
             label = this.label;
         } else if (this.label !== "" && this.label !== null) {
             const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assetType, this.attribute || this._attributeDescriptor);
-            label = Util.getAttributeLabel(this.attribute, descriptors[0], descriptors[1], true);
+            label = Util.getAttributeLabel(this.attribute, descriptors[0], true);
         }
 
         return label;
     }
 
     public isReadonly(): boolean {
-        return this.readonly !== undefined ? this.readonly : Util.getMetaValue(MetaItemType.READ_ONLY, this.attribute, this._attributeDescriptor);
+        return this.readonly !== undefined ? this.readonly : Util.getMetaValue(WellknownMetaItems.READ_ONLY, this.attribute, this._attributeDescriptor);
     }
 
     public render() {

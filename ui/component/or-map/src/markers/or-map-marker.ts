@@ -186,7 +186,7 @@ export class OrMapMarker extends LitElement {
     }
 
     protected getColor() {
-        return this.color && this.color !== "unset" ? this.color : undefined;
+        return this.colour && this.colour !== "unset" ? this.colour : undefined;
     }
 
     protected getActiveColor() {

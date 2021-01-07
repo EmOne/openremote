@@ -21,7 +21,7 @@ import {
     JsonRule,
     LogicGroup,
     MetaItemDescriptor,
-    MetaItemType,
+    WellknownMetaItems,
     NotificationTargetType,
     RuleActionUnion,
     RuleCondition,
@@ -234,11 +234,7 @@ export const getAssetTypes = async () => {
         select: {
             excludeAttributes: true,
             excludeParentInfo: true,
-            excludePath: true,
-            excludeAttributeMeta: true,
-            excludeAttributeTimestamp: true,
-            excludeAttributeType: true,
-            excludeAttributeValue: true
+            excludePath: true
         },
         recursive: true
     });
@@ -247,7 +243,6 @@ export const getAssetTypes = async () => {
         return response.data.map(asset => asset.type!);
     }
 }
-
 
 export function getAssetDescriptors(config: RulesConfig | undefined, useActionConfig: boolean) {
     const assetDescriptors: AssetDescriptor[] = AssetModelUtil.getAssetDescriptors();
@@ -292,7 +287,7 @@ export function getAssetDescriptors(config: RulesConfig | undefined, useActionCo
                 name: ad.name,
                 type: ad.type,
                 icon: ad.icon,
-                color: ad.color,
+                color: ad.colour,
                 attributeDescriptors: ad.attributeDescriptors ? [...ad.attributeDescriptors] : undefined
             };
 
@@ -302,8 +297,8 @@ export function getAssetDescriptors(config: RulesConfig | undefined, useActionCo
             if (configDescriptor.name) {
                 modifiedDescriptor.name = configDescriptor.name;
             }
-            if (configDescriptor.color) {
-                modifiedDescriptor.color = configDescriptor.color;
+            if (configDescriptor.colour) {
+                modifiedDescriptor.colour = configDescriptor.colour;
             }
 
             // Remove any excluded attributes
@@ -335,13 +330,13 @@ export function getAssetDescriptors(config: RulesConfig | undefined, useActionCo
                             }
 
                             if (configAttributeDescriptor.allowedValues) {
-                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(MetaItemType.ALLOWED_VALUES, configAttributeDescriptor.allowedValues));
+                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(WellknownMetaItems.ALLOWED_VALUES, configAttributeDescriptor.allowedValues));
                             }
                             if (configAttributeDescriptor.allowedMin) {
-                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(MetaItemType.RANGE_MIN, configAttributeDescriptor.allowedMin));
+                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(WellknownMetaItems.RANGE_MIN, configAttributeDescriptor.allowedMin));
                             }
                             if (configAttributeDescriptor.allowedMax) {
-                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(MetaItemType.RANGE_MAX, configAttributeDescriptor.allowedMax));
+                                addOrReplaceMetaItemDescriptor(metaItemDescriptors, AssetModelUtil.getMetaItemDescriptorInitialValue(WellknownMetaItems.RANGE_MAX, configAttributeDescriptor.allowedMax));
                             }
 
                             return {

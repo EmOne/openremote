@@ -67,6 +67,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     static class ValueArrayDescriptor<T> extends ValueDescriptor<T> {
         public ValueArrayDescriptor(String name, Class<T> type, MetaMap meta) {
             super(name, type, meta);
+            isArray = true;
         }
     }
 
@@ -111,6 +112,9 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
             }
             if (Values.isArray(value)) {
                 return "array";
+            }
+            if (value == Object.class) {
+                return "unknown";
             }
             return "object";
         }
@@ -174,6 +178,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     @JsonSerialize(converter = ValueDescriptor.ValueTypeStringConverter.class)
     protected Class<T> type;
     protected MetaMap meta;
+    protected Boolean isArray;
 
     public ValueDescriptor(String name, Class<T> type) {
         this(name, type, (MetaMap)null);

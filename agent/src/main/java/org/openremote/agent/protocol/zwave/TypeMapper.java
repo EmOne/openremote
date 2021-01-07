@@ -190,13 +190,13 @@ public class TypeMapper {
 
         // COMMAND_CLASS_SENSOR_ALARM
 
-        typeMap.put(ChannelType.GENERAL_PURPOSE_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.SMOKE_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.CO_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.CO2_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.HEAT_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.WATER_LEAK_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
-        typeMap.put(ChannelType.FIRST_SUPPORTED_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_ON_OFF)));
+        typeMap.put(ChannelType.GENERAL_PURPOSE_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.SMOKE_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.CO_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.CO2_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.HEAT_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.WATER_LEAK_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
+        typeMap.put(ChannelType.FIRST_SUPPORTED_ALARM, ValueType.BOOLEAN.addOrReplaceMeta(new MetaItem<>(MetaItemType.UNIT_TYPE, UNITS_BINARY_ON_OFF)));
 
         // COMMAND_CLASS_BATTERY
 

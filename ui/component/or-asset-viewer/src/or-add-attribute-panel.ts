@@ -55,7 +55,7 @@ export class OrAddAttributePanel extends LitElement {
             .map((descriptor) => {
                 return [
                     descriptor.attributeName!,
-                    Util.getAttributeLabel(undefined, descriptor, undefined, false)
+                    Util.getAttributeLabel(undefined, descriptor, false)
                 ]
             });
         attributeTypes = [["@custom", i18next.t("custom")], ...attributeTypes];

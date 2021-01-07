@@ -21,14 +21,13 @@ package org.openremote.agent.protocol.velbus;
 
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 
 @Entity
 public class VelbusSerialAgent extends VelbusAgent<VelbusSerialAgent, VelbusSerialProtocol> {
 
-    public static final AttributeDescriptor<String> VELBUS_SERIAL_PORT = SERIAL_PORT.setRequired(true);
+    public static final AttributeDescriptor<String> VELBUS_SERIAL_PORT = SERIAL_PORT;
 
     public static final AgentDescriptor<VelbusSerialAgent, VelbusSerialProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         VelbusSerialAgent.class, VelbusSerialProtocol.class, VelbusAgentLink.class

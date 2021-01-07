@@ -12,7 +12,8 @@ import {
     NameHolder,
     PushNotificationMessage,
     RuleActionUnion,
-    RuleCondition
+    RuleCondition,
+    WellknownMetaItems
 } from "@openremote/model";
 import i18next from "i18next";
 import Qs from "qs";
@@ -51,8 +52,7 @@ export interface GeoNotification {
 }
 
 export function getQueryParameters(queryStr: string): any {
-    const parsed = Qs.parse(queryStr, {ignoreQueryPrefix: true});
-    return parsed;
+    return Qs.parse(queryStr, {ignoreQueryPrefix: true});
 }
 
 export function getQueryParameter(queryStr: string, parameter: string): any | undefined {
@@ -68,7 +68,7 @@ export function getGeoNotificationsFromRulesSet(rulesetDefinition: JsonRulesetDe
 
         if (rule.when && rule.then && rule.then.length > 0) {
             const geoNotificationMap = new Map<String, GeoNotification[]>();
-            addGeofencePredicatesFromRuleConditionCondition(rule.when, 0, geoNotificationMap);
+            addGeofencePredicatesFromRuleCondition(rule.when, 0, geoNotificationMap);
 
             if (geoNotificationMap.size > 0) {
                 rule.then.forEach((ruleAction) => addPushNotificationsFromRuleAction(ruleAction, geoNotificationMap));
@@ -86,7 +86,7 @@ export function getGeoNotificationsFromRulesSet(rulesetDefinition: JsonRulesetDe
     return geoNotifications;
 }
 
-function addGeofencePredicatesFromRuleConditionCondition(ruleCondition: LogicGroup<RuleCondition> | undefined, index: number, geoNotificationMap: Map<String, GeoNotification[]>) {
+function addGeofencePredicatesFromRuleCondition(ruleCondition: LogicGroup<RuleCondition> | undefined, index: number, geoNotificationMap: Map<String, GeoNotification[]>) {
     if (!ruleCondition) {
         return;
     }
@@ -287,34 +287,49 @@ export function getEnumKeyAsString(enm: object, val: string): string {
     return key!;
 }
 
-export function getMetaItem(name: string | NameHolder, attribute: Attribute<any> | undefined): MetaItem<any> | undefined {
+export function getMetaItem(name: string | NameHolder, attributeOrDescriptor: Attribute<any> | undefined, descriptor: AttributeDescriptor | undefined): MetaItem<any> | undefined {
     const metaName = typeof name === "string" ? name : (name as NameHolder).name!;
 
-    if (attribute && attribute.meta) {
-        return attribute.meta[metaName];
+    if (attributeOrDescriptor && attributeOrDescriptor.meta && attributeOrDescriptor.meta.hasOwnProperty(metaName)) {
+        return attributeOrDescriptor.meta[metaName];
+    }
+
+    if (descriptor && descriptor.meta) {
+        return descriptor.meta[metaName];
     }
 }
 
-export function hasMetaItem(attribute: Attribute<any>, name: string): boolean {
-    return !!getMetaItem(name, attribute);
+export function hasMetaItem(name: string | NameHolder, attribute: Attribute<any> | undefined, descriptor: AttributeDescriptor | undefined): boolean {
+    return !!getMetaItem(name, attribute, descriptor);
 }
 
-export function getMetaValue(name: string | NameHolder, attribute: Attribute<any> | undefined): any {
-    const metaItem = getMetaItem(name, attribute);
+export function getMetaValue(name: string | NameHolder, attribute: Attribute<any> | undefined, descriptor: AttributeDescriptor | undefined): any {
+    const metaItem = getMetaItem(name, attribute, descriptor);
+
     if (metaItem) {
         return metaItem.value;
     }
-}1
+}
 
-export function getAttributeLabel(attribute: Attribute | undefined, descriptor: AttributeDescriptor | undefined, valueDescriptor: AttributeValueDescriptor | undefined, showUnits: boolean, fallback?: string): string {
+export function getAssetTypeLabel(type: string | AssetDescriptor | undefined): string {
+    if (typeof type === "string") {
+        type = AssetModelUtil.getAssetDescriptor(type);
+    }
+    if (!type) {
+        return "";
+    }
+    return i18next.t("assetType." + type.name, {defaultValue: capitaliseFirstLetter(type.name!.replace(/_/g, " ").toLowerCase())});
+}
+
+export function getAttributeLabel(attribute: Attribute<any> | undefined, descriptor: AttributeDescriptor | undefined, showUnits: boolean, fallback?: string): string {
     if (!attribute && !descriptor) {
         return fallback || "";
     }
 
-    const label = getMetaValue(MetaItemType.LABEL, attribute, descriptor, valueDescriptor) as string;
-    let units = showUnits ? getMetaValue(MetaItemType.UNIT_TYPE, attribute, descriptor, valueDescriptor) as string : undefined;
+    const label = getMetaValue(WellknownMetaItems.LABEL, attribute, descriptor) as string;
+    let units = showUnits ? getMetaValue(WellknownMetaItems.UNITTYPE, attribute, descriptor) as string : undefined;
     units = units ? i18next.t(["units." + units, units]) : undefined;
-    const name = attribute ? attribute.name : descriptor!.attributeName;
+    const name = attribute ? attribute.name : descriptor!.name;
     const keys = [];
     if (name) {
         keys.push("attribute." + name);
@@ -330,37 +345,18 @@ export function getAttributeLabel(attribute: Attribute | undefined, descriptor: 
     return i18next.t(keys) + (units ? " (" + units + ")" : "");
 }
 
-export function getMetaItemLabel(urn: string): string {
-    return i18next.t(["metaItemTypes." + urn, urn], {nsSeparator: "@"});
+export function getMetaItemLabel(name: string): string {
+    return i18next.t("metaItemTypes." + name, {defaultValue: capitaliseFirstLetter(name)});
 }
 
-export function getAssetTypeLabel(type: string | AssetDescriptor | undefined): string {
-    if (typeof type === "string") {
-        type = AssetModelUtil.getAssetDescriptor(type);
-    }
-    if (!type) {
-        return "";
-    }
-    return i18next.t("assetType." + type.type, {nsSeparator: "@", defaultValue: capitaliseFirstLetter(type.name!.replace(/_/g, " ").toLowerCase())});
-}
-
-export function getAttributeValueFormat(attribute: Attribute | undefined, descriptor: AttributeDescriptor | undefined, valueDescriptor: AttributeValueDescriptor | undefined): string | undefined {
-    let format = getMetaValue(MetaItemType.FORMAT, attribute, descriptor, valueDescriptor) as string;
+export function getAttributeValueFormat(attribute: Attribute<any> | undefined, descriptor: AttributeDescriptor | undefined): string | undefined {
+    let format = getMetaValue(WellknownMetaItems.FORMAT, attribute, descriptor) as string;
     if (!format) {
         let valueType: string | undefined;
         if (attribute) {
-            valueType = attribute.type! as string;
-        } if (valueDescriptor) {
-            valueType = valueDescriptor.valueType;
+            valueType = attribute.type!;
         } else if (descriptor) {
-            valueDescriptor = descriptor.valueDescriptor as any;
-            // noinspection SuspiciousTypeOfGuard
-            if (typeof valueDescriptor === "string") {
-                valueDescriptor = AssetModelUtil.getAttributeValueDescriptor(valueDescriptor);
-            }
-            if (valueDescriptor) {
-                valueType = valueDescriptor.valueType;
-            }
+            valueType = descriptor.type;
         }
         if (valueType) {
             format = i18next.t("attributeValueType." + valueType);
@@ -375,7 +371,7 @@ export function getAttributeValueFormatter(): ((value: any, format: string | und
     };
 }
 
-export function getAttributeValueFormatted(attribute: Attribute, descriptor: AttributeDescriptor | undefined, valueDescriptor: AttributeValueDescriptor | undefined, fallback?: string): any {
+export function getAttributeValueFormatted(attribute: Attribute<any>, descriptor: AttributeDescriptor | undefined, fallback?: string): string {
 
     if (!attribute) {
         return fallback || "";
@@ -385,7 +381,13 @@ export function getAttributeValueFormatted(attribute: Attribute, descriptor: Att
         return "";
     }
 
-    const format = getAttributeValueFormat(attribute, descriptor, valueDescriptor);
+    const unitType = getMetaValue(WellknownMetaItems.UNITTYPE, attribute, descriptor);
+
+    if (unitType) {
+
+    }
+
+    const format = getAttributeValueFormat(attribute, descriptor);
     return getAttributeValueFormatter()(attribute.value, format);
 }
 
@@ -400,7 +402,7 @@ export function updateAsset(asset: Asset, event: AttributeEvent): Asset {
         if (event.attributeState!.deleted) {
             delete asset.attributes![attributeName];
         } else {
-            const attribute = getAttribute(asset, attributeName);
+            const attribute = asset.attributes[attributeName];
             if (attribute) {
                 attribute.value = event.attributeState!.value;
                 attribute.timestamp = event.timestamp;

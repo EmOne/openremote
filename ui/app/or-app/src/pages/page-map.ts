@@ -265,7 +265,7 @@ export class PageMap<S extends MapStateKeyed> extends Page<S> {
                 ${
                     this._assets.filter((asset) => {
                         const attr = asset.attributes["location"] as Attribute<GeoJSONPoint>;
-                        const showOnMapMeta = Util.getFirstMetaItem(attr, MetaItemType.SHOW_ON_DASHBOARD.urn!);
+                        const showOnMapMeta = Util.getFirstMetaItem(attr, WellknownMetaItems.SHOW_ON_DASHBOARD.urn!);
                         return showOnMapMeta && showOnMapMeta.value;
                     }).map((asset) => {
                         return html`

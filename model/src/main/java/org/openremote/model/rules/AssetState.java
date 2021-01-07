@@ -42,10 +42,11 @@ import java.util.Optional;
  */
 public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder<T>, MetaHolder {
 
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     final protected String attributeName;
 
-    @JsonIgnore
+    @JsonProperty(value = "type", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
     final protected ValueDescriptor<T> attributeValueType;
 
     final protected T value;
@@ -103,12 +104,14 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         return attributeName;
     }
 
-    @JsonIgnore
+    @JsonProperty
+    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
     @Override
     public ValueDescriptor<T> getType() {
         return attributeValueType;
     }
 
+    @JsonProperty
     public Optional<T> getValue() {
         return Optional.ofNullable(value);
     }

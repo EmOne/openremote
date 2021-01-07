@@ -11,9 +11,9 @@ import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.impl.LightAsset
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.Attribute
-import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.attribute.MetaItem
 import org.openremote.model.rules.AssetState
+import org.openremote.model.asset.AssetTypeInfo
 import org.openremote.model.util.AssetModelUtil
 import org.openremote.model.value.MetaItemType
 import org.openremote.model.value.SubStringValueFilter
@@ -51,13 +51,13 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         thingAssetInfoStr.isPresent()
 
         when: "the JSON representation is deserialised"
-        def thingAssetInfo2 = Values.parse(thingAssetInfoStr.get(), AssetModelUtil.AssetModelInfo.class)
+        def thingAssetInfo2 = Values.parse(thingAssetInfoStr.get(), AssetTypeInfo.class)
 
         then: "it should have been successfully deserialised"
         thingAssetInfo2.isPresent()
         thingAssetInfo2.get().getAssetDescriptor().type == ThingAsset.class
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) } != null
-        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.required
+        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.optional
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.type == ValueType.GEO_JSON_POINT
 
         when: "All asset model infos are retrieved"
@@ -68,8 +68,8 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         assetInfos.size() == AssetModelUtil.assetTypeMap.size()
         def velbusTcpAgent = assetInfos.find {it.assetDescriptor.type == VelbusTcpAgent.class}
         velbusTcpAgent != null
-        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_HOST && it.required}
-        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_PORT && it.required}
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_HOST && it.optional}
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_PORT && it.optional}
     }
 
     def "Retrieving a specific asset model info"() {

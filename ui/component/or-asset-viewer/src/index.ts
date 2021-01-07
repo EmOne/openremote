@@ -28,7 +28,7 @@ import {
     Attribute,
     AttributeEvent,
     ClientRole,
-    MetaItemType,
+    WellknownMetaItems,
     SharedEvent
 } from "@openremote/model";
 import {panelStyles, style} from "./style";
@@ -312,7 +312,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
             const itemConfig = infoConfig.attributes && infoConfig.attributes.itemConfig && infoConfig.attributes.itemConfig[attribute.name!] ? infoConfig.attributes.itemConfig[attribute.name!] : {};
             if (itemConfig.label === undefined) {
                 const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type!, attribute);
-                itemConfig.label = Util.getAttributeLabel(attribute, descriptors[0], descriptors[1], true);
+                itemConfig.label = Util.getAttributeLabel(attribute, descriptors[0], true);
             }
             itemConfig.priority = itemConfig.priority || 0;
             items.push({
@@ -370,7 +370,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
         const historyAttrs = attributes.filter((attr) =>
             (!includedAttributes || includedAttributes.indexOf(attr.name!) >= 0)
             && (!excludedAttributes || excludedAttributes.indexOf(attr.name!) < 0)
-            && !!Util.getFirstMetaItem(attr, MetaItemType.STORE_DATA_POINTS.urn!));
+            && !!Util.getFirstMetaItem(attr, WellknownMetaItems.STORE_DATA_POINTS.urn!));
 
         if (historyAttrs.length === 0) {
             return undefined;
@@ -395,7 +395,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
 
         const options = historyAttrs.map((attr) => {
             const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type, attr);
-            const label = Util.getAttributeLabel(attr, descriptors[0], descriptors[1], true);
+            const label = Util.getAttributeLabel(attr, descriptors[0], true);
             return [attr.name, label];
         });
         const attrName: string = historyAttrs[0].name!;
@@ -526,7 +526,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: Att
             const headers = [...selectedAttributes].sort();
             attributeTable.headers = headers.map((attrName) => {
                 const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(attrName, childAssetType);
-                return Util.getAttributeLabel(undefined, attributeDescriptor, undefined, false);
+                return Util.getAttributeLabel(undefined, attributeDescriptor, false);
             });
             attributeTable.headers.unshift(i18next.t("groupAssetName"));
             attributeTable.rows = childAssets.map((childAsset) => {
@@ -934,7 +934,7 @@ export class OrAssetViewer extends subscribe(manager)(translate(i18next)(LitElem
                         <or-icon icon="chevron-left"></or-icon>
                     </a>
                     <div id="title">
-                        <or-icon title="${descriptor && descriptor.type ? descriptor.type : "unset"}" style="--or-icon-fill: ${descriptor && descriptor.color ? "#" + descriptor.color : "unset"}" icon="${descriptor && descriptor.icon ? descriptor.icon : AssetType.THING.icon}"></or-icon>
+                        <or-icon title="${descriptor && descriptor.type ? descriptor.type : "unset"}" style="--or-icon-fill: ${descriptor && descriptor.colour ? "#" + descriptor.colour : "unset"}" icon="${descriptor && descriptor.icon ? descriptor.icon : AssetType.THING.icon}"></or-icon>
                         ${editMode ? html`<or-input id="name-input" .type="${InputType.TEXT}" min="1" max="1023" comfortable required outlined .label="${i18next.t("name")}" .value="${this.asset.name}" @or-input-changed="${(e: OrInputChangedEvent) => {this.asset!.name = e.detail.value; this._onAssetModified();}}"></or-input>` : html`<span>${this.asset.name}</span>`}
                     </div>
                     ${!this._isReadonly() ? html`

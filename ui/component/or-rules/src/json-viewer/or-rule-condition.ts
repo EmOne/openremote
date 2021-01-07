@@ -30,7 +30,7 @@ export function getWhenTypesMenu(config?: RulesConfig, assetDescriptors?: AssetD
     if (addAssetTypes && assetDescriptors) {
         menu.push(...assetDescriptors.map((ad) => {
 
-            const color = AssetModelUtil.getAssetDescriptorColor(ad);
+            const color = AssetModelUtil.getAssetDescriptorColour(ad);
             const icon = AssetModelUtil.getAssetDescriptorIcon(ad);
             const styleMap = color ? {"--or-icon-fill": "#" + color} : undefined;
 
@@ -147,7 +147,7 @@ class OrRuleCondition extends translate(i18next)(LitElement) {
                     default:
                         const ad = AssetModelUtil.getAssetDescriptor(type);
                         buttonIcon = AssetModelUtil.getAssetDescriptorIcon(ad) || buttonIcon;
-                        buttonColor = AssetModelUtil.getAssetDescriptorColor(ad) || buttonColor;
+                        buttonColor = AssetModelUtil.getAssetDescriptorColour(ad) || buttonColor;
                         break;
                 }
             }

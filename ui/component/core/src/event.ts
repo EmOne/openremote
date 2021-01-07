@@ -12,8 +12,7 @@ import {
     EventSubscription,
     ReadAssetsEvent,
     SharedEvent,
-    TriggeredEventSubscription,
-    Attribute
+    TriggeredEventSubscription
 } from "@openremote/model";
 
 export enum EventProviderStatus {

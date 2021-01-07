@@ -25,7 +25,7 @@ import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.asset.AssetModelResource;
 import org.openremote.model.http.RequestParams;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.asset.AssetTypeInfo;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
@@ -39,12 +39,12 @@ public class AssetModelResourceImpl extends ManagerWebResource implements AssetM
     }
 
     @Override
-    public AssetModelUtil.AssetModelInfo[] getAssetInfos(RequestParams requestParams, String parentId, String parentType) {
+    public AssetTypeInfo[] getAssetInfos(RequestParams requestParams, String parentId, String parentType) {
         return assetModelService.getAssetInfos(parentId, parentType);
     }
 
     @Override
-    public AssetModelUtil.AssetModelInfo getAssetInfo(RequestParams requestParams, String parentId, String assetType) {
+    public AssetTypeInfo getAssetInfo(RequestParams requestParams, String parentId, String assetType) {
         return assetModelService.getAssetInfo(parentId, assetType);
     }
 

@@ -20,7 +20,6 @@
 package org.openremote.model.asset;
 
 import org.openremote.model.http.RequestParams;
-import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
@@ -36,7 +35,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public interface AssetModelResource {
 
     /**
-     * Retrieve the {@link org.openremote.model.util.AssetModelUtil.AssetModelInfo} of each {@link Asset} type available
+     * Retrieve the {@link AssetTypeInfo} of each {@link Asset} type available
      * in this system or from a {@link org.openremote.model.asset.impl.GatewayAsset} depending on whether or not a
      * parentId is supplied, if it isn't then this instance is used, if it is and the {@link Asset} or one of its'
      * ancestors resides on a {@link org.openremote.model.asset.impl.GatewayAsset} then that gateway instance is used.
@@ -44,10 +43,10 @@ public interface AssetModelResource {
     @GET
     @Path("assetInfos")
     @Produces(APPLICATION_JSON)
-    AssetModelUtil.AssetModelInfo[] getAssetInfos(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @QueryParam("parentType") String parentType);
+    AssetTypeInfo[] getAssetInfos(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @QueryParam("parentType") String parentType);
 
     /**
-     * Retrieve the specific {@link org.openremote.model.util.AssetModelUtil.AssetModelInfo} of the specified} {@link
+     * Retrieve the specific {@link AssetTypeInfo} of the specified} {@link
      * Asset} type available in this system or from a {@link org.openremote.model.asset.impl.GatewayAsset} depending on
      * whether or not a parentId * is supplied, if it isn't then this instance is used, if it is and the {@link Asset}
      * or one of its' ancestors resides * on a {@link org.openremote.model.asset.impl.GatewayAsset} then that gateway
@@ -56,7 +55,7 @@ public interface AssetModelResource {
     @GET
     @Path("assetInfo/{assetType}")
     @Produces(APPLICATION_JSON)
-    AssetModelUtil.AssetModelInfo getAssetInfo(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @PathParam("assetType") String assetType);
+    AssetTypeInfo getAssetInfo(@BeanParam RequestParams requestParams, @QueryParam("parentId") String parentId, @PathParam("assetType") String assetType);
 
     /**
      * Retrieve the asset descriptors {@link AssetDescriptor} available in this system or from a {@link

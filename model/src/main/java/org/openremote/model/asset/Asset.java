@@ -256,15 +256,15 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
      * WILL INHERIT THESE DESCRIPTORS ALSO; IT IS REQUIRED THAT EACH DESCRIPTOR HAS CORRESPONDING GETTER WITH OPTIONAL
      * SETTER, THIS ENSURES BASIC COMPILE TIME CHECKING OF CONFLICTS BUT JUST MAKES GOOD SENSE FOR CONSUMERS
      */
-    public static final AttributeDescriptor<GeoJSONPoint> LOCATION = new AttributeDescriptor<>("location", ValueType.GEO_JSON_POINT).setRequired(true);
+    public static final AttributeDescriptor<GeoJSONPoint> LOCATION = new AttributeDescriptor<>("location", ValueType.GEO_JSON_POINT);
 
-    public static final AttributeDescriptor<String> EMAIL = new AttributeDescriptor<>("email", ValueType.EMAIL);
+    public static final AttributeDescriptor<String> EMAIL = new AttributeDescriptor<>("email", ValueType.EMAIL).setOptional(true);
 
-    public static final AttributeDescriptor<String[]> TAGS = new AttributeDescriptor<>("tags", ValueType.STRING.asArray());
+    public static final AttributeDescriptor<String[]> TAGS = new AttributeDescriptor<>("tags", ValueType.STRING.asArray()).setOptional(true);
 
-    public static final AttributeDescriptor<String> NOTES = new AttributeDescriptor<>("notes", ValueType.STRING);
-    public static final AttributeDescriptor<String> MANUFACTURER = new AttributeDescriptor<>("manufacturer", ValueType.STRING);
-    public static final AttributeDescriptor<String> MODEL = new AttributeDescriptor<>("model", ValueType.STRING);
+    public static final AttributeDescriptor<String> NOTES = new AttributeDescriptor<>("notes", ValueType.STRING).setOptional(true);
+    public static final AttributeDescriptor<String> MANUFACTURER = new AttributeDescriptor<>("manufacturer", ValueType.STRING).setOptional(true);
+    public static final AttributeDescriptor<String> MODEL = new AttributeDescriptor<>("model", ValueType.STRING).setOptional(true);
 
     @Id
     @Column(name = "ID", length = 22, columnDefinition = "char(22)")

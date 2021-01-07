@@ -19,18 +19,21 @@
  */
 package org.openremote.model.simulator;
 
+import java.io.Serializable;
 import java.util.Optional;
 
 /**
  * Represents a value at a point in time defined as the number of seconds of the day.
  */
-public class SimulatorReplayDatapoint {
+public class SimulatorReplayDatapoint implements Serializable {
 
     /**
      * Seconds of the day
      */
     public long timestamp;
     public Object value;
+
+    protected SimulatorReplayDatapoint() {}
 
     public SimulatorReplayDatapoint(long timestamp, Object value) {
         this.timestamp = timestamp;

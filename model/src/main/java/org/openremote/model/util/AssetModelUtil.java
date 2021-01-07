@@ -25,6 +25,7 @@ import org.openremote.model.ModelDescriptors;
 import org.openremote.model.StandardModelProvider;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
+import org.openremote.model.asset.AssetTypeInfo;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentLink;
@@ -110,7 +111,7 @@ public final class AssetModelUtil {
     public static Logger LOG = SyslogCategory.getLogger(MODEL_AND_VALUES, AssetModelUtil.class);
     // Preload the Standard model provider so it takes priority over others
     protected static final List<AssetModelProvider> assetModelProviders = new ArrayList<>(Collections.singletonList(new StandardModelProvider()));
-    protected static Map<Class<? extends Asset<?>>, AssetModelInfo> assetInfoMap;
+    protected static Map<Class<? extends Asset<?>>, AssetTypeInfo> assetInfoMap;
     protected static Map<String, Class<? extends Asset<?>>> assetTypeMap;
     protected static Map<String, Class<? extends AgentLink<?>>> agentLinkMap;
     protected static List<MetaItemDescriptor<?>> metaItemDescriptors;
@@ -122,51 +123,14 @@ public final class AssetModelUtil {
         ServiceLoader.load(AssetModelProvider.class).forEach(assetModelProviders::add);
     }
 
-    @TsIgnore
-    public static class AssetModelInfo {
-        protected AssetDescriptor<?> assetDescriptor;
-        protected AttributeDescriptor<?>[] attributeDescriptors;
-        protected MetaItemDescriptor<?>[] metaItemDescriptors;
-        protected ValueDescriptor<?>[] valueDescriptors;
-
-        AssetModelInfo() {}
-
-        public AssetModelInfo(AssetDescriptor<?> assetDescriptor, AttributeDescriptor<?>[] attributeDescriptors, MetaItemDescriptor<?>[] metaItemDescriptors, ValueDescriptor<?>[] valueDescriptors) {
-            this.assetDescriptor = assetDescriptor;
-            this.attributeDescriptors = attributeDescriptors;
-            this.metaItemDescriptors = metaItemDescriptors;
-            this.valueDescriptors = valueDescriptors;
-        }
-
-        public AssetDescriptor<?> getAssetDescriptor() {
-            return assetDescriptor;
-        }
-
-        public AttributeDescriptor<?>[] getAttributeDescriptors() {
-            return attributeDescriptors;
-        }
-
-        public MetaItemDescriptor<?>[] getMetaItemDescriptors() {
-            return metaItemDescriptors;
-        }
-
-        public ValueDescriptor<?>[] getValueDescriptors() {
-            return valueDescriptors;
-        }
-
-        public boolean isAgent() {
-            return assetDescriptor instanceof AgentDescriptor;
-        }
-    }
-
     private AssetModelUtil() {
     }
 
-    public static AssetModelInfo[] getAssetInfos(String parentType) {
+    public static AssetTypeInfo[] getAssetInfos(String parentType) {
         if (assetTypeMap == null) {
             initialise();
         }
-        return assetInfoMap.values().toArray(new AssetModelInfo[0]);
+        return assetInfoMap.values().toArray(new AssetTypeInfo[0]);
     }
 
     public static Class<? extends Asset<?>>[] getAssetClasses(String parentType) {
@@ -176,14 +140,14 @@ public final class AssetModelUtil {
         return assetTypeMap.values().toArray(new Class[0]);
     }
 
-    public static Optional<AssetModelInfo> getAssetInfo(Class<? extends Asset<?>> assetType) {
+    public static Optional<AssetTypeInfo> getAssetInfo(Class<? extends Asset<?>> assetType) {
         if (assetTypeMap == null) {
             initialise();
         }
         return Optional.ofNullable(assetInfoMap.get(assetType));
     }
 
-    public static Optional<AssetModelInfo> getAssetInfo(String assetType) {
+    public static Optional<AssetTypeInfo> getAssetInfo(String assetType) {
         if (assetTypeMap == null) {
             initialise();
         }
@@ -196,7 +160,7 @@ public final class AssetModelUtil {
         if (assetTypeMap == null) {
             initialise();
         }
-        return Arrays.stream(getAssetInfos(parentType)).map(AssetModelInfo::getAssetDescriptor).toArray(AssetDescriptor[]::new);
+        return Arrays.stream(getAssetInfos(parentType)).map(AssetTypeInfo::getAssetDescriptor).toArray(AssetDescriptor[]::new);
     }
 
     public static <T extends Asset<?>> Optional<AssetDescriptor<T>> getAssetDescriptor(Class<T> assetType) {
@@ -212,7 +176,7 @@ public final class AssetModelUtil {
             initialise();
         }
 
-        return getAssetInfo(assetType).map(AssetModelInfo::getAssetDescriptor);
+        return getAssetInfo(assetType).map(AssetTypeInfo::getAssetDescriptor);
     }
 
     public static <T extends Agent<T, ?, ?>> Optional<AgentDescriptor<T, ?, ?>> getAgentDescriptor(Class<T> agentType) {
@@ -244,11 +208,11 @@ public final class AssetModelUtil {
     }
 
     public static Optional<MetaItemDescriptor<?>[]> getMetaItemDescriptors(Class<? extends Asset<?>> assetType) {
-        return getAssetInfo(assetType).map(AssetModelInfo::getMetaItemDescriptors);
+        return getAssetInfo(assetType).map(AssetTypeInfo::getMetaItemDescriptors);
     }
 
     public static Optional<MetaItemDescriptor<?>[]> getMetaItemDescriptors(String assetType) {
-        return getAssetInfo(assetType).map(AssetModelInfo::getMetaItemDescriptors);
+        return getAssetInfo(assetType).map(AssetTypeInfo::getMetaItemDescriptors);
     }
 
     public static Optional<MetaItemDescriptor<?>> getMetaItemDescriptor(String name) {
@@ -267,11 +231,11 @@ public final class AssetModelUtil {
     }
 
     public static Optional<ValueDescriptor<?>[]> getValueDescriptors(Class<? extends Asset<?>> assetType) {
-        return getAssetInfo(assetType).map(AssetModelInfo::getValueDescriptors);
+        return getAssetInfo(assetType).map(AssetTypeInfo::getValueDescriptors);
     }
 
     public static Optional<ValueDescriptor<?>[]> getValueDescriptors(String assetType) {
-        return getAssetInfo(assetType).map(AssetModelInfo::getValueDescriptors);
+        return getAssetInfo(assetType).map(AssetTypeInfo::getValueDescriptors);
     }
 
     public static Optional<ValueDescriptor<?>> getValueDescriptor(String name) {
@@ -459,9 +423,9 @@ public final class AssetModelUtil {
             // Skip abstract classes as a start point - they should be in the class hierarchy of concrete class
             if (!Modifier.isAbstract(assetClass.getModifiers())) {
 
-                AssetModelInfo assetInfo = buildAssetInfo(assetClass, copy);
+                AssetTypeInfo assetInfo = buildAssetInfo(assetClass, copy);
                 assetInfoMap.put(assetClass, assetInfo);
-                assetTypeMap.put(assetInfo.assetDescriptor.getName(), assetClass);
+                assetTypeMap.put(assetInfo.getAssetDescriptor().getName(), assetClass);
 
                 if (assetInfo.getAssetDescriptor() instanceof AgentDescriptor) {
                     AgentDescriptor<?,?,?> agentDescriptor = (AgentDescriptor<?,?,?>)assetInfo.getAssetDescriptor();
@@ -506,10 +470,10 @@ public final class AssetModelUtil {
     }
 
     public static void initialiseAssetAttributes(Asset<?> asset) throws IllegalStateException {
-        AssetModelUtil.AssetModelInfo assetInfo = AssetModelUtil.getAssetInfo(asset.getType()).orElseThrow(() -> new IllegalStateException("Cannot get asset model info for requested asset type: " + asset.getType()));
+        AssetTypeInfo assetInfo = AssetModelUtil.getAssetInfo(asset.getType()).orElseThrow(() -> new IllegalStateException("Cannot get asset model info for requested asset type: " + asset.getType()));
         asset.getAttributes().addOrReplace(
             Arrays.stream(assetInfo.getAttributeDescriptors())
-            .filter(AttributeDescriptor::isRequired)
+            .filter(attributeDescriptor -> !attributeDescriptor.isOptional())
             .map(Attribute::new)
             .collect(Collectors.toList())
         );
@@ -574,7 +538,7 @@ public final class AssetModelUtil {
             .collect(Collectors.toList());
     }
 
-    protected static AssetModelInfo buildAssetInfo(Class<? extends Asset<?>> assetClass, Map<Class<? extends Asset<?>>, List<NameHolder>> classDescriptorMap) throws IllegalStateException {
+    protected static AssetTypeInfo buildAssetInfo(Class<? extends Asset<?>> assetClass, Map<Class<? extends Asset<?>>, List<NameHolder>> classDescriptorMap) throws IllegalStateException {
 
         Class<?> currentClass = assetClass;
         List<Class<?>> classTree = new ArrayList<>();
@@ -620,8 +584,8 @@ public final class AssetModelUtil {
                             });
                         attributeDescriptors.add((AttributeDescriptor<?>) descriptor);
                     } else if (descriptor instanceof MetaItemDescriptor) {
-                        int index = metaItemDescriptors.indexOf(descriptor);
-                        if (index >= 0) {
+                        int index = AssetModelUtil.metaItemDescriptors.indexOf(descriptor);
+                        if (index >= 0 && AssetModelUtil.metaItemDescriptors.get(index) != descriptor) {
                             throw new IllegalStateException("Duplicate meta item descriptor found: asset type=" + assetClass +", descriptor=" + metaItemDescriptors.get(index) + ", duplicate descriptor=" + descriptor);
                         }
                         metaItemDescriptors.add((MetaItemDescriptor<?>) descriptor);
@@ -633,8 +597,8 @@ public final class AssetModelUtil {
                         // Only store basic value type ignore array type for value descriptor as any value descriptor can be an array value descriptor
                         valueDescriptor = valueDescriptor.asNonArray();
 
-                        int index = valueDescriptors.indexOf(descriptor);
-                        if (index >= 0) {
+                        int index = AssetModelUtil.valueDescriptors.indexOf(descriptor);
+                        if (index >= 0 && AssetModelUtil.valueDescriptors.get(index) != descriptor) {
                             throw new IllegalStateException("Duplicate value descriptor found: asset type=" + assetClass +", descriptor=" + valueDescriptors.get(index) + ", duplicate descriptor=" + descriptor);
                         }
                         valueDescriptors.add(valueDescriptor);
@@ -650,7 +614,7 @@ public final class AssetModelUtil {
             throw new IllegalStateException("Asset descriptor not found or is not for this asset type: asset type=" + assetClass +", descriptor=" + assetDescriptor.get());
         }
 
-        return new AssetModelInfo(
+        return new AssetTypeInfo(
             assetDescriptor.get(),
             attributeDescriptors.toArray(new AttributeDescriptor<?>[0]),
             metaItemDescriptors.toArray(new MetaItemDescriptor<?>[0]),

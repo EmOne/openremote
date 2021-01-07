@@ -14,9 +14,9 @@ import {
     AssetEventCause,
     Attribute,
     AttributeEvent,
-    AttributeType,
-    AttributeValueType,
-    SharedEvent
+    SharedEvent,
+    WellknownValueTypes,
+    WellknownAttributes
 } from "@openremote/model";
 import manager, {AssetModelUtil, subscribe, Util} from "@openremote/core";
 import "@openremote/or-icon";
@@ -26,11 +26,11 @@ import {mapAssetCardStyle} from "./style";
 import { InputType } from "@openremote/or-input";
 import { i18next } from "@openremote/or-translate";
 
-orAttributeTemplateProvider.setTemplate((attribute:Attribute) => {
+orAttributeTemplateProvider.setTemplate((attribute:Attribute<any>) => {
     let template;
-    const value = Util.getAttributeValueFormatted(attribute, undefined, undefined);
+    const value = Util.getAttributeValueFormatted(attribute, undefined);
     switch (attribute.type) {
-        case ValueType.SWITCH_TOGGLE.name:
+        case WellknownValueTypes. ValueType.SWITCH_TOGGLE.name:
             template = html`<or-translate value="${value ? "On" : "Off"}"></or-translate>`;
             break;
         case ValueType.OBJECT.name:
@@ -160,7 +160,7 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
         const color = this.getColor();
         const styleStr = color ? "--internal-or-map-asset-card-header-color: #" + color + ";" : "";
         const cardConfig = this.getCardConfig();
-        const attributes = Util.getAttributes(this.asset).filter((attr) => attr.name !== AttributeType.LOCATION.attributeName);
+        const attributes = Object.values(this.asset.attributes!).filter((attr) => attr.name !== WellknownAttributes.LOCATION);
         const includedAttributes = cardConfig && cardConfig.include ? cardConfig.include : undefined;
         const excludedAttributes = cardConfig && cardConfig.exclude ? cardConfig.exclude : [];
         const attrs = attributes.filter((attr) =>
@@ -177,7 +177,7 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
                     <ul>
                         ${attrs.map((attr) => {
                              const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.asset!.type, attr);
-                             const label = Util.getAttributeLabel(attr, descriptors[0], descriptors[1], true);
+                             const label = Util.getAttributeLabel(attr, descriptors[0], true);
                              return html`<li><span class="attribute-name">${label}</span><span class="attribute-value"><or-attribute-field .attribute="${attr}"></or-attribute-field></span></li>`; 
                         })}
                     </ul>
@@ -203,7 +203,7 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
     protected getColor(): string | undefined {
         if (this.asset) {
             const descriptor = AssetModelUtil.getAssetDescriptor(this.asset.type);
-            return descriptor ? descriptor.color : undefined;
+            return descriptor ? descriptor.colour : undefined;
         }
     }
 }

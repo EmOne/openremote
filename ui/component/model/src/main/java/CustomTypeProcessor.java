@@ -23,6 +23,8 @@ import cz.habarta.typescript.generator.TsType;
 import cz.habarta.typescript.generator.TypeProcessor;
 import cz.habarta.typescript.generator.util.Utils;
 import org.openremote.model.util.TsIgnore;
+import org.openremote.model.value.MetaItemDescriptor;
+import org.openremote.model.value.ValueDescriptor;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;

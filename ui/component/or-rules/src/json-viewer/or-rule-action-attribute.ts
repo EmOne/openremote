@@ -6,7 +6,7 @@ import {
     AssetQueryOrderBy$Property,
     Attribute,
     AttributeValueType,
-    MetaItemType,
+    WellknownMetaItems,
     RuleActionUpdateAttribute,
     RuleActionWriteAttribute,
     ValueType
@@ -109,23 +109,23 @@ export class OrRuleActionAttribute extends translate(i18next)(LitElement) {
         const showUpdateOptions = !this.config || !this.config.controls || !this.config.controls.hideActionUpdateOptions;
         const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(this.action.attributeName, assetDescriptor);
         const attribute: Attribute | undefined = asset && this.action.attributeName ? Util.getAttribute(asset, this.action.attributeName) : undefined;
-        const attributeValueDescriptor = attributeDescriptor && attributeDescriptor.valueDescriptor ? typeof attributeDescriptor.valueDescriptor === "string" ? AssetModelUtil.getAttributeValueDescriptor(attributeDescriptor.valueDescriptor as string) : attributeDescriptor.valueDescriptor : attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : undefined;
+        const attributeValueDescriptor = attributeDescriptor && attributeDescriptor.valueDescriptor ? typeof attributeDescriptor.valueDescriptor === "string" ? AssetModelUtil.getValueDescriptor(attributeDescriptor.valueDescriptor as string) : attributeDescriptor.valueDescriptor : attribute ? AssetModelUtil.getAttributeValueDescriptor(attribute.type as string) : undefined;
 
         // Only RW attributes can be used in actions
         let attributes: [string, string][];
         if (asset) {
-            attributes = Util.getAttributes(asset).filter((attr) => !Util.hasMetaItem(attr, MetaItemType.READ_ONLY.urn!))
+            attributes = Util.getAttributes(asset).filter((attr) => !Util.hasMetaItem(WellknownMetaItems.READONLY, attr))
                 .map((attr) => {
                     const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type, attr);
-                    const label = Util.getAttributeLabel(attr, descriptors[0], descriptors[1], false);
+                    const label = Util.getAttributeLabel(attr, descriptors[0], false);
                     return [attr.name!, label];
                 });
         } else {
             attributes = !assetDescriptor || !assetDescriptor.attributeDescriptors ? []
-                : assetDescriptor.attributeDescriptors.filter((ad) => !AssetModelUtil.hasMetaItem(ad, MetaItemType.READ_ONLY.urn!))
+                : assetDescriptor.attributeDescriptors.filter((ad) => !Util.hasMetaItem(WellknownMetaItems.READONLY, ad))
                     .map((ad) => {
                         const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(assetType, ad);
-                        const label = Util.getAttributeLabel(attribute, descriptors[0], descriptors[1], false);
+                        const label = Util.getAttributeLabel(attribute, descriptors[0], false);
                         return [ad.attributeName!, label];
                     });
         }

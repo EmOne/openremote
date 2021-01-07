@@ -34,7 +34,7 @@ import java.util.Optional;
 public class PlugAsset extends Asset<PlugAsset> {
 
     public static final AttributeDescriptor<Boolean> ON_OFF = new AttributeDescriptor<>("onOff", ValueType.BOOLEAN,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_ON_OFF)
+        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_BINARY_ON_OFF)
     );
 
     public static final AssetDescriptor<PlugAsset> DESCRIPTOR = new AssetDescriptor<>("plug", "e6688a", PlugAsset.class);

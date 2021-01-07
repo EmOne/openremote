@@ -40,8 +40,9 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
 
     @JsonIgnore
     protected ValueDescriptor<T> type;
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Valid
+    @JsonIgnore
     protected T value;
     @NotBlank(message = "{Asset.valueHolder.name.NotBlank}")
     @Pattern(regexp = "^\\w+$")
@@ -63,13 +64,22 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
         this.value = value;
     }
 
-    @JsonIgnore
+    @JsonProperty
+    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
+    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
     @Override
     public ValueDescriptor<T> getType() {
         return type;
     }
 
-    @JsonIgnore
+    @JsonProperty
+    @JsonSerialize(converter = ValueDescriptor.ValueDescriptorStringConverter.class)
+    @JsonDeserialize(converter = ValueDescriptor.StringValueDescriptorConverter.class)
+    protected void setType(ValueDescriptor<T> type) {
+        this.type = type;
+    }
+
+    @JsonProperty
     @Override
     public Optional<T> getValue() {
         return Optional.ofNullable(value);
@@ -84,15 +94,21 @@ public abstract class AbstractNameValueHolder<T> implements NameValueHolder<T>, 
         return Optional.empty();
     }
 
+    @JsonProperty
     @Override
     public void setValue(T value) {
         this.value = value;
     }
 
-    @JsonIgnore
+    @JsonProperty
     @Override
     public String getName() {
         return name;
+    }
+
+    @JsonProperty
+    protected void setName(String name) {
+        this.name = name;
     }
 
     @Override

@@ -317,8 +317,7 @@
     "urn:openremote:asset:meta:secret": "Secret",
     "urn:openremote:asset:meta:ruleState": "Rule state",
     "urn:openremote:asset:meta:ruleEvent": "Rule event",
-    "urn:openremote:asset:meta:ruleEventExpires": "Rule event expires",
-    "urn:openremote:asset:meta:protocolConfiguration": "Protocol configuration"
+    "urn:openremote:asset:meta:ruleEventExpires": "Rule event expires"
   },
   "addMetaItems": "Add configuration items",
   "loseChanges": "Discard changes?",

@@ -1,6 +1,6 @@
 import {css, customElement, html, LitElement, property, PropertyValues, query, unsafeCSS} from "lit-element";
 import i18next from "i18next";
-import {Asset, Attribute, AssetEvent, DatapointInterval, MetaItemType, ValueDatapoint} from "@openremote/model";
+import {Asset, Attribute, AssetEvent, DatapointInterval, WellknownMetaItems, ValueDatapoint, WellknownMetaItems} from "@openremote/model";
 import {AssetModelUtil, DefaultColor3, DefaultColor4, manager, Util} from "@openremote/core";
 import Chart, {ChartTooltipCallback} from "chart.js";
 import {OrChartConfig} from "@openremote/or-chart";
@@ -481,10 +481,10 @@ export class OrAttributeCard extends LitElement {
         let attributes = [...Util.getAttributes(this.asset)];
         if (attributes && attributes.length > 0) {
             attributes = attributes
-                .filter((attr: Attribute) => Util.getFirstMetaItem(attr, MetaItemType.STORE_DATA_POINTS.urn!));
+                .filter((attr: Attribute) => Util.getFirstMetaItem(attr, WellknownMetaItems.STORE_DATA_POINTS.urn!));
             const options = attributes.map((attr: Attribute) => {
                 const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.asset!.type, attr);
-                return [attr.name, Util.getAttributeLabel(attr, descriptors[0], descriptors[1], false)];
+                return [attr.name, Util.getAttributeLabel(attr, descriptors[0], false)];
             });
             return options;
         }
@@ -766,8 +766,7 @@ export class OrAttributeCard extends LitElement {
         const roundedVal = +value.toFixed(this.mainValueDecimals); // + operator prevents str return
 
         const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(this.attributeName!);
-        const attributeValueDescriptor = attributeDescriptor && attributeDescriptor.valueDescriptor ? typeof attributeDescriptor.valueDescriptor === "string" ? AssetModelUtil.getAttributeValueDescriptor(attributeDescriptor.valueDescriptor as string) : attributeDescriptor.valueDescriptor : attr ? AssetModelUtil.getAttributeValueDescriptor(attr.type as string) : undefined;
-        const unitKey = Util.getMetaValue(MetaItemType.UNIT_TYPE, attr, attributeDescriptor, attributeValueDescriptor)
+        const unitKey = Util.getMetaValue(WellknownMetaItems.UNITTYPE, attr, attributeDescriptor)
         
         const unit = i18next.t(["units." + unitKey, unitKey])
 

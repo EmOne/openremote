@@ -19,9 +19,11 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
+import org.openremote.model.util.AssetModelUtil;
 
 /**
  * Describes a {@link MetaItem} that can be added to an {@link Attribute}; the {@link #getName()} must match the {@link
@@ -33,6 +35,30 @@ import org.openremote.model.attribute.MetaItem;
  * {@link MetaItemDescriptor#getName} must be globally unique within the context of the manager it is registered with.
  */
 public class MetaItemDescriptor<T> extends AbstractNameValueDescriptorHolder<T> {
+
+    /**
+     * This class handles serialising {@link MetaItemDescriptor}s as strings
+     */
+    public static class MetaItemDescriptorStringConverter extends StdConverter<MetaItemDescriptor<?>, String> {
+
+        @Override
+        public String convert(MetaItemDescriptor<?> value) {
+            return value.getName();
+        }
+    }
+
+    /**
+     * This class handles deserialising meta item descriptor names to {@link MetaItemDescriptor}s
+     */
+    public static class StringMetaItemDescriptorConverter extends StdConverter<String, MetaItemDescriptor<?>> {
+
+        @Override
+        public MetaItemDescriptor<?> convert(String value) {
+            return AssetModelUtil.getMetaItemDescriptor(value).orElse(MetaItemDescriptor.UNKNOWN);
+        }
+    }
+
+    public static final MetaItemDescriptor<Object> UNKNOWN = new MetaItemDescriptor<>("unkown", ValueDescriptor.UNKNOWN);
 
     MetaItemDescriptor() {}
 

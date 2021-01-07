@@ -29,7 +29,7 @@ import org.openremote.manager.web.ManagerWebService;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.http.RequestParams;
+import org.openremote.model.asset.AssetTypeInfo;
 import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.value.MetaItemDescriptor;
@@ -94,17 +94,17 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
 
     }
 
-    public AssetModelUtil.AssetModelInfo[] getAssetInfos(String parentId, String parentType) {
+    public AssetTypeInfo[] getAssetInfos(String parentId, String parentType) {
 
         if (!TextUtil.isNullOrEmpty(parentId) && gatewayService.getLocallyRegisteredGatewayId(parentId, null) != null) {
             // TODO: Asset is on a gateway so need to get model info from the gateway instance
-            return new AssetModelUtil.AssetModelInfo[0];
+            return new AssetTypeInfo[0];
         }
 
         return AssetModelUtil.getAssetInfos(parentType);
     }
 
-    public AssetModelUtil.AssetModelInfo getAssetInfo(String parentId, String assetType) {
+    public AssetTypeInfo getAssetInfo(String parentId, String assetType) {
 
         if (!TextUtil.isNullOrEmpty(parentId) && gatewayService.getLocallyRegisteredGatewayId(parentId, null) != null) {
             // TODO: Asset is on a gateway so need to get model info from the gateway instance
