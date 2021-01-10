@@ -38,7 +38,7 @@ import java.util.Optional;
 public class LightAsset extends Asset<LightAsset> {
 
     public static final AttributeDescriptor<Boolean> ON_OFF = new AttributeDescriptor<>("onOff", ValueType.BOOLEAN,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_BINARY_ON_OFF)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_BINARY_ON_OFF)
     );
 
     public static final AttributeDescriptor<Integer> BRIGHTNESS = new AttributeDescriptor<>("brightness", ValueType.PERCENTAGE_INTEGER_0_100);

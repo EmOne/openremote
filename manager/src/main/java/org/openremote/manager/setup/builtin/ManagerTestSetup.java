@@ -193,7 +193,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 AGENT_LINK,
                                 new SimulatorAgent.SimulatorAgentLink(agent.getId()))
                     ),
-            new Attribute<>("light1PowerConsumption", POSITIVE_NUMBER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, Constants.UNITS_POWER_WATT)), 12.345)
+            new Attribute<>("light1PowerConsumption", POSITIVE_NUMBER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_WATT)), 12.345)
                     .addOrReplaceMeta(
                         new MetaItem<>(
                                 LABEL,
@@ -410,7 +410,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 new MetaItem<>(LABEL, "Last Presence Timestamp"),
                                 new MetaItem<>(RULE_STATE, true)
                         ),
-                new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, Constants.UNITS_DENSITY_PARTS_MILLION)), 350)
+                new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_DENSITY_PARTS_MILLION)), 350)
                         .addMeta(
                                 new MetaItem<>(LABEL, "CO2 Level"),
                                 new MetaItem<>(RULE_STATE, true)

@@ -38,39 +38,39 @@ public class ElectricityConsumerAsset extends Asset<ElectricityConsumerAsset> {
     );
     public static final AttributeDescriptor<String> DEMAND_RESPONSE_TYPE = new AttributeDescriptor<>("demandResponseType", ValueType.STRING);
     public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("tariffImport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("tariffExport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Integer> CARBON_IMPORT = new AttributeDescriptor<>("carbonImport", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Integer> CARBON_EXPORT = new AttributeDescriptor<>("carbonExport", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Double> POWER_TOTAL = new AttributeDescriptor<>("powerTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> POWER_FORECAST_DEVIATION = new AttributeDescriptor<>("powerForecastDeviation", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> POWER_SETPOINT = new AttributeDescriptor<>("powerSetpoint", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> POWER_AVAILABLE_MAX = new AttributeDescriptor<>("powerAvailableMax", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> POWER_AVAILABLE_MIN = new AttributeDescriptor<>("powerAvailableMin", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> ENERGY_TOTAL = new AttributeDescriptor<>("energyTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_ENERGY_KILOWATT_HOUR),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
 

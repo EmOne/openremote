@@ -440,6 +440,7 @@ public class Values {
         return String.class.isAssignableFrom(clazz) || TextNode.class.isAssignableFrom(clazz) || BinaryNode.class.isAssignableFrom(clazz);
     }
 
+
     public static boolean isObject(Class<?> clazz) {
         return !isArray(clazz) && !isBoolean(clazz) && !isNumber(clazz) && !isString(clazz);
     }

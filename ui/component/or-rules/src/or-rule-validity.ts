@@ -247,7 +247,7 @@ export class OrRuleValidity extends translate(i18next)(LitElement) {
                     ` : ``}
                  
                     ${validityType  === "validityRecurrence" ? html`
-                        <label style="display:block; margin-top: 20px;"><or-translate value="repeatOccurenceEvery"></or-translate></label>
+                        <label style="display:block; margin-top: 20px;"><or-translate value="repeatOccurrenceEvery"></or-translate></label>
                         <div class="layout horizontal">
                             <or-input .value="${selectedOptions}" .type="${InputType.CHECKBOX_LIST}" .options="${options}" .label="${i18next.t("daysOfTheWeek")}" @or-input-changed="${(e: OrInputChangedEvent) => this.setRRuleValue(e.detail.value, "byweekday")}" ></or-input>
                         </div>

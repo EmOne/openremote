@@ -34,7 +34,7 @@ import java.util.Optional;
 public class GroundwaterSensorAsset extends Asset<GroundwaterSensorAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_TEMPERATURE_CELSIUS),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CELSIUS),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Integer> WATER_LEVEL = new AttributeDescriptor<>("waterLevel", ValueType.POSITIVE_INTEGER,

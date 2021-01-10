@@ -1,12 +1,12 @@
-import {customElement, html, LitElement, property, TemplateResult} from "lit-element";
+import {customElement, html, LitElement, property, TemplateResult, PropertyValues} from "lit-element";
 import manager, {AssetModelUtil, Auth, Manager, OREvent, subscribe} from "@openremote/core";
 import "@openremote/or-icon";
 import "@openremote/or-translate";
 import {IconSets} from "@openremote/or-icon";
 import i18next from "i18next";
 
-import {AttributeEvent, WellknownMetaItems, SharedEvent} from "@openremote/model";
-import {getApartment1Asset} from "./util";
+import {AttributeEvent, WellknownMetaItems, SharedEvent, Asset} from "@openremote/model";
+import {getBuildingAsset} from "./util";
 
 @customElement("or-demo")
 class OrDemo extends subscribe(manager)(LitElement) {
@@ -15,7 +15,7 @@ class OrDemo extends subscribe(manager)(LitElement) {
     protected alarmEnabled = false;
 
     @property()
-    protected _assetId?: string;
+    protected _asset?: Asset;
 
     protected loggedInTemplate = (openremote: Manager) => html`<span>Welcome ${manager.username} </span><button @click="${() =>
         manager.logout()}">logout</button>`;
@@ -51,9 +51,9 @@ class OrDemo extends subscribe(manager)(LitElement) {
             `;
     }
 
-    public set assetId(assetId: string) {
-        this._assetId = assetId;
-        super.assetIds = assetId ? [assetId] : undefined;
+    public set asset(asset: Asset) {
+        this._asset = asset;
+        super.assetIds = asset!.id ? [asset!.id] : undefined;
     }
 
     protected _onOrEvent = (event: OREvent) => {
@@ -64,6 +64,14 @@ class OrDemo extends subscribe(manager)(LitElement) {
     connectedCallback() {
         super.connectedCallback();
         manager.addListener((e) => this._onOrEvent(e));
+    }
+
+    protected updated(_changedProperties: PropertyValues) {
+        super.updated(_changedProperties);
+
+        if (_changedProperties.has("_asset") && this._asset) {
+            console.log(i18next.t("numberFormat.currency"));
+        }
     }
 
     public createIconSet() {
@@ -105,10 +113,10 @@ manager.init({
 }).then((success) => {
     if (success) {
         if (manager.authenticated) {
-            getApartment1Asset().then((apartment1) => {
-                if (apartment1) {
-                    console.log("Apartment 1 Asset received: " + JSON.stringify(apartment1, null, 2));
-                    (document.getElementById("or-demo") as OrDemo).assetId = apartment1!.id!;
+            getBuildingAsset().then((asset) => {
+                if (asset) {
+                    console.log("Asset received: " + JSON.stringify(asset, null, 2));
+                    (document.getElementById("or-demo") as OrDemo).asset = asset;
                 }
             });
         }

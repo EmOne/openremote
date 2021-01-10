@@ -34,7 +34,7 @@ import java.util.Optional;
 public class WeatherAsset extends Asset<WeatherAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_TEMPERATURE_CELSIUS),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CELSIUS),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Integer> UV_INDEX = new AttributeDescriptor<>("uVIndex", ValueType.POSITIVE_INTEGER,
@@ -54,14 +54,14 @@ public class WeatherAsset extends Asset<WeatherAsset> {
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> WIND_SPEED = new AttributeDescriptor<>("windSpeed", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_SPEED_KILOMETERS_HOUR),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_SPEED_KILOMETERS_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Integer> WIND_DIRECTION = new AttributeDescriptor<>("windDirection", ValueType.DIRECTION,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> RAINFALL = new AttributeDescriptor<>("rainfall", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_DISTANCE_MILLIMETRE),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_LENGTH_MILLIMETRE),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Integer> HUMIDITY = new AttributeDescriptor<>("humidity", ValueType.PERCENTAGE_INTEGER_0_100,

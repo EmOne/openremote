@@ -663,7 +663,7 @@ class AssetPermissionsTest extends Specification implements ManagerContainerTrai
         resultMeta.getValue(STORE_DATA_POINTS).orElse(false)
         resultMeta.getValue(SHOW_ON_DASHBOARD).orElse(false)
         resultMeta.getValueOrDefault(FORMAT) == "%0.1f° C"
-        resultMeta.getValueOrDefault(UNIT_TYPE) == UNITS_TEMPERATURE_CELSIUS
+        resultMeta.getValueOrDefault(UNITS) == UNITS_CELSIUS
 
         when: "an asset is retrieved by ID in a foreign realm"
         assetResource.get(null, managerTestSetup.thingId)

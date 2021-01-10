@@ -91,8 +91,8 @@ public class AssetModelInfoExtension extends Extension {
         emitEnum(writer, "WellknownValueTypes", otherMap);
 
         otherMap.clear();
-        Arrays.stream(Constants.class.getFields()).filter(f -> f.getName().startsWith("UNITS")).forEach(unitField -> {
-            String unitName = unitField.getName();
+        Arrays.stream(Constants.class.getFields()).filter(f -> f.getName().startsWith("UNITS_")).forEach(unitField -> {
+            String unitName = unitField.getName().substring(6);
             try {
                 otherMap.put(unitName.toUpperCase(Locale.ROOT), (String)unitField.get(null));
             } catch (IllegalAccessException e) {

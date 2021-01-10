@@ -4,7 +4,7 @@ import "@openremote/or-map";
 import manager, {Auth} from "@openremote/core";
 import {OrMapMarkerClickedEvent} from "@openremote/or-map";
 import {OrMap} from "@openremote/or-map";
-import {getApartment1Asset} from "../../demo-core/src/util";
+import {getBuildingAsset} from "../../demo-core/src/util";
 
 manager.init({
     auth: Auth.KEYCLOAK,
@@ -13,7 +13,7 @@ manager.init({
     managerUrl: "http://localhost:8080",
     realm: "building"
 })
-    .then(getApartment1Asset)
+    .then(getBuildingAsset)
     .then((apartment1) => {
 
         const maps = document.querySelectorAll("or-map");

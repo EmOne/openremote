@@ -37,10 +37,10 @@ public class ShipAsset extends Asset<ShipAsset> {
     public static final AttributeDescriptor<Integer> IMO_NUMBER = new AttributeDescriptor<>("iMONumber", ValueType.POSITIVE_INTEGER);
     public static final AttributeDescriptor<Integer> DIRECTION = new AttributeDescriptor<>("direction", ValueType.DIRECTION);
     public static final AttributeDescriptor<Integer> LENGTH = new AttributeDescriptor<>("length", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_DISTANCE_METRE)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_METRE)
     );
     public static final AttributeDescriptor<Double> SPEED = new AttributeDescriptor<>("speed", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_SPEED_KNOT)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KNOT)
     );
     public static final AttributeDescriptor<String> SHIP_TYPE = new AttributeDescriptor<>("shipType", ValueType.STRING);
 

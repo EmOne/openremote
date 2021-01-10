@@ -108,13 +108,13 @@ public class ManagerDemoSetup extends AbstractManagerSetup {
                 new Attribute<>("totalPowerProducers", NUMBER)
                     .addOrReplaceMeta(
                         new MetaItem<>(LABEL, "Combined power of all producers"),
-                        new MetaItem<>(UNIT_TYPE, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
                         new MetaItem<>(STORE_DATA_POINTS, true),
                         new MetaItem<>(READ_ONLY, true),
                         new MetaItem<>(RULE_STATE, true)),
                 new Attribute<>("totalPowerConsumers", NUMBER).addOrReplaceMeta(
                         new MetaItem<>(LABEL, "Combined power use of all consumers"),
-                        new MetaItem<>(UNIT_TYPE, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
                         new MetaItem<>(STORE_DATA_POINTS, true),
                         new MetaItem<>(RULE_STATE, true),
                         new MetaItem<>(READ_ONLY, true))
@@ -134,7 +134,7 @@ public class ManagerDemoSetup extends AbstractManagerSetup {
                 new Attribute<>(Asset.LOCATION, new GeoJSONPoint(4.488324, 51.906577)),
                 new Attribute<>("powerBalance", NUMBER).addMeta(
                         new MetaItem<>(LABEL, "Balance of power production and use"),
-                        new MetaItem<>(UNIT_TYPE, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
                         new MetaItem<>(STORE_DATA_POINTS),
                         new MetaItem<>(RULE_STATE),
                         new MetaItem<>(READ_ONLY))

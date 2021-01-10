@@ -38,10 +38,10 @@ public class ParkingAsset extends Asset<ParkingAsset> {
     public static final AttributeDescriptor<Integer> SPACES_OPEN = new AttributeDescriptor<>("spacesOpen", ValueType.POSITIVE_INTEGER);
     public static final AttributeDescriptor<Integer> SPACES_BUFFER = new AttributeDescriptor<>("spacesBuffer", ValueType.POSITIVE_INTEGER);
     public static final AttributeDescriptor<Double> PRICE_HOURLY = new AttributeDescriptor<>("priceHourly", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_CURRENCY_EUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
     );
     public static final AttributeDescriptor<Double> PRICE_DAILY = new AttributeDescriptor<>("priceDaily", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_CURRENCY_EUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
     );
 
     public static final AssetDescriptor<ParkingAsset> DESCRIPTOR = new AssetDescriptor<>("parking", "0260ae", ParkingAsset.class);

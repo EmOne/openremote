@@ -50,7 +50,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.openremote.model.Constants.UNITS_TEMPERATURE_CELSIUS;
+import static org.openremote.model.Constants.UNITS_CELSIUS;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
 
@@ -189,7 +189,7 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected void addDemoApartmentRoomCO2Sensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
-            new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, Constants.UNITS_DENSITY_PARTS_MILLION)))
+            new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_DENSITY_PARTS_MILLION)))
                 .addMeta(
                     new MetaItem<>(LABEL, "CO2 level"),
                     new MetaItem<>(RULE_STATE, true),
@@ -235,7 +235,7 @@ public abstract class AbstractManagerSetup implements Setup {
                                                    boolean shouldBeLinked,
                                                    Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
-            new Attribute<>("currentTemperature", NUMBER.addOrReplaceMeta(new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)))
+            new Attribute<>("currentTemperature", NUMBER.addOrReplaceMeta(new MetaItem<>(UNITS, UNITS_CELSIUS)))
                 .addMeta(
                     new MetaItem<>(LABEL, "Current temperature"),
                     new MetaItem<>(RULE_STATE, true),
@@ -264,7 +264,7 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
-                    new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS),
+                    new MetaItem<>(UNITS, UNITS_CELSIUS),
                     new MetaItem<>(FORMAT, "%0f° C"),
                     new MetaItem<>(STORE_DATA_POINTS)
                 ));
@@ -309,14 +309,14 @@ public abstract class AbstractManagerSetup implements Setup {
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator earliest start time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
-                    new MetaItem<>(UNIT_TYPE, "SECONDS"),
+                    new MetaItem<>(UNITS, "SECONDS"),
                     new MetaItem<>(RULE_STATE, true)),
             // StopTime
             new Attribute<>("smartSwitchStopTime" + switchName, TIMESTAMP)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator latest stop time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
-                    new MetaItem<>(UNIT_TYPE, "SECONDS"),
+                    new MetaItem<>(UNITS, "SECONDS"),
                     new MetaItem<>(RULE_STATE, true)),
             // Enabled
             new Attribute<>("smartSwitchEnabled" + switchName, NUMBER)

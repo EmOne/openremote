@@ -107,7 +107,7 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
             if (Values.isNumber(value)) {
                 return "number";
             }
-            if (Values.isString(value)) {
+            if (Values.isString(value) || value.isEnum()) {
                 return "string";
             }
             if (Values.isArray(value)) {

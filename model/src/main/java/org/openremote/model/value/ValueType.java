@@ -36,13 +36,10 @@ import org.openremote.model.value.impl.ColourRGBAW;
 import org.openremote.model.value.impl.ColourRGBW;
 
 import javax.validation.constraints.*;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @TsIgnore
 public final class ValueType {
@@ -159,13 +156,13 @@ public final class ValueType {
     @Min(0)
     @Max(100)
     public static final ValueDescriptor<Integer> PERCENTAGE_INTEGER_0_100 = new ValueDescriptor<>("Percentage 0-100", Integer.class,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_PERCENTAGE)
     );
 
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     public static final ValueDescriptor<Double> PERCENTAGE_NUMBER_0_1 = new ValueDescriptor<>("Percentage 0-1", Double.class,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_PERCENTAGE)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_PERCENTAGE)
     );
 
     protected ValueType() {

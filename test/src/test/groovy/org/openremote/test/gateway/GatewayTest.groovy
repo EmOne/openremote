@@ -194,12 +194,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
                     new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                         new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[i-1])
                             .setPath("")),
-                        new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                        new MetaItem<>(UNITS, UNITS_CELSIUS)
                     ),
                     new Attribute<>("tempSetpoint", NUMBER).addMeta(
                         new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[i-1])
                             .setPath("")),
-                        new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                        new MetaItem<>(UNITS, UNITS_CELSIUS)
                     )
                 )
 
@@ -385,12 +385,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0])
                     .setPath("")),
-                new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                new MetaItem<>(UNITS, UNITS_CELSIUS)
             ),
             new Attribute<>("tempSetpoint", NUMBER).addMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0])
                     .setPath("")),
-                new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                new MetaItem<>(UNITS, UNITS_CELSIUS)
             )
         )
 
@@ -414,7 +414,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         building1Room5Asset.addAttributes(
             new Attribute<>("co2Level", POSITIVE_INTEGER, 500)
                 .addMeta(
-                    new MetaItem<>(UNIT_TYPE, UNITS_DENSITY_PARTS_MILLION),
+                    new MetaItem<>(UNITS, UNITS_DENSITY_PARTS_MILLION),
                     new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0]).setPath(""))
                 )
         )
@@ -647,12 +647,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[1])
                     .setPath("")),
-                new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                new MetaItem<>(UNITS, UNITS_CELSIUS)
             ),
             new Attribute<>("tempSetpoint", NUMBER).addMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[1])
                     .setPath("")),
-                new MetaItem<>(UNIT_TYPE, UNITS_TEMPERATURE_CELSIUS)
+                new MetaItem<>(UNITS, UNITS_CELSIUS)
             )
         )
 

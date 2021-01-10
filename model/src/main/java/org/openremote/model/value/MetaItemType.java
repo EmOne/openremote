@@ -150,11 +150,12 @@ public final class MetaItemType {
     public static final MetaItemDescriptor<String> FORMAT = new MetaItemDescriptor<>("format", ValueType.STRING);
 
     /**
-     * Indicates the unit type that this value represents.
+     * Indicates the units associated with the value, there's some special handling for {@link Boolean} values but
+     * otherwise the value type should be numeric. For numeric
      * For e.g. if the value represents currency and it's in euro's then the unit type would be EUR.
      * For e.g. if the value represents distance and it's in kilometers then the unit type would be KM.
      */
-    public static final MetaItemDescriptor<String> UNIT_TYPE = new MetaItemDescriptor<>("unitType", ValueType.STRING);
+    public static final MetaItemDescriptor<String> UNITS = new MetaItemDescriptor<>("units", ValueType.STRING);
 
     /**
      * Marks the value as secret and indicates that clients should display this in a concealed manner (e.g. password

@@ -38,20 +38,20 @@ public class ElectricityChargerAsset extends Asset<ElectricityChargerAsset> {
     );
     public static final AttributeDescriptor<String> CHARGER_TYPE = new AttributeDescriptor<>("chargerType", ValueType.STRING);
     public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
     );
     public static final AttributeDescriptor<Double> POWER_CONSUMPTION = new AttributeDescriptor<>("powerConsumption", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_POWER_KILOWATT),
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("tariffImport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("tariffExport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
     );
     public static final AttributeDescriptor<Double> TARIFF_START = new AttributeDescriptor<>("tariffStart", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNIT_TYPE, Constants.UNITS_CURRENCY_EUR)
+        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
     );
 
     public static final AssetDescriptor<ElectricityChargerAsset> DESCRIPTOR = new AssetDescriptor<>("ev-station", "8A293D", ElectricityChargerAsset.class);

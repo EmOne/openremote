@@ -19,6 +19,7 @@
  */
 package org.openremote.model;
 
+import org.openremote.model.util.TextUtil;
 import org.openremote.model.util.TsIgnore;
 
 @TsIgnore
@@ -67,80 +68,86 @@ public interface Constants {
     String SETUP_EMAIL_FROM_DEFAULT = "no-reply@openremote.io";
     String REQUEST_HEADER_REALM = "Auth-Realm";
 
-    String UNITS_TEMPERATURE_CELSIUS = "CELSIUS";
-    String UNITS_TEMPERATURE_FAHRENHEIT = "FAHRENHEIT";
-    String UNITS_TIME_HOUR = "HOUR";
-    String UNITS_TIME_MINUTE = "MINUTE";
-    String UNITS_TIME_SECOND = "SECOND";
-    String UNITS_TIME_MILLISECOND = "MILLISECOND";
-    String UNITS_SPEED_KNOT = "SPEED_KNOT";
-    String UNITS_SPEED_KILOMETERS_HOUR = "SPEED_KMPH";
-    String UNITS_SPEED_MILES_HOUR = "SPEED_MIPH";
-    String UNITS_SPEED_METRES_SECOND = "SPEED_MPS";
-    String UNITS_SPEED_MILLIMETRES_HOUR = "SPEED_MMPH";
-    String UNITS_SPEED_INCHES_HOUR = "SPEED_INPH";
-    String UNITS_ACCELERATION_METRE_SECOND = "ACCELERATION_MS";
-    String UNITS_SOUND_DECIBELS = "SOUND_DB";
-    String UNITS_SOUND_DECIBELS_ATTENUATED = "SOUND_DBA";
-    String UNITS_DISTANCE_KILOMETRE = "DISTANCE_KM";
-    String UNITS_DISTANCE_MILE = "DISTANCE_MI";
-    String UNITS_DISTANCE_METRE = "DISTANCE_M";
-    String UNITS_DISTANCE_FOOT = "DISTANCE_FT";
-    String UNITS_DISTANCE_CENTIMETRE = "DISTANCE_CM";
-    String UNITS_DISTANCE_MILLIMETRE = "DISTANCE_MM";
-    String UNITS_FLOW_LITRE_MINUTE = "FLOW_LPM";
-    String UNITS_FLOW_LITRE_HOUR = "FLOW_LPH";
-    String UNITS_FLOW_CUBIC_M_MINUTE = "FLOW_CMPM";
-    String UNITS_FLOW_CUBIC_FOOT_MINUTE = "FLOW_CFPM";
-    String UNITS_EUR_PER_KILOWATT_HOUR = "EUR_PER_KWH";
-    String UNITS_EUR_PER_MONTH = "EUR_PER_MONTH";
-    String UNITS_GBP_PER_KILOWATT_HOUR = "GBP_PER_KWH";
-    String UNITS_GBP_PER_MONTH = "GBP_PER_MONTH";
-    String UNITS_CURRENCY_EUR = "CURRENCY_EUR";
-    String UNITS_CURRENCY_GBP = "CURRENCY_GBP";
-    String UNITS_POWER_KILOWATT = "POWER_KW";
-    String UNITS_POWER_WATT = "POWER_W";
-    String UNITS_POWER_BTU_PER_HOUR = "POWER_BTU_PER_H";
-    String UNITS_POWER_KILOWATT_PEAK = "POWER_KWP";
-    String UNITS_POWER_WATT_SQUARE_M = "POWER_WATT_PER_M2";
-    String UNITS_ENERGY_KILOWATT_HOUR = "ENERGY_KWH";
-    String UNITS_ENERGY_JOULE = "ENERGY_J";
-    String UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR = "KG_CARBON_PER_KWH";
-    String UNITS_MASS_KILOGRAM = "MASS_KG";
-    String UNITS_MASS_POUND = "MASS_LB";
-    String UNITS_ANGLE_DEGREE = "ANGLE_DEGREE";
-    String UNITS_ANGLE_RADIAN = "ANGLE_RADIAN";
-    String UNITS_PERCENTAGE = "PERCENTAGE";
-    String UNITS_DENSITY_KILOGRAM_CUBIC_M = "DENSITY_KG_M3";
-    String UNITS_DENSITY_MICROGRAM_CUBIC_M = "DENSITY_UG_M3";
-    String UNITS_DENSITY_GRAM_CUBIC_M = "DENSITY_G_M3";
-    String UNITS_DENSITY_PARTS_MILLION = "DENSITY_PPM";
-    String UNITS_BINARY_ON_OFF = "BINARY_ON_OFF";
-    String UNITS_OPEN_CLOSED = "BINARY_OPEN_CLOSED";
-    String UNITS_BINARY_0_1 = "BINARY_0_1";
-    String UNITS_BINARY_PRESSED_RELEASED = "BINARY_PRESSED_RELEASED";
-    String UNITS_COUNT_PER_HOUR = "COUNT_PER_HOUR";
-    String UNITS_COUNT_PER_MINUTE = "COUNT_PER_MINUTE";
-    String UNITS_COUNT_PER_SECOND = "COUNT_PER_SECOND";
-    String UNITS_BRIGHTNESS_LUX = "BRIGHTNESS_LUX";
-    String UNITS_PRESSURE_KPA = "PRESSURE_KPA";
-    String UNITS_PRESSURE_PA = "PRESSURE_PA";
-    String UNITS_PRESSURE_BAR = "PRESSURE_BAR";
-    String UNITS_PRESSURE_MILLIBAR = "PRESSURE_MBAR";
-    String UNITS_PRESSURE_IN_HG = "PRESSURE_IN_HG";
-    String UNITS_VOLTAGE_VOLT = "VOLTAGE_V";
-    String UNITS_VOLTAGE_MILLIVOLT = "VOLTAGE_MV";
-    String UNITS_RESISTANCE_OHM = "RESISTANCE_OHM";
-    String UNITS_CURRENT_AMP = "CURRENT_A";
-    String UNITS_CURRENT_MILLIAMP = "CURRENT_MA";
-    String UNITS_VOLUME_LITRE = "VOLUME_L";
-    String UNITS_VOLUME_CUBIC_METRE = "VOLUME_CM";
-    String UNITS_VOLUME_CUBIC_FOOT = "VOLUME_CFT";
-    String UNITS_VOLUME_GALLON = "VOLUME_GAL";
-    String UNITS_FREQUENCY_HERTZ = "FREQUENCY_HZ";
-    String UNITS_FREQUENCY_KILOHERTZ = "FREQUENCY_kHZ";
-    String UNITS_FREQUENCY_RPM = "FREQUENCY_RPM";
-    String UNITS_COLOR_RGB = "COLOR_RGB";
-    String UNITS_COLOR_ARGB = "COLOR_ARGB";
-    String UNITS_COLOR_RGBW = "COLOR_RGBW";
+
+    static String UnitsWithCategory(String category, String...units) {
+        return TextUtil.isNullOrEmpty(category) ? Units(units) : category + ":" + Units(units);
+    }
+
+    static String Units(String...units) {
+        return String.join("-", units);
+    }
+
+    String UNITS_FORMAT_CURRENCY = "currency";
+    String UNITS_FORMAT_LENGTH = "length";
+    String UNITS_FORMAT_MASS = "mass";
+    String UNITS_FORMAT_TEMPERATURE = "temperature";
+    String UNITS_FORMAT_DURATION = "duration";
+    String UNITS_FORMAT_SPEED = "speed";
+
+    String UNITS_BINARY_ON_OFF = "binary_on_off";
+    String UNITS_BINARY_OPEN_CLOSED = "binary_open_closed";
+    String UNITS_BINARY_0_1 = "binary_0_1";
+    String UNITS_BINARY_RELEASED_PRESSED = "binary_released_pressed";
+
+    String UNITS_DATE_DAY_MONTH_YEAR = "date_dmy";
+    String UNITS_DATE_WEEK_NUMBER = "date_week";
+    String UNITS_DATE_DAY_MONTH_YEAR_TIME_WITHOUT_SECONDS = "date_dmy_time";
+    String UNITS_DATE_DAY_MONTH_YEAR_TIME_WITH_SECONDS = "date_dmy_time_s";
+    String UNITS_DATE_TIME_WITHOUT_SECONDS = "date_time";
+    String UNITS_DATE_TIME_WITH_SECONDS = "date_time_s";
+    String UNITS_DATE_ISO8601 = "date_iso";
+
+    String UNITS_PER = "per";
+    String UNITS_SQUARED = "squared";
+    String UNITS_CUBED = "cubed";
+    String UNITS_PEAK = "peak";
+    String UNITS_MEGA = "mega";
+    String UNITS_KILO = "kilo";
+    String UNITS_CENTI = "centi";
+    String UNITS_MICRO = "micro";
+    String UNITS_MILLI = "milli";
+
+    String UNITS_PERCENTAGE = "percentage";
+    String UNITS_ACRE = "acre";
+    String UNITS_HECTARE = "hectare";
+    String UNITS_DECIBEL = "decibel";
+    String UNITS_DECIBEL_ATTENUATED = "decibel_attenuated";
+    String UNITS_CELSIUS = "celsius";
+    String UNITS_KELVIN = "kelvin";
+    String UNITS_FAHRENHEIT = "fahrenheit";
+    String UNITS_YEAR = "year";
+    String UNITS_MONTH = "month";
+    String UNITS_WEEK = "week";
+    String UNITS_DAY = "day";
+    String UNITS_HOUR = "hour";
+    String UNITS_MINUTE = "minute";
+    String UNITS_SECOND = "second";
+    String UNITS_METRE = "metre";
+    String UNITS_INCH = "inch";
+    String UNITS_FOOT = "foot";
+    String UNITS_YARD = "yard";
+    String UNITS_MILE = "mile";
+    String UNITS_MILE_SCANDINAVIAN = "mile_scandinavian";
+    String UNITS_GRAM = "gram";
+    String UNITS_OUNCE = "ounce";
+    String UNITS_MASS_POUND = "pound";
+    String UNITS_STONE = "stone";
+    String UNITS_DEGREE = "degree";
+    String UNITS_RADIAN = "radian";
+    String UNITS_LITRE = "litre";
+    String UNITS_GALLON = "gallon";
+    String UNITS_FLUID_OUNCE = "fluid_ounce";
+    String UNITS_JOULE = "joule";
+    String UNITS_BTU = "btu";
+    String UNITS_WATT = "watt";
+    String UNITS_LUX = "lux";
+    String UNITS_LUMEN = "lumen";
+    String UNITS_PA = "pascal";
+    String UNITS_BAR = "bar";
+    String UNITS_IN_HG = "inch_mercury";
+    String UNITS_VOLT = "volt";
+    String UNITS_OHM = "ohm";
+    String UNITS_AMP = "amp";
+    String UNITS_HERTZ = "hertz";
+    String UNITS_RPM = "rpm";
 }
