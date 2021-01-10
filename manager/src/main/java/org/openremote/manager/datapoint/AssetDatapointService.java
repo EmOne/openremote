@@ -158,8 +158,8 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                                 "and dp.attributeName = :attributeName " +
                                 "order by dp.timestamp desc",
                         AssetDatapoint.class)
-                        .setParameter("assetId", attributeRef.getAssetId())
-                        .setParameter("attributeName", attributeRef.getAttributeName())
+                        .setParameter("assetId", attributeRef.getId())
+                        .setParameter("attributeName", attributeRef.getName())
                         .getResultList());
     }
 
@@ -181,8 +181,8 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
 
             if (attributeRef != null) {
                 query
-                    .setParameter("assetId", attributeRef.getAssetId())
-                    .setParameter("attributeName", attributeRef.getAttributeName());
+                    .setParameter("assetId", attributeRef.getId())
+                    .setParameter("attributeName", attributeRef.getName());
             }
 
             return query.getSingleResult();
@@ -194,13 +194,13 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                                                long fromTimestamp,
                                                long toTimestamp) {
 
-        Asset<?> asset = assetStorageService.find(attributeRef.getAssetId());
+        Asset<?> asset = assetStorageService.find(attributeRef.getId());
         if (asset == null) {
-            throw new IllegalStateException("Asset not found: " + attributeRef.getAssetId());
+            throw new IllegalStateException("Asset not found: " + attributeRef.getId());
         }
 
-        Attribute<?> assetAttribute = asset.getAttribute(attributeRef.getAttributeName())
-            .orElseThrow(() -> new IllegalStateException("Attribute not found: " + attributeRef.getAttributeName()));
+        Attribute<?> assetAttribute = asset.getAttribute(attributeRef.getName())
+            .orElseThrow(() -> new IllegalStateException("Attribute not found: " + attributeRef.getName()));
 
         return getValueDatapoints(asset.getId(), assetAttribute, datapointInterval, fromTimestamp, toTimestamp);
     }
@@ -309,14 +309,14 @@ public class AssetDatapointService implements ContainerService, AssetUpdateProce
                                 st.setString(5, truncateX);
                                 st.setLong(6, fromTimestampSeconds);
                                 st.setLong(7, toTimestampSeconds);
-                                st.setString(8, attributeRef.getAssetId());
-                                st.setString(9, attributeRef.getAttributeName());
+                                st.setString(8, attributeRef.getId());
+                                st.setString(9, attributeRef.getName());
                                 st.setObject(10, new PGInterval(interval));
                             } else {
                                 st.setLong(1, fromTimestampSeconds);
                                 st.setLong(2, toTimestampSeconds);
-                                st.setString(3, attributeRef.getAssetId());
-                                st.setString(4, attributeRef.getAttributeName());
+                                st.setString(3, attributeRef.getId());
+                                st.setString(4, attributeRef.getName());
                             }
 
                             try (ResultSet rs = st.executeQuery()) {

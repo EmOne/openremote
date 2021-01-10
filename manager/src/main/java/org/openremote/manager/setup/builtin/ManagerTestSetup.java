@@ -35,6 +35,7 @@ import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.security.Tenant;
+import org.openremote.model.value.ValueConstraint;
 import org.openremote.model.value.ValueType;
 import org.openremote.model.value.Values;
 import org.openremote.model.value.impl.ColourRGB;
@@ -43,6 +44,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.openremote.manager.datapoint.AssetDatapointService.DATA_POINTS_MAX_AGE_DAYS_DEFAULT;
+import static org.openremote.model.Constants.*;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
 
@@ -175,14 +177,12 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 AGENT_LINK,
                                 new SimulatorAgent.SimulatorAgentLink(agent.getId()))
                     ),
-            new Attribute<>("light1Dimmer", PERCENTAGE_INTEGER_0_100)
+            new Attribute<>("light1Dimmer", POSITIVE_INTEGER)
                     .addOrReplaceMeta(
-                        new MetaItem<>(
-                                LABEL,
-                                "Light 1 Dimmer"),
-                        new MetaItem<>(
-                                AGENT_LINK,
-                                new SimulatorAgent.SimulatorAgentLink(agent.getId()))
+                        new MetaItem<>(LABEL, "Light 1 Dimmer"),
+                        new MetaItem<>(AGENT_LINK, new SimulatorAgent.SimulatorAgentLink(agent.getId())),
+                        new MetaItem<>(UNITS, Constants.units(UNITS_PERCENTAGE)),
+                        new MetaItem<>(CONSTRAINTS, ValueConstraint.constraints(new ValueConstraint.Min(0), new ValueConstraint.Max(100)))
                     ),
             new Attribute<>("light1Color", COLOUR_RGB, new ColourRGB(88, 123, 88))
                     .addOrReplaceMeta(
@@ -193,22 +193,13 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 AGENT_LINK,
                                 new SimulatorAgent.SimulatorAgentLink(agent.getId()))
                     ),
-            new Attribute<>("light1PowerConsumption", POSITIVE_NUMBER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_WATT)), 12.345)
+            new Attribute<>("light1PowerConsumption", POSITIVE_NUMBER, 12.345)
                     .addOrReplaceMeta(
-                        new MetaItem<>(
-                                LABEL,
-                                "Light 1 Usage"),
-                        new MetaItem<>(
-                                READ_ONLY,
-                                true),
-                        new MetaItem<>(
-                                FORMAT,
-                                "%3d kWh"),
-                        new MetaItem<>(
-                                AGENT_LINK,
-                                new SimulatorAgent.SimulatorAgentLink(agent.getId())),
-                        new MetaItem<>(
-                                STORE_DATA_POINTS, true)
+                        new MetaItem<>(LABEL, "Light 1 Usage"),
+                        new MetaItem<>(READ_ONLY, true),
+                        new MetaItem<>(UNITS, Constants.units(UNITS_KILO, UNITS_WATT, UNITS_HOUR)),
+                        new MetaItem<>(AGENT_LINK, new SimulatorAgent.SimulatorAgentLink(agent.getId())),
+                        new MetaItem<>(STORE_DATA_POINTS, true)
                     )
         );
         thing = assetStorageService.merge(thing);
@@ -410,9 +401,10 @@ public class ManagerTestSetup extends AbstractManagerSetup {
                                 new MetaItem<>(LABEL, "Last Presence Timestamp"),
                                 new MetaItem<>(RULE_STATE, true)
                         ),
-                new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_DENSITY_PARTS_MILLION)), 350)
+                new Attribute<>("co2Level", POSITIVE_INTEGER, 350)
                         .addMeta(
                                 new MetaItem<>(LABEL, "CO2 Level"),
+                                new MetaItem<>(UNITS, Constants.units(UNITS_PART_PER_MILLION)),
                                 new MetaItem<>(RULE_STATE, true)
                         ),
                 new Attribute<>("lightSwitch", BOOLEAN, true)
@@ -542,7 +534,7 @@ public class ManagerTestSetup extends AbstractManagerSetup {
 
         CityAsset smartCity = new CityAsset("Smart city");
         smartCity.setRealm(this.realmCityTenant);
-        smartCity.setAttributes(
+        smartCity.addOrReplaceAttributes(
                 new Attribute<>(Asset.LOCATION, SMART_CITY_LOCATION),
                 new Attribute<>(CityAsset.CITY, "Eindhoven"),
                 new Attribute<>(CityAsset.COUNTRY, "Netherlands")

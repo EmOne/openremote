@@ -71,9 +71,9 @@ public class ColourXY {
      * @return The ColourXY class
      */
     public static ColourXY fromRGB(ColourRGB colourRGB) {
-        double red = Math.max(Math.min(colourRGB.getRed(), 255), 0);
-        double green = Math.max(Math.min(colourRGB.getGreen(), 255), 0);
-        double blue = Math.max(Math.min(colourRGB.getBlue(), 255), 0);
+        double red = Math.max(Math.min(colourRGB.getR(), 255), 0);
+        double green = Math.max(Math.min(colourRGB.getG(), 255), 0);
+        double blue = Math.max(Math.min(colourRGB.getB(), 255), 0);
 
         red = red / 255;
         green = green / 255;

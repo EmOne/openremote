@@ -9,6 +9,7 @@ import org.openremote.agent.protocol.simulator.SimulatorProtocol
 import org.openremote.agent.protocol.websocket.WebsocketIoClient
 import org.openremote.container.timer.TimerService
 import org.openremote.container.util.UniqueIdentifierGenerator
+import org.openremote.controller.Constants
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
@@ -194,12 +195,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
                     new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                         new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[i-1])
                             .setPath("")),
-                        new MetaItem<>(UNITS, UNITS_CELSIUS)
+                        new MetaItem<>(UNITS, units(UNITS_CELSIUS))
                     ),
                     new Attribute<>("tempSetpoint", NUMBER).addMeta(
                         new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[i-1])
                             .setPath("")),
-                        new MetaItem<>(UNITS, UNITS_CELSIUS)
+                        new MetaItem<>(UNITS, units(UNITS_CELSIUS))
                     )
                 )
 
@@ -385,12 +386,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0])
                     .setPath("")),
-                new MetaItem<>(UNITS, UNITS_CELSIUS)
+                new MetaItem<>(UNITS, units(UNITS_CELSIUS))
             ),
             new Attribute<>("tempSetpoint", NUMBER).addMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0])
                     .setPath("")),
-                new MetaItem<>(UNITS, UNITS_CELSIUS)
+                new MetaItem<>(UNITS, units(UNITS_CELSIUS))
             )
         )
 
@@ -414,7 +415,7 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
         building1Room5Asset.addAttributes(
             new Attribute<>("co2Level", POSITIVE_INTEGER, 500)
                 .addMeta(
-                    new MetaItem<>(UNITS, UNITS_DENSITY_PARTS_MILLION),
+                    new MetaItem<>(UNITS, units(UNITS_PART_PER_MILLION)),
                     new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[0]).setPath(""))
                 )
         )
@@ -647,12 +648,12 @@ class GatewayTest extends Specification implements ManagerContainerTrait {
             new Attribute<>("temp", NUMBER).addOrReplaceMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[1])
                     .setPath("")),
-                new MetaItem<>(UNITS, UNITS_CELSIUS)
+                new MetaItem<>(UNITS, units(UNITS_CELSIUS))
             ),
             new Attribute<>("tempSetpoint", NUMBER).addMeta(
                 new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agentAssetIds[1])
                     .setPath("")),
-                new MetaItem<>(UNITS, UNITS_CELSIUS)
+                new MetaItem<>(UNITS, units(UNITS_CELSIUS))
             )
         )
 

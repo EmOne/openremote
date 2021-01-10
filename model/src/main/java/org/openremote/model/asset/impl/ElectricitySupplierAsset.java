@@ -19,7 +19,6 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
@@ -30,79 +29,63 @@ import org.openremote.model.value.ValueType;
 import javax.persistence.Entity;
 import java.util.Optional;
 
+import static org.openremote.model.Constants.*;
+
 @Entity
 public class ElectricitySupplierAsset extends Asset<ElectricitySupplierAsset> {
 
     public static final AttributeDescriptor<String> STATUS = new AttributeDescriptor<>("status", ValueType.STRING,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
-    public static final AttributeDescriptor<Double> POWER_EDR_SETPOINT = new AttributeDescriptor<>("powerEDRSetpoint", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
-    public static final AttributeDescriptor<Double> POWER_EDR_RESERVE = new AttributeDescriptor<>("powerEDRReserve", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
-    public static final AttributeDescriptor<Integer> POWER_EDR_MIN_PERIOD = new AttributeDescriptor<>("powerEDRMinPeriod", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_SECOND)
-    );
-    public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("energyTariffImport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
-    );
-    public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("energyTariffExport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
-    );
+    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
+    public static final AttributeDescriptor<Double> POWER_EDR_SETPOINT = new AttributeDescriptor<>("powerEDRSetpoint", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
+    public static final AttributeDescriptor<Double> POWER_EDR_RESERVE = new AttributeDescriptor<>("powerEDRReserve", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
+    public static final AttributeDescriptor<Integer> POWER_EDR_MIN_PERIOD = new AttributeDescriptor<>("powerEDRMinPeriod", ValueType.POSITIVE_INTEGER)
+        .setUnits(UNITS_SECOND);
+    public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("energyTariffImport", ValueType.POSITIVE_NUMBER)
+        .setUnits("EUR", UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR);
+    public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("energyTariffExport", ValueType.POSITIVE_NUMBER)
+        .setUnits("EUR", UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_TARIFF_IMPORT_FORECAST_DEVIATION = new AttributeDescriptor<>("energyTariffImportForecastDeviation", ValueType.POSITIVE_NUMBER,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> ENERGY_TARIFF_EXPORT_FORECAST_DEVIATION = new AttributeDescriptor<>("energyTariffExportForecastDeviation", ValueType.POSITIVE_NUMBER,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Double> ENERGY_TAX = new AttributeDescriptor<>("energyTax", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
-    );
-    public static final AttributeDescriptor<Double> GRID_COST = new AttributeDescriptor<>("gridCost", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
-    );
-    public static final AttributeDescriptor<Double> GRID_CONNECTION_COST = new AttributeDescriptor<>("gridConnectionCost", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
-    );
-    public static final AttributeDescriptor<Double> CARBON_IMPORT = new AttributeDescriptor<>("carbonImport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
-    );
-    public static final AttributeDescriptor<Double> CARBON_EXPORT = new AttributeDescriptor<>("carbonExport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KILOGRAM_CARBON_PER_KILOWATT_HOUR)
-    );
+    public static final AttributeDescriptor<Double> ENERGY_TAX = new AttributeDescriptor<>("energyTax", ValueType.POSITIVE_NUMBER)
+        .setUnits("EUR", UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR);
+    public static final AttributeDescriptor<Double> GRID_COST = new AttributeDescriptor<>("gridCost", ValueType.POSITIVE_NUMBER)
+        .setUnits("EUR");
+    public static final AttributeDescriptor<Double> GRID_CONNECTION_COST = new AttributeDescriptor<>("gridConnectionCost", ValueType.POSITIVE_NUMBER)
+        .setUnits("EUR");
+    public static final AttributeDescriptor<Double> CARBON_IMPORT = new AttributeDescriptor<>("carbonImport", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_GRAM, UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR);
+    public static final AttributeDescriptor<Double> CARBON_EXPORT = new AttributeDescriptor<>("carbonExport", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_GRAM, UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> POWER_TOTAL = new AttributeDescriptor<>("powerTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Double> POWER_FORECAST_DEVIATION = new AttributeDescriptor<>("powerForecastDeviation", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_IMPORT = new AttributeDescriptor<>("energyTotalImport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_EXPORT = new AttributeDescriptor<>("energyTotalExport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_IMPORT_COST = new AttributeDescriptor<>("energyTotalImportCost", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits("EUR");
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_EXPORT_INCOME = new AttributeDescriptor<>("energyTotalExportIncome", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits("EUR");
     public static final AttributeDescriptor<Integer> CARBON_TOTAL = new AttributeDescriptor<>("carbonTotal", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_MASS_KILOGRAM),
         new MetaItem<>(MetaItemType.READ_ONLY, true)
-    );
+    ).setUnits(UNITS_KILO, UNITS_GRAM);
 
     public static final AssetDescriptor<ElectricitySupplierAsset> DESCRIPTOR = new AssetDescriptor<>("upload-network", "9257A9", ElectricitySupplierAsset.class);
 

@@ -23,9 +23,6 @@ public class TypeMapper {
     /** map dpt to OpenRemote type */
     static private final Map<String, ValueDescriptor<?>> dptToTypeMap;
 
-    /** map KNX DPT to OpenRemote type */
-    static private final Map<ValueDescriptor<?>, String> typeToDptMap;
-
     static {
         dptToTypeMap = new HashMap<>();
 
@@ -141,14 +138,6 @@ public class TypeMapper {
 
         // Datapoint Types "RGB Color", Main number 232
         dptToTypeMap.put(DPTXlatorRGB.DPT_RGB.getID(), ValueType.COLOUR_RGB);
-
-        typeToDptMap = new HashMap<>();
-        typeToDptMap.put(ValueType.BOOLEAN, DPTXlatorBoolean.DPT_SWITCH.getID());
-        typeToDptMap.put(ValueType.PERCENTAGE_INTEGER_0_100, DPTXlator8BitUnsigned.DPT_SCALING.getID());
-        typeToDptMap.put(ValueType.NUMBER, DPTXlator2ByteFloat.DPT_TEMPERATURE.getID());
-        typeToDptMap.put(ValueType.TIMESTAMP_ISO8601, DPTXlatorTime.DPT_TIMEOFDAY.getID());
-        typeToDptMap.put(ValueType.STRING, DPTXlatorString.DPT_STRING_8859_1.getID());
-        typeToDptMap.put(ValueType.COLOUR_RGB, DPTXlatorRGB.DPT_RGB.getID());
     }
 
     public static DPTXlator toDPTXlator(Datapoint datapoint, Object value) throws Exception {
@@ -166,7 +155,7 @@ public class TypeMapper {
         } else if (translator instanceof DPTXlatorRGB) {
             ColourRGB colorRGB = Values.convert(value, ColourRGB.class);
             if (colorRGB != null) {
-                ((DPTXlatorRGB) translator).setValue(colorRGB.getRed(), colorRGB.getGreen(), colorRGB.getBlue());
+                ((DPTXlatorRGB) translator).setValue(colorRGB.getR(), colorRGB.getG(), colorRGB.getB());
             }
         } else {
             // TODO depending on the DPT and the value, a more sophisticated translation is needed

@@ -124,6 +124,18 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         def agentService = container.getService(AgentService.class)
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
 
+        when: "existing asset attributes are updated so we can reference them in tests"
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(new AttributeEvent(managerTestSetup.apartment1LivingroomId, "targetTemperature", 99d))
+        ((SimulatorProtocol)agentService.getProtocolInstance(managerTestSetup.apartment1ServiceAgentId)).updateSensor(new AttributeEvent(managerTestSetup.apartment1LivingroomId, "co2Level", 50d))
+
+        then: "the values should reach the attributes"
+        conditions.eventually {
+            def livingRoom = assetStorageService.find(managerTestSetup.apartment1LivingroomId)
+            assert livingRoom != null
+            assert livingRoom.getAttribute("targetTemperature", Double.class).flatMap{it.value}.orElse(0d) == 99d
+            assert livingRoom.getAttribute("co2Level", Integer.class).flatMap{it.value}.orElse(0i) == 50i
+        }
+
         when: "the web target builder is configured to use the mock HTTP server (to test subscriptions)"
         if (!WebsocketClientProtocol.resteasyClient.configuration.isRegistered(mockServer)) {
             WebsocketClientProtocol.resteasyClient.register(mockServer, Integer.MAX_VALUE)
@@ -179,7 +191,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
             .setParent(agent)
             .addOrReplaceAttributes(
                 // write attribute value
-                new Attribute<>("readWriteTargetTemp", NUMBER, 10d)
+                new Attribute<>("readWriteTargetTemp", NUMBER)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
                             .setWriteValue(SharedEvent.MESSAGE_PREFIX +
@@ -213,7 +225,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                             ] as WebsocketSubscription[]
                         ))
                     ),
-                new Attribute<>("readCo2Level", NUMBER, 20d)
+                new Attribute<>("readCo2Level", NUMBER)
                     .addMeta(
                         new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
                             .setMessageMatchFilters(
@@ -247,8 +259,8 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         then: "the linked attributes should have the initial values of the subscribed attributes"
         conditions.eventually {
             asset = assetStorageService.find(asset.getId(), true)
-            assert asset.getAttribute("readCo2Level").get().getValue().orElse(null) == 20d
-            assert asset.getAttribute("readWriteTargetTemp").get().getValue().orElse(null) == 10d
+            assert asset.getAttribute("readCo2Level").get().getValue().orElse(null) == 50d
+            assert asset.getAttribute("readWriteTargetTemp").get().getValue().orElse(null) == 99d
         }
 
         when: "a linked attribute value is updated"

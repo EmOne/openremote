@@ -21,23 +21,21 @@ package org.openremote.model.value.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.util.Objects;
 
-@JsonPropertyOrder({"red", "green", "blue", "amber"})
 public class ColourRGBA extends ColourRGB {
 
-    protected int amber;
+    protected int a;
 
     @JsonCreator
-    public ColourRGBA(@JsonProperty("red") int red, @JsonProperty("green") int green, @JsonProperty("blue") int blue, @JsonProperty("amber") int amber) {
-        super(red, green, blue);
-        this.amber = amber;
+    public ColourRGBA(@JsonProperty("r") int r, @JsonProperty("g") int g, @JsonProperty("b") int b, @JsonProperty("a") int a) {
+        super(r, g, b);
+        this.a = a;
     }
 
-    public int getAmber() {
-        return amber;
+    public int getA() {
+        return a;
     }
 
     @Override
@@ -47,21 +45,21 @@ public class ColourRGBA extends ColourRGB {
 
         ColourRGBA other = (ColourRGBA) o;
 
-        return super.equals(other) && amber == other.amber;
+        return super.equals(other) && a == other.a;
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode() + Objects.hash(amber);
+        return super.hashCode() + Objects.hash(a);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "red=" + red +
-            ", green=" + green +
-            ", blue=" + blue +
-            ", amber=" + amber +
+            "r=" + r +
+            ", g=" + g +
+            ", b=" + b +
+            ", a=" + a +
             '}';
     }
 }

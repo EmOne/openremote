@@ -22,22 +22,24 @@ package org.openremote.model.value;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.agent.ConnectionStatus;
-import org.openremote.model.attribute.*;
+import org.openremote.model.attribute.AttributeExecuteStatus;
+import org.openremote.model.attribute.AttributeLink;
+import org.openremote.model.attribute.AttributeRef;
+import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.auth.UsernamePassword;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.console.ConsoleProviders;
 import org.openremote.model.geo.GeoJSONPoint;
-import org.openremote.model.util.TimeUtil;
 import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.impl.ColourRGB;
 import org.openremote.model.value.impl.ColourRGBA;
 import org.openremote.model.value.impl.ColourRGBAW;
 import org.openremote.model.value.impl.ColourRGBW;
 
-import javax.validation.constraints.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -78,50 +80,62 @@ public final class ValueType {
 
     public static final ValueDescriptor<ObjectNode> JSON_OBJECT = new ValueDescriptor<>("JSON Object", ObjectNode.class);
 
-    @Min(0)
-    public static final ValueDescriptor<Integer> POSITIVE_INTEGER = new ValueDescriptor<>("Positive integer", Integer.class);
+    public static final ValueDescriptor<Date> DATE_AND_TIME = new ValueDescriptor<>("Date and time", Date.class);
 
-    @DecimalMin("0.0")
-    public static final ValueDescriptor<Double> POSITIVE_NUMBER = new ValueDescriptor<>("Positive number", Double.class);
+    public static final ValueDescriptor<Integer> POSITIVE_INTEGER = new ValueDescriptor<>("Positive integer", Integer.class, 
+        new ValueConstraint.Min(0)
+    );
 
-    @Min(0)
-    @Max(255)
-    public static final ValueDescriptor<Integer> INT_BYTE = new ValueDescriptor<>("Integer (byte)", Integer.class);
+    public static final ValueDescriptor<Double> POSITIVE_NUMBER = new ValueDescriptor<>("Positive number", Double.class, 
+        new ValueConstraint.Min(0)
+    );
+
+    public static final ValueDescriptor<Integer> INT_BYTE = new ValueDescriptor<>("Integer (byte)", Integer.class, 
+        new ValueConstraint.Min(0),
+        new ValueConstraint.Max(255)
+    );
 
     public static final ValueDescriptor<Byte> BYTE = new ValueDescriptor<>("Byte", Byte.class);
 
     public static final ValueDescriptor<Long> TIMESTAMP = new ValueDescriptor<>("Timestamp", Long.class);
 
-    @Pattern(regexp = "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:Z|[+-][01]\\d:[0-5]\\d)$")
-    public static final ValueDescriptor<String> TIMESTAMP_ISO8601 = new ValueDescriptor<>("Timestamp ISO8601", String.class);
+    public static final ValueDescriptor<String> TIMESTAMP_ISO8601 = new ValueDescriptor<>("Timestamp ISO8601", String.class, 
+        new ValueConstraint.Pattern(Constants.TIMESTAMP_ISO8601_REGEXP)
+    );
 
-    @Pattern(regexp = TimeUtil.DURATION_REGEXP)
-    public static final ValueDescriptor<String> DURATION_STRING = new ValueDescriptor<>("Duration string", String.class);
+    public static final ValueDescriptor<String> DURATION_STRING = new ValueDescriptor<>("Duration string", String.class, 
+        new ValueConstraint.Pattern(Constants.DURATION_REGEXP)
+    );
 
-    @Pattern(regexp = "(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")
-    public static final ValueDescriptor<String> EMAIL = new ValueDescriptor<>("Email", String.class);
+    public static final ValueDescriptor<String> EMAIL = new ValueDescriptor<>("Email", String.class, 
+        new ValueConstraint.Pattern(Constants.EMAIL_REGEXP)
+    );
 
-    @Pattern(regexp = "[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}")
-    public static final ValueDescriptor<String> UUID = new ValueDescriptor<>("UUID", String.class);
+    public static final ValueDescriptor<String> UUID = new ValueDescriptor<>("UUID", String.class, 
+        new ValueConstraint.Pattern(Constants.UUID_REGEXP)
+    );
 
-    @Size(min = 22, max = 22)
-    public static final ValueDescriptor<String> ASSET_ID = new ValueDescriptor<>("Asset ID", String.class);
+    public static final ValueDescriptor<String> ASSET_ID = new ValueDescriptor<>("Asset ID", String.class, 
+        new ValueConstraint.Pattern(Constants.ASSET_ID_REGEXP)
+    );
 
-    @Min(0)
-    @Max(359)
-    public static final ValueDescriptor<Integer> DIRECTION = new ValueDescriptor<>("Direction", Integer.class);
+    public static final ValueDescriptor<Integer> DIRECTION = new ValueDescriptor<>("Direction", Integer.class, 
+        new ValueConstraint.Min(0),
+        new ValueConstraint.Max(259)
+    );
 
-    @Min(1)
-    @Max(65536)
-    public static final ValueDescriptor<Integer> PORT = new ValueDescriptor<>("TCP/IP port number", Integer.class);
+    public static final ValueDescriptor<Integer> PORT = new ValueDescriptor<>("TCP/IP port number", Integer.class, 
+        new ValueConstraint.Min(1),
+        new ValueConstraint.Max(65536)
+    );
 
-    @NotNull
-    @Pattern(regexp = "(^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)|(^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$)")
-    public static final ValueDescriptor<String> HOSTNAME_OR_IP_ADDRESS = new ValueDescriptor<>("Host", String.class);
+    public static final ValueDescriptor<String> HOSTNAME_OR_IP_ADDRESS = new ValueDescriptor<>("Host", String.class, 
+        new ValueConstraint.Pattern(Constants.HOSTNAME_OR_IP_REGEXP)
+    );
 
-    @NotNull
-    @Pattern(regexp = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
-    public static final ValueDescriptor<String> IP_ADDRESS = new ValueDescriptor<>("IP address", String.class);
+    public static final ValueDescriptor<String> IP_ADDRESS = new ValueDescriptor<>("IP address", String.class, 
+        new ValueConstraint.Pattern(Constants.IP_REGEXP)
+    );
 
     public static final ValueDescriptor<AttributeLink> ATTRIBUTE_LINK = new ValueDescriptor<>("Attribute link", AttributeLink.class);
 
@@ -148,22 +162,9 @@ public final class ValueType {
 
     public static final ValueDescriptor<UsernamePassword> USERNAME_AND_PASSWORD = new ValueDescriptor<>("Username and password", UsernamePassword.class);
 
-    /*
-       WARNING VALUE TYPES THAT REFERENCE META ITEM TYPES MUST BE DECLARED AT THE END
-       HERE TO AVOID NPE ISSUES DURING CYCLIC CLASS INITIALISATION
-    */
+    public static final ValueDescriptor<ValueFormat> VALUE_FORMAT = new ValueDescriptor<>("Value Format", ValueFormat.class);
 
-    @Min(0)
-    @Max(100)
-    public static final ValueDescriptor<Integer> PERCENTAGE_INTEGER_0_100 = new ValueDescriptor<>("Percentage 0-100", Integer.class,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_PERCENTAGE)
-    );
-
-    @DecimalMin("0.0")
-    @DecimalMax("1.0")
-    public static final ValueDescriptor<Double> PERCENTAGE_NUMBER_0_1 = new ValueDescriptor<>("Percentage 0-1", Double.class,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_PERCENTAGE)
-    );
+    public static final ValueDescriptor<ValueConstraint> VALUE_CONSTRAINT = new ValueDescriptor<>("Value constraint", ValueConstraint.class);
 
     protected ValueType() {
     }

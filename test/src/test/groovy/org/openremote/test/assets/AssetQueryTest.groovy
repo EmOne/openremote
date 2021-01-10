@@ -1,6 +1,7 @@
 package org.openremote.test.assets
 
 import net.fortuna.ical4j.model.Recur
+import org.h2.engine.Constants
 import org.openremote.agent.protocol.simulator.SimulatorAgent
 import org.openremote.container.persistence.PersistenceService
 import org.openremote.manager.asset.AssetProcessingService
@@ -504,8 +505,9 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
                 .select(selectExcludePathAndAttributes())
                 .attributes(
                     new AttributePredicate().meta(
-                        new NameValuePredicate().value(new StringPredicate(Match.END, "kWh")))
+                        new NameValuePredicate().value(new ArrayPredicate(org.openremote.model.Constants.UNITS_KILO, 0, 3, null, null, false))
                     )
+                )
         )
 
         then: "result should match"

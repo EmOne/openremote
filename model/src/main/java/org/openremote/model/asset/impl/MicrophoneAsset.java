@@ -19,23 +19,21 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
 
+import static org.openremote.model.Constants.UNITS_DECIBEL;
+
 @Entity
 public class MicrophoneAsset extends Asset<MicrophoneAsset> {
 
-    public static final AttributeDescriptor<Double> SOUND_LEVEL = new AttributeDescriptor<>("soundLevel", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_DECIBEL)
-    );
+    public static final AttributeDescriptor<Double> SOUND_LEVEL = new AttributeDescriptor<>("soundLevel", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_DECIBEL);
 
     public static final AssetDescriptor<MicrophoneAsset> DESCRIPTOR = new AssetDescriptor<>("microphone", "47A5FF", MicrophoneAsset.class);
 

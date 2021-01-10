@@ -62,15 +62,29 @@ public class MetaItemDescriptor<T> extends AbstractNameValueDescriptorHolder<T> 
 
     MetaItemDescriptor() {}
 
-    public MetaItemDescriptor(String name, ValueDescriptor<T> valueDescriptor) {
-        super(name, valueDescriptor);
+    public MetaItemDescriptor(String name, ValueDescriptor<T> valueDescriptor, ValueConstraint...constraints) {
+        super(name, valueDescriptor, constraints);
+    }
+
+    public MetaItemDescriptor<T> setFormat(ValueFormat format) {
+        this.format = format;
+        return this;
+    }
+
+    public MetaItemDescriptor<T> setConstraints(ValueConstraint...constraints) {
+        this.constraints = constraints;
+        return this;
+    }
+
+    public MetaItemDescriptor<T> setUnits(String...units) {
+        this.units = units;
+        return this;
     }
 
     @Override
     public String toString() {
         return MetaItemDescriptor.class.getSimpleName() + "{" +
-            "name='" + name + '\'' +
-            ", valueDescriptor=" + type +
+            super.toString() +
             '}';
     }
 }

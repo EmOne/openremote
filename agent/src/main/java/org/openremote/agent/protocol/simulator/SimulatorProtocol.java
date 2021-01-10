@@ -26,9 +26,7 @@ import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.attribute.AttributeState;
-import org.openremote.model.simulator.SimulatorAttributeInfo;
 import org.openremote.model.simulator.SimulatorReplayDatapoint;
-import org.openremote.model.simulator.SimulatorState;
 import org.openremote.model.syslog.SyslogCategory;
 
 import java.time.LocalDateTime;
@@ -38,10 +36,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import static org.openremote.container.concurrent.GlobalLock.withLock;
-import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 
 public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, SimulatorAgent.SimulatorAgentLink> {
@@ -118,7 +114,7 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
      * Call this to simulate a sensor update
      */
     public void updateSensor(AttributeEvent attributeEvent) {
-        updateSensor(attributeEvent.getAttributeRef(), attributeEvent.getValue(), attributeEvent.getTimestamp());
+        updateSensor(attributeEvent.getAttributeRef(), attributeEvent.getValue().orElse(null), attributeEvent.getTimestamp());
     }
 
     public void updateSensor(AttributeRef attributeRef, Object value) {
@@ -167,10 +163,10 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
         }
         long nextRunRelative = nextRun - now;
 
-        LOG.info("Next update for asset " + attributeRef.getAssetId() + " for attribute " + attributeRef.getAttributeName() + " in " + nextRunRelative + " second(s)");
+        LOG.info("Next update for asset " + attributeRef.getId() + " for attribute " + attributeRef.getName() + " in " + nextRunRelative + " second(s)");
         return executorService.schedule(() -> {
             withLock(getProtocolName() + "::firingNextUpdate", () -> {
-                LOG.info("Updating asset " + attributeRef.getAssetId() + " for attribute " + attributeRef.getAttributeName() + " with value " + nextDatapoint.value.toString());
+                LOG.info("Updating asset " + attributeRef.getId() + " for attribute " + attributeRef.getName() + " with value " + nextDatapoint.value.toString());
                 try {
                     updateLinkedAttribute(new AttributeState(attributeRef, nextDatapoint.value));
                 } catch (Exception e) {

@@ -54,6 +54,6 @@ public class PredictedFacade<T extends Ruleset> extends PredictedDatapoints {
 
     @Override
     public void updateValue(AttributeRef attributeRef, Object value, long timestamp) {
-        updateValue(attributeRef.getAssetId(), attributeRef.getAttributeName(), value, timestamp);
+        updateValue(attributeRef.getId(), attributeRef.getName(), value, timestamp);
     }
 }

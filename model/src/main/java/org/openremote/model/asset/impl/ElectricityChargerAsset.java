@@ -19,16 +19,18 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
+import org.openremote.model.value.ValueFormat;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
+
+import static org.openremote.model.Constants.*;
 
 @Entity
 public class ElectricityChargerAsset extends Asset<ElectricityChargerAsset> {
@@ -37,22 +39,17 @@ public class ElectricityChargerAsset extends Asset<ElectricityChargerAsset> {
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<String> CHARGER_TYPE = new AttributeDescriptor<>("chargerType", ValueType.STRING);
-    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
+    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT).setFormat(ValueFormat.NO_DECIMAL_PLACES);
     public static final AttributeDescriptor<Double> POWER_CONSUMPTION = new AttributeDescriptor<>("powerConsumption", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
-    public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("tariffImport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
-    );
-    public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("tariffExport", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_EUR_PER_KILOWATT_HOUR)
-    );
-    public static final AttributeDescriptor<Double> TARIFF_START = new AttributeDescriptor<>("tariffStart", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT).setFormat(ValueFormat.NO_DECIMAL_PLACES);
+    public static final AttributeDescriptor<Double> TARIFF_IMPORT = new AttributeDescriptor<>("tariffImport", ValueType.NUMBER)
+        .setUnits("EUR", UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR).setFormat(ValueFormat.EXACTLY_2_DECIMAL_PLACES);
+    public static final AttributeDescriptor<Double> TARIFF_EXPORT = new AttributeDescriptor<>("tariffExport", ValueType.NUMBER)
+        .setUnits("EUR", UNITS_PER, UNITS_KILO, UNITS_WATT, UNITS_HOUR).setFormat(ValueFormat.EXACTLY_2_DECIMAL_PLACES);
+    public static final AttributeDescriptor<Double> TARIFF_START = new AttributeDescriptor<>("tariffStart", ValueType.NUMBER)
+        .setUnits("EUR").setFormat(ValueFormat.EXACTLY_2_DECIMAL_PLACES);
 
     public static final AssetDescriptor<ElectricityChargerAsset> DESCRIPTOR = new AssetDescriptor<>("ev-station", "8A293D", ElectricityChargerAsset.class);
 

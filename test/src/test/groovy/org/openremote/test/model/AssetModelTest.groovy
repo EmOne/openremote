@@ -57,7 +57,7 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         thingAssetInfo2.isPresent()
         thingAssetInfo2.get().getAssetDescriptor().type == ThingAsset.class
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) } != null
-        thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.optional
+        !thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.optional
         thingAssetInfo2.get().attributeDescriptors.find { (it == Asset.LOCATION) }.type == ValueType.GEO_JSON_POINT
 
         when: "All asset model infos are retrieved"
@@ -68,8 +68,8 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         assetInfos.size() == AssetModelUtil.assetTypeMap.size()
         def velbusTcpAgent = assetInfos.find {it.assetDescriptor.type == VelbusTcpAgent.class}
         velbusTcpAgent != null
-        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_HOST && it.optional}
-        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_PORT && it.optional}
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_HOST && !it.optional}
+        velbusTcpAgent.attributeDescriptors.any {it == VelbusTcpAgent.VELBUS_PORT && !it.optional}
     }
 
     def "Retrieving a specific asset model info"() {
@@ -118,9 +118,9 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
 
         expect: "the attributes to match the set values"
         asset.getTemperature().orElse(null) == 100I
-        asset.getColourRGB().map{it.getRed()}.orElse(null) == 50I
-        asset.getColourRGB().map{it.getGreen()}.orElse(null) == 100I
-        asset.getColourRGB().map{it.getBlue()}.orElse(null) == 200I
+        asset.getColourRGB().map{it.getR()}.orElse(null) == 50I
+        asset.getColourRGB().map{it.getG()}.orElse(null) == 100I
+        asset.getColourRGB().map{it.getB()}.orElse(null) == 200I
 
         when: "the asset is serialised using default object mapper"
         def assetStr = Values.asJSON(asset).orElse(null)
@@ -144,9 +144,9 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         asset.getName() == asset2.getName()
         asset2.getType() == asset.getType()
         asset2.getTemperature().orElse(null) == asset.getTemperature().orElse(null)
-        asset2.getColourRGB().map{it.getRed()}.orElse(null) == asset.getColourRGB().map{it.getRed()}.orElse(null)
-        asset2.getColourRGB().map{it.getGreen()}.orElse(null) == asset.getColourRGB().map{it.getGreen()}.orElse(null)
-        asset2.getColourRGB().map{it.getBlue()}.orElse(null) == asset.getColourRGB().map{it.getBlue()}.orElse(null)
+        asset2.getColourRGB().map{it.getR()}.orElse(null) == asset.getColourRGB().map{it.getR()}.orElse(null)
+        asset2.getColourRGB().map{it.getG()}.orElse(null) == asset.getColourRGB().map{it.getG()}.orElse(null)
+        asset2.getColourRGB().map{it.getB()}.orElse(null) == asset.getColourRGB().map{it.getB()}.orElse(null)
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.orElse(null) instanceof HttpClientAgent.HttpClientAgentLink
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.path}.orElse("") == "test_path"
         asset2.getAttribute("testAttribute", BIG_NUMBER.type).flatMap{it.getMetaValue(MetaItemType.AGENT_LINK)}.map{(HttpClientAgent.HttpClientAgentLink)it}.flatMap{it.pagingMode}.orElse(false)
@@ -167,10 +167,10 @@ class AssetModelTest extends Specification implements ManagerContainerTrait {
         then: "it should look as expected"
         def assetStateObjectNode = Values.parse(assetStateStr, ObjectNode.class).get()
         assetStateObjectNode.get("name").asText() == LightAsset.COLOUR_RGB.name
-        assetStateObjectNode.get("value").isArray()
+        assetStateObjectNode.get("value").isObject()
         assetStateObjectNode.get("value").size() == 3
-        assetStateObjectNode.get("value").get(0).asInt() == 50I
-        assetStateObjectNode.get("value").get(1).asInt() == 100I
-        assetStateObjectNode.get("value").get(2).asInt() == 200I
+        assetStateObjectNode.get("value").get("r").asInt() == 50I
+        assetStateObjectNode.get("value").get("g").asInt() == 100I
+        assetStateObjectNode.get("value").get("b").asInt() == 200I
     }
 }

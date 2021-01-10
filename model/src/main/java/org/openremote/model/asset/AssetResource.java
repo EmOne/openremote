@@ -67,7 +67,7 @@ public interface AssetResource {
         public static final String WRITE_ATTRIBUTE_HTTP_METHOD = "PUT";
 
         public static String getWriteAttributeUrl(AttributeRef attributeRef) {
-            return "/asset/" + attributeRef.getAssetId() + "/attribute/" + attributeRef.getAttributeName();
+            return "/asset/" + attributeRef.getId() + "/attribute/" + attributeRef.getName();
         }
     }
 

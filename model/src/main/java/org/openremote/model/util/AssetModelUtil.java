@@ -595,10 +595,11 @@ public final class AssetModelUtil {
                     } else if (descriptor instanceof ValueDescriptor) {
                         ValueDescriptor<?> valueDescriptor = (ValueDescriptor<?>)descriptor;
                         // Only store basic value type ignore array type for value descriptor as any value descriptor can be an array value descriptor
+
                         valueDescriptor = valueDescriptor.asNonArray();
 
                         int index = AssetModelUtil.valueDescriptors.indexOf(descriptor);
-                        if (index >= 0 && AssetModelUtil.valueDescriptors.get(index) != descriptor) {
+                        if (index >= 0 && AssetModelUtil.valueDescriptors.get(index).getType() != valueDescriptor.getType()) {
                             throw new IllegalStateException("Duplicate value descriptor found: asset type=" + assetClass +", descriptor=" + valueDescriptors.get(index) + ", duplicate descriptor=" + descriptor);
                         }
                         valueDescriptors.add(valueDescriptor);

@@ -166,11 +166,6 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
 
     public Attribute(String name, ValueDescriptor<T> valueDescriptor, T value) {
         super(name, valueDescriptor, value);
-
-        // Auto add meta from value descriptor
-        if (valueDescriptor.getMeta() != null) {
-            getMeta().addAll(valueDescriptor.getMeta());
-        }
     }
 
     public Attribute(String name, ValueDescriptor<T> valueDescriptor, T value, long timestamp) {

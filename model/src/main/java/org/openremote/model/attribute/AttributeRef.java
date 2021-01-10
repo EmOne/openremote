@@ -20,9 +20,7 @@
 package org.openremote.model.attribute;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.io.Serializable;
 
@@ -31,33 +29,30 @@ import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 /**
  * A reference to an entity and an {@link Attribute}.
  * <p>
- * The {@link #assetId} and {@link #attributeName} are required to identify
- * an entity's attribute.
+ * The {@link #id} and {@link #name} are required to identify an asset's attribute.
  * <p>
- * Two attribute references are {@link #equals} if they reference the same entity
+ * Two attribute references are {@link #equals} if they reference the same asset
  * and attribute.
  */
-@JsonFormat(shape = JsonFormat.Shape.ARRAY)
-@JsonPropertyOrder({"assetId", "attributeName"})
 public class AttributeRef implements Serializable {
 
-    protected String assetId;
-    protected String attributeName;
+    protected String id;
+    protected String name;
 
     @JsonCreator
-    public AttributeRef(@JsonProperty("assetId") String assetId, @JsonProperty("attributeName") String attributeName) {
-        requireNonNullAndNonEmpty(assetId);
-        requireNonNullAndNonEmpty(attributeName);
-        this.assetId = assetId;
-        this.attributeName = attributeName;
+    public AttributeRef(@JsonProperty("id") String id, @JsonProperty("name") String name) {
+        requireNonNullAndNonEmpty(id);
+        requireNonNullAndNonEmpty(name);
+        this.id = id;
+        this.name = name;
     }
 
-    public String getAssetId() {
-        return assetId;
+    public String getId() {
+        return id;
     }
 
-    public String getAttributeName() {
-        return attributeName;
+    public String getName() {
+        return name;
     }
 
     @Override
@@ -65,21 +60,21 @@ public class AttributeRef implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AttributeRef that = (AttributeRef) o;
-        return assetId.equals(that.assetId) && attributeName.equals(that.attributeName);
+        return id.equals(that.id) && name.equals(that.name);
     }
 
     @Override
     public int hashCode() {
-        int result = assetId.hashCode();
-        result = 31 * result + attributeName.hashCode();
+        int result = id.hashCode();
+        result = 31 * result + name.hashCode();
         return result;
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "assetId='" + assetId + '\'' +
-            ", attributeName='" + attributeName + '\'' +
+            "id='" + id + '\'' +
+            ", name='" + name + '\'' +
             '}';
     }
 }

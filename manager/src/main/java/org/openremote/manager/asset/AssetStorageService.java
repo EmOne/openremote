@@ -368,8 +368,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                             assetId = exchange.getIn().getBody(ReadAssetEvent.class).getAssetId();
                         } else {
                             ReadAttributeEvent assetAttributeEvent = exchange.getIn().getBody(ReadAttributeEvent.class);
-                            assetId = assetAttributeEvent.getAttributeRef().getAssetId();
-                            attributeName = assetAttributeEvent.getAttributeRef().getAttributeName();
+                            assetId = assetAttributeEvent.getAttributeRef().getId();
+                            attributeName = assetAttributeEvent.getAttributeRef().getName();
                         }
 
                         if (TextUtil.isNullOrEmpty(assetId)) {

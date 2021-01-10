@@ -144,7 +144,7 @@ public class SimulatorService extends RouteBuilder implements ContainerService {
             LOG.info("Getting simulator info for protocol instance: " + protocolInstance);
 
             // We need asset names instead of identifiers for user-friendly display
-            List<String> linkedAssetIds = protocolInstance.getLinkedAttributes().keySet().stream().map(AttributeRef::getAssetId).distinct().collect(Collectors.toList());
+            List<String> linkedAssetIds = protocolInstance.getLinkedAttributes().keySet().stream().map(AttributeRef::getId).distinct().collect(Collectors.toList());
             List<String> assetNames = assetStorageService.findNames(linkedAssetIds.toArray(new String[0]));
 
             if (assetNames.size() != linkedAssetIds.size()) {
@@ -153,8 +153,8 @@ public class SimulatorService extends RouteBuilder implements ContainerService {
             }
 
             SimulatorAttributeInfo[] attributeInfos = protocolInstance.getLinkedAttributes().entrySet().stream().map(refAttributeEntry -> {
-                String assetName = assetNames.get(linkedAssetIds.indexOf(refAttributeEntry.getKey().getAssetId()));
-                return new SimulatorAttributeInfo(assetName, refAttributeEntry.getKey().getAssetId(), refAttributeEntry.getValue(), protocolInstance.getReplayMap().containsKey(refAttributeEntry.getKey()));
+                String assetName = assetNames.get(linkedAssetIds.indexOf(refAttributeEntry.getKey().getId()));
+                return new SimulatorAttributeInfo(assetName, refAttributeEntry.getKey().getId(), refAttributeEntry.getValue(), protocolInstance.getReplayMap().containsKey(refAttributeEntry.getKey()));
             }).toArray(SimulatorAttributeInfo[]::new);
 
             return new SimulatorState(protocolInstance.getAgent().getId(), attributeInfos);

@@ -19,16 +19,16 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
+
+import static org.openremote.model.Constants.UNITS_KNOT;
+import static org.openremote.model.Constants.UNITS_METRE;
 
 @Entity
 public class ShipAsset extends Asset<ShipAsset> {
@@ -36,12 +36,10 @@ public class ShipAsset extends Asset<ShipAsset> {
     public static final AttributeDescriptor<Integer> MSSI_NUMBER = new AttributeDescriptor<>("mSSINumber", ValueType.POSITIVE_INTEGER);
     public static final AttributeDescriptor<Integer> IMO_NUMBER = new AttributeDescriptor<>("iMONumber", ValueType.POSITIVE_INTEGER);
     public static final AttributeDescriptor<Integer> DIRECTION = new AttributeDescriptor<>("direction", ValueType.DIRECTION);
-    public static final AttributeDescriptor<Integer> LENGTH = new AttributeDescriptor<>("length", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_METRE)
-    );
-    public static final AttributeDescriptor<Double> SPEED = new AttributeDescriptor<>("speed", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_KNOT)
-    );
+    public static final AttributeDescriptor<Integer> LENGTH = new AttributeDescriptor<>("length", ValueType.POSITIVE_INTEGER)
+        .setUnits(UNITS_METRE);
+    public static final AttributeDescriptor<Double> SPEED = new AttributeDescriptor<>("speed", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KNOT);
     public static final AttributeDescriptor<String> SHIP_TYPE = new AttributeDescriptor<>("shipType", ValueType.STRING);
 
     public static final AssetDescriptor<ShipAsset> DESCRIPTOR = new AssetDescriptor<>("ferry", "000080", ShipAsset.class);

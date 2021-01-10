@@ -19,16 +19,18 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
+import org.openremote.model.value.ValueConstraint;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
+
+import static org.openremote.model.Constants.*;
 
 @Entity
 public class ElectricityStorageAsset extends Asset<ElectricityStorageAsset> {
@@ -36,53 +38,41 @@ public class ElectricityStorageAsset extends Asset<ElectricityStorageAsset> {
     public static final AttributeDescriptor<String> STATUS = new AttributeDescriptor<>("status", ValueType.STRING,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Double> LEVELISED_COST_OF_STORAGE = new AttributeDescriptor<>("levelisedCostOfStorage", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
-    );
+    public static final AttributeDescriptor<Double> LEVELISED_COST_OF_STORAGE = new AttributeDescriptor<>("levelisedCostOfStorage", ValueType.POSITIVE_NUMBER).setUnits("EUR");
     public static final AttributeDescriptor<Double> ENERGY_CAPACITY = new AttributeDescriptor<>("energyCapacity", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Integer> ENERGY_AVAILABLE_PERCENTAGE = new AttributeDescriptor<>("energyAvailablePercentage", ValueType.PERCENTAGE_INTEGER_0_100);
+    public static final AttributeDescriptor<Integer> ENERGY_AVAILABLE_PERCENTAGE = new AttributeDescriptor<>("energyAvailablePercentage", ValueType.POSITIVE_INTEGER)
+        .setUnits(UNITS_PERCENTAGE).setConstraints(new ValueConstraint.Min(0), new ValueConstraint.Max(100));
+
     public static final AttributeDescriptor<Double> ENERGY_AVAILABLE = new AttributeDescriptor<>("energyAvailable", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_CAPACITY_REMAINING = new AttributeDescriptor<>("energyCapacityRemaining", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_IMPORT = new AttributeDescriptor<>("energyTotalImport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL_EXPORT = new AttributeDescriptor<>("energyTotalExport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
-    public static final AttributeDescriptor<Double> POWER_CAPACITY_IMPORT = new AttributeDescriptor<>("powerCapacityImport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
-    public static final AttributeDescriptor<Double> POWER_CAPACITY_EXPORT = new AttributeDescriptor<>("powerCapacityExport", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
+    public static final AttributeDescriptor<Double> POWER_CAPACITY_IMPORT = new AttributeDescriptor<>("powerCapacityImport", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
+    public static final AttributeDescriptor<Double> POWER_CAPACITY_EXPORT = new AttributeDescriptor<>("powerCapacityExport", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Double> POWER_TOTAL = new AttributeDescriptor<>("powerTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
-    public static final AttributeDescriptor<Double> POWER_SETPOINT = new AttributeDescriptor<>("powerSetpoint", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT);
+    public static final AttributeDescriptor<Double> POWER_SETPOINT = new AttributeDescriptor<>("powerSetpoint", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Integer> CHARGE_CYCLES = new AttributeDescriptor<>("chargeCycles", ValueType.POSITIVE_INTEGER,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Double> FINANCIAL_WALLET = new AttributeDescriptor<>("financialWallet", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CURRENCY_EUR)
-    );
+    public static final AttributeDescriptor<Double> FINANCIAL_WALLET = new AttributeDescriptor<>("financialWallet", ValueType.POSITIVE_NUMBER).setUnits("EUR");
     public static final AttributeDescriptor<Integer> CARBON_WALLET = new AttributeDescriptor<>("carbonWallet", ValueType.POSITIVE_INTEGER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_MASS_KILOGRAM),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_GRAM);
 
     public static final AssetDescriptor<ElectricityStorageAsset> DESCRIPTOR = new AssetDescriptor<>("battery-charging", "1B7C89", ElectricityStorageAsset.class);
 

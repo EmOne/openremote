@@ -23,6 +23,7 @@ import org.openremote.agent.protocol.http.HttpClientAgent;
 import org.openremote.agent.protocol.simulator.SimulatorAgent;
 import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.setup.AbstractManagerSetup;
+import org.openremote.model.Constants;
 import org.openremote.model.Container;
 import org.openremote.model.apps.ConsoleAppConfig;
 import org.openremote.model.asset.Asset;
@@ -35,6 +36,7 @@ import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.security.Tenant;
 import org.openremote.model.simulator.SimulatorReplayDatapoint;
 import org.openremote.model.value.JsonPathFilter;
+import org.openremote.model.value.ValueConstraint;
 import org.openremote.model.value.ValueFilter;
 
 import java.time.Duration;
@@ -43,7 +45,6 @@ import java.util.Collections;
 import java.util.Random;
 
 import static java.time.temporal.ChronoField.SECOND_OF_DAY;
-import static org.openremote.model.Constants.UNITS_POWER_KILOWATT;
 import static org.openremote.model.value.MetaItemType.ATTRIBUTE_LINKS;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
@@ -108,13 +109,13 @@ public class ManagerDemoSetup extends AbstractManagerSetup {
                 new Attribute<>("totalPowerProducers", NUMBER)
                     .addOrReplaceMeta(
                         new MetaItem<>(LABEL, "Combined power of all producers"),
-                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, Constants.units(Constants.UNITS_KILO, Constants.UNITS_WATT)),
                         new MetaItem<>(STORE_DATA_POINTS, true),
                         new MetaItem<>(READ_ONLY, true),
                         new MetaItem<>(RULE_STATE, true)),
                 new Attribute<>("totalPowerConsumers", NUMBER).addOrReplaceMeta(
                         new MetaItem<>(LABEL, "Combined power use of all consumers"),
-                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, Constants.units(Constants.UNITS_KILO, Constants.UNITS_WATT)),
                         new MetaItem<>(STORE_DATA_POINTS, true),
                         new MetaItem<>(RULE_STATE, true),
                         new MetaItem<>(READ_ONLY, true))
@@ -134,7 +135,7 @@ public class ManagerDemoSetup extends AbstractManagerSetup {
                 new Attribute<>(Asset.LOCATION, new GeoJSONPoint(4.488324, 51.906577)),
                 new Attribute<>("powerBalance", NUMBER).addMeta(
                         new MetaItem<>(LABEL, "Balance of power production and use"),
-                        new MetaItem<>(UNITS, UNITS_POWER_KILOWATT),
+                        new MetaItem<>(UNITS, Constants.units(Constants.UNITS_KILO, Constants.UNITS_WATT)),
                         new MetaItem<>(STORE_DATA_POINTS),
                         new MetaItem<>(RULE_STATE),
                         new MetaItem<>(READ_ONLY))
@@ -922,9 +923,11 @@ public class ManagerDemoSetup extends AbstractManagerSetup {
         GroupAsset parkingGroupAsset = new GroupAsset("Parking group", ParkingAsset.DESCRIPTOR);
         parkingGroupAsset.setParent(mobilityAndSafety);
         parkingGroupAsset.getAttributes().addOrReplace(
-                new Attribute<>("totalOccupancy", PERCENTAGE_INTEGER_0_100)
+                new Attribute<>("totalOccupancy", POSITIVE_INTEGER)
                         .addMeta(
                                 new MetaItem<>(LABEL, "Percentage of total parking spaces in use"),
+                                new MetaItem<>(UNITS, Constants.units(Constants.UNITS_PERCENTAGE)),
+                                new MetaItem<>(CONSTRAINTS, ValueConstraint.constraints(new ValueConstraint.Min(0), new ValueConstraint.Max(100))),
                                 new MetaItem<>(RULE_STATE),
                                 new MetaItem<>(READ_ONLY),
                                 new MetaItem<>(STORE_DATA_POINTS)));

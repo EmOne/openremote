@@ -16,6 +16,8 @@
 
 package org.openremote.model.util;
 
+import org.openremote.model.Constants;
+
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -32,9 +34,8 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
  */
 public class TimeUtil {
 
-    public static final String DURATION_REGEXP = "([+-])?((\\d+)[Dd])?\\s*((\\d+)[Hh])?\\s*((\\d+)[Mm]$)?\\s*((\\d+)[Ss])?\\s*((\\d+)([Mm][Ss]$))?\\s*((\\d+)[Ww])?\\s*((\\d+)[Mm][Nn])?\\s*((\\d+)[Yy])?";
     // Simple syntax
-    protected static final Pattern SIMPLE = Pattern.compile(DURATION_REGEXP);
+    protected static final Pattern SIMPLE = Pattern.compile(Constants.DURATION_REGEXP);
 
     private static final int SIM_SGN = 1;
     private static final int SIM_DAY = 3;

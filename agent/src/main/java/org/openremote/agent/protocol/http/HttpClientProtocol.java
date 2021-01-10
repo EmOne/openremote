@@ -53,7 +53,6 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -371,7 +370,7 @@ public class HttpClientProtocol extends AbstractProtocol<HttpClientAgent, HttpCl
 
         if (!TextUtil.isNullOrEmpty(pollingAttribute)) {
             synchronized (pollingLinkedAttributeMap) {
-                AttributeRef pollingSourceRef = new AttributeRef(attributeRef.getAssetId(), pollingAttribute);
+                AttributeRef pollingSourceRef = new AttributeRef(attributeRef.getId(), pollingAttribute);
                 pollingLinkedAttributeMap.compute(pollingSourceRef, (ref, links) -> {
                     if (links == null) {
                         links = new HashSet<>();

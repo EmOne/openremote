@@ -19,24 +19,25 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
+import org.openremote.model.value.ValueConstraint;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
 
+import static org.openremote.model.Constants.*;
+
 @Entity
 public class WeatherAsset extends Asset<WeatherAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CELSIUS),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_CELSIUS);
     public static final AttributeDescriptor<Integer> UV_INDEX = new AttributeDescriptor<>("uVIndex", ValueType.POSITIVE_INTEGER,
         new MetaItem<>(MetaItemType.LABEL, "UV index"),
         new MetaItem<>(MetaItemType.READ_ONLY)
@@ -54,19 +55,17 @@ public class WeatherAsset extends Asset<WeatherAsset> {
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> WIND_SPEED = new AttributeDescriptor<>("windSpeed", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_SPEED_KILOMETERS_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_METRE, UNITS_PER, UNITS_HOUR);
     public static final AttributeDescriptor<Integer> WIND_DIRECTION = new AttributeDescriptor<>("windDirection", ValueType.DIRECTION,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
     public static final AttributeDescriptor<Double> RAINFALL = new AttributeDescriptor<>("rainfall", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_LENGTH_MILLIMETRE),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
-    public static final AttributeDescriptor<Integer> HUMIDITY = new AttributeDescriptor<>("humidity", ValueType.PERCENTAGE_INTEGER_0_100,
+    ).setUnits(UNITS_MILLI, UNITS_METRE);
+    public static final AttributeDescriptor<Integer> HUMIDITY = new AttributeDescriptor<>("humidity", ValueType.POSITIVE_INTEGER,
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_PERCENTAGE).setConstraints(new ValueConstraint.Min(0), new ValueConstraint.Max(100));
 
     public static final AssetDescriptor<WeatherAsset> DESCRIPTOR = new AssetDescriptor<>("weather-partly-cloudy", "49B0D8", WeatherAsset.class);
 

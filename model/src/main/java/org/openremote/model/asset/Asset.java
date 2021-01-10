@@ -249,8 +249,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     @TsIgnore
     public interface AssetSave {}
 
-    public static final String ASSET_ID_REGEX = "^[0-9A-Za-z]{22}$";
-
     /*
      * ATTRIBUTE DESCRIPTORS DESCRIBING FIXED NAME ATTRIBUTES AND THEIR VALUE TYPE - ALL SUB TYPES OF THIS ASSET TYPE
      * WILL INHERIT THESE DESCRIPTORS ALSO; IT IS REQUIRED THAT EACH DESCRIPTOR HAS CORRESPONDING GETTER WITH OPTIONAL
@@ -268,7 +266,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
 
     @Id
     @Column(name = "ID", length = 22, columnDefinition = "char(22)")
-    @Pattern(regexp = ASSET_ID_REGEX, message = "{Asset.id.Pattern}")
+    @Pattern(regexp = Constants.ASSET_ID_REGEXP, message = "{Asset.id.Pattern}")
     @GeneratedValue(generator = PERSISTENCE_UNIQUE_ID_GENERATOR)
     protected String id;
 
@@ -291,7 +289,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     protected boolean accessPublicRead;
 
     @Column(name = "PARENT_ID", length = 22, columnDefinition = "char(22)")
-    @Pattern(regexp = ASSET_ID_REGEX, message = "{Asset.parentId.Pattern}")
+    @Pattern(regexp = Constants.ASSET_ID_REGEXP, message = "{Asset.parentId.Pattern}")
     protected String parentId;
 
     @NotBlank(message = "{Asset.realm.NotBlank}")

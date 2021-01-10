@@ -121,7 +121,7 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
     }
 
     public String getAssetId() {
-        return getAttributeRef().getAssetId();
+        return getAttributeRef().getId();
     }
 
     public String getRealm() {
@@ -145,11 +145,11 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
 
     @Override
     public String[] getAttributeNames() {
-        return new String[]{getAttributeRef().getAttributeName()};
+        return new String[]{getAttributeRef().getName()};
     }
 
     public String getAttributeName() {
-        return getAttributeRef().getAttributeName();
+        return getAttributeRef().getName();
     }
 
     public <T> Optional<T> getValue() {

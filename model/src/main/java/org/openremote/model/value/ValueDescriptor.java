@@ -19,57 +19,32 @@
  */
 package org.openremote.model.value;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.util.AssetModelUtil;
-import org.openremote.model.util.TsIgnore;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * A simple wrapper around a {@link Class} that describes a value that can be used by {@link Attribute}s and
- * {@link MetaItem}s; it also conveniently stores {@link MetaItem}s that should be added to new {@link Attribute}
- * instances that use the {@link ValueDescriptor} (useful for adding default units information etc.).
+ * {@link MetaItem}s; it can also store {@link ValueConstraint} and {@link ValueFormat} information.
  * <p>
  * The {@link ValueDescriptor} applies to the {@link Asset} type it is associated with and all subtypes of this type (i.e. a
  * {@link ValueDescriptor} associated with the base {@link Asset} type will be available to all {@link  Asset} types (e.g.
  * {@link ValueType#NUMBER} can be applied to any {@link org.openremote.model.asset.Asset}'s {@link Attribute} and/or
  * {@link MetaItemDescriptor}).
  * <p>
- * {@link ValueDescriptor}s for arrays don't need to be explicitly defined but can be obtained at the point of comsumpution
+ * {@link ValueDescriptor}s for arrays don't need to be explicitly defined but can be obtained at the point of consumption
  * by simply calling {@link ValueDescriptor#asArray}.
  * <p>
  * {@link ValueDescriptor#getName} must be globally unique within the context of the manager it is registered with.
  */
-@JsonDeserialize(using = ValueDescriptor.ValueDescriptorDeserialiser.class)
-public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable {
-
-    /**
-     * A class that represents an array {@link ValueDescriptor} which avoids the need to explicitly define
-     * {@link ValueDescriptor}s for every value type in array form (e.g. string and string[])
-     */
-    @TsIgnore
-    static class ValueArrayDescriptor<T> extends ValueDescriptor<T> {
-        public ValueArrayDescriptor(String name, Class<T> type, MetaMap meta) {
-            super(name, type, meta);
-            isArray = true;
-        }
-    }
+//@JsonDeserialize(using = ValueDescriptor.ValueDescriptorDeserialiser.class)
+public class ValueDescriptor<T> implements NameHolder, Serializable {
 
     /**
      * This class handles serialising {@link ValueDescriptor}s as strings
@@ -100,102 +75,107 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     public static class ValueTypeStringConverter extends StdConverter<Class<?>, String> {
 
         @Override
-        public String convert(Class<?> value) {
-            if (Values.isBoolean(value)) {
+        public String convert(Class<?> clazz) {
+            if (Values.isBoolean(clazz)) {
                 return "boolean";
             }
-            if (Values.isNumber(value)) {
+            if (Values.isNumber(clazz)) {
                 return "number";
             }
-            if (Values.isString(value) || value.isEnum()) {
+            if (Values.isString(clazz) || clazz.isEnum()) {
                 return "string";
             }
-            if (Values.isArray(value)) {
+            if (Values.isArray(clazz)) {
                 return "array";
             }
-            if (value == Object.class) {
+            if (Date.class.isAssignableFrom(clazz)) {
+                return "date";
+            }
+            if (clazz == Object.class) {
                 return "unknown";
             }
             return "object";
         }
     }
 
-    public static class ValueDescriptorDeserialiser extends StdDeserializer<ValueDescriptor<?>> {
-
-        public ValueDescriptorDeserialiser() {
-            super(ValueDescriptor.class);
-        }
-
-        @Override
-        public ValueDescriptor<?> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
-
-            String name;
-            String type;
-            MetaMap meta = null;
-            JsonNode node = p.getCodec().readTree(p);
-
-            if (!node.isObject()) {
-                throw MismatchedInputException.from(p, ValueDescriptor.class, "Expected object but got: " + node.getNodeType());
-            }
-
-            name = node.get("name").asText();
-            type = node.get("type").asText();
-            if (node.has("meta")) {
-                JsonParser metaParser = node.get("meta").traverse(p.getCodec());
-                metaParser.nextToken();
-                meta = ctxt.readValue(metaParser, MetaMap.class);
-            }
-
-            // Look for an existing value descriptor with this name
-            MetaMap finalMeta = meta;
-            return AssetModelUtil.getValueDescriptor(name).orElseGet(() -> {
-                Class<?> typeClass = ValueType.JSON_OBJECT.type;
-                boolean isArray = name.endsWith("[]");
-
-                switch (type) {
-                    case "boolean":
-                        typeClass = ValueType.BOOLEAN.type;
-                        break;
-                    case "number":
-                        typeClass = ValueType.NUMBER.type;
-                        break;
-                    case "string":
-                        typeClass = ValueType.STRING.type;
-                        break;
-                    case "array":
-                        typeClass = Object[].class;
-                        break;
-                }
-
-                ValueDescriptor<?> valueDescriptor = new ValueDescriptor<>(name, typeClass, finalMeta);
-                return isArray ? valueDescriptor.asArray() : valueDescriptor;
-            });
-        }
-    }
+//    public static class ValueDescriptorDeserialiser extends StdDeserializer<ValueDescriptor<?>> {
+//
+//        public ValueDescriptorDeserialiser() {
+//            super(ValueDescriptor.class);
+//        }
+//
+//        @Override
+//        public ValueDescriptor<?> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+//
+//            String name;
+//            String type;
+//            MetaMap meta = null;
+//            JsonNode node = p.getCodec().readTree(p);
+//
+//            if (!node.isObject()) {
+//                throw MismatchedInputException.from(p, ValueDescriptor.class, "Expected object but got: " + node.getNodeType());
+//            }
+//
+//            name = node.get("name").asText();
+//            type = node.get("type").asText();
+//            if (node.has("meta")) {
+//                JsonParser metaParser = node.get("meta").traverse(p.getCodec());
+//                metaParser.nextToken();
+//                meta = ctxt.readValue(metaParser, MetaMap.class);
+//            }
+//
+//            // Look for an existing value descriptor with this name
+//            MetaMap finalMeta = meta;
+//            return AssetModelUtil.getValueDescriptor(name).orElseGet(() -> {
+//                Class<?> typeClass = ValueType.JSON_OBJECT.type;
+//                boolean isArray = name.endsWith("[]");
+//
+//                switch (type) {
+//                    case "boolean":
+//                        typeClass = ValueType.BOOLEAN.type;
+//                        break;
+//                    case "number":
+//                        typeClass = ValueType.NUMBER.type;
+//                        break;
+//                    case "string":
+//                        typeClass = ValueType.STRING.type;
+//                        break;
+//                    case "array":
+//                        typeClass = Object[].class;
+//                        break;
+//                }
+//
+//                ValueDescriptor<?> valueDescriptor = new ValueDescriptor<>(name, typeClass, finalMeta);
+//                return isArray ? valueDescriptor.asArray() : valueDescriptor;
+//            });
+//        }
+//    }
 
     public static final ValueDescriptor<Object> UNKNOWN = new ValueDescriptor<>("Unknown", Object.class);
     protected String name;
     @JsonSerialize(converter = ValueDescriptor.ValueTypeStringConverter.class)
     protected Class<T> type;
-    protected MetaMap meta;
-    protected Boolean isArray;
+    protected Integer arrayDimensions;
+    protected ValueConstraint[] constraints;
+    protected ValueFormat format;
+    protected String[] units;
 
-    public ValueDescriptor(String name, Class<T> type) {
-        this(name, type, (MetaMap)null);
-    }
-
-    public ValueDescriptor(String name, Class<T> type, MetaItem<?>...meta) {
-        this(name, type, new MetaMap(Arrays.asList(meta)));
-    }
-
-    public ValueDescriptor(String name, Class<T> type, Collection<MetaItem<?>> meta) {
-        this(name, type, new MetaMap(meta));
-    }
-
-    public ValueDescriptor(String name, Class<T> type, MetaMap meta) {
+    public ValueDescriptor(String name, Class<T> type, ValueConstraint...constraints) {
+        if (type.isArray()) {
+            throw new IllegalArgumentException("Value descriptor type should be the inner array type");
+        }
         this.name = name;
         this.type = type;
-        this.meta = meta;
+        this.constraints = constraints;
+    }
+
+    protected ValueDescriptor(String name, Class<T> type, ValueConstraint[] constraints, ValueFormat format, String[] units, Integer arrayDimensions) {
+        this.name = name;
+        this.type = type;
+        this.arrayDimensions = arrayDimensions;
+        this.constraints = constraints;
+        this.format = format;
+        this.units = units;
     }
 
     public String getName() {
@@ -206,17 +186,20 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
         return type;
     }
 
-    @Override
-    public MetaMap getMeta() {
-        return meta;
+    public ValueDescriptor<T> withFormat(ValueFormat format) {
+        return new ValueDescriptor<>(name, type, constraints, format, units, arrayDimensions);
+    }
+
+    public ValueDescriptor<T> withConstraints(ValueConstraint...constraints) {
+        return new ValueDescriptor<>(name, type, constraints, format, units, arrayDimensions);
+    }
+
+    public ValueDescriptor<T> withUnits(String...units) {
+        return new ValueDescriptor<>(name, type, constraints, format, units, arrayDimensions);
     }
 
     public boolean isArray() {
-        return this instanceof ValueArrayDescriptor;
-    }
-
-    public ValueDescriptor<?> asNonArray() {
-        return isArray() ? new ValueDescriptor<>(name.substring(0, name.length()-2), type.getComponentType(), meta) : this;
+        return arrayDimensions != null && arrayDimensions > 0;
     }
 
     @Override
@@ -236,13 +219,15 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
     }
 
     /**
-     * Returns an instance of this {@link ValueDescriptor} where the value type is an array of the current value type
+     * Returns an instance of this {@link ValueDescriptor} where the {@link #arrayDimensions} are incremented by one
+     * and the type becomes an array type of the original type (e.g. String -> String[] -> String[][]); any provided
+     * constraints are combined with those inherited from base descriptor.
      */
     @SuppressWarnings("unchecked")
-    public ValueArrayDescriptor<T[]> asArray() {
+    public ValueDescriptor<T[]> asArray() {
         try {
             Class<T[]> arrayClass = (Class<T[]>) Values.getArrayClass(type);
-            return new ValueArrayDescriptor<>(name + "[]", arrayClass, meta);
+            return  new ValueDescriptor<>(name + "[]", arrayClass, constraints, format, units, arrayDimensions == null ? 1 : arrayDimensions+1);
         } catch (ClassNotFoundException ignored) {
             // Can't happen as we have the source class already
         }
@@ -250,18 +235,11 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
         return null;
     }
 
-    public ValueDescriptor<T> addOrReplaceMeta(MetaItem<?>...meta) {
-        return addOrReplaceMeta(Arrays.asList(meta));
-    }
-
-    public ValueDescriptor<T> addOrReplaceMeta(Collection<MetaItem<?>> meta) {
-        MetaMap metaMap = new MetaMap(this.meta);
-        metaMap.addOrReplace(meta);
-        return new ValueDescriptor<>(name, type, metaMap);
-    }
-
-    public ValueDescriptor<T> addOrReplaceMeta(MetaMap meta) {
-        return addOrReplaceMeta(meta.values());
+    public ValueDescriptor<?> asNonArray() {
+        if (arrayDimensions == null || arrayDimensions == 0) {
+            return this;
+        }
+        return new ValueDescriptor<>(name.replaceAll("\\[\\]", ""), type, constraints, format, units, null);
     }
 
     @Override
@@ -269,6 +247,10 @@ public class ValueDescriptor<T> implements NameHolder, MetaHolder, Serializable 
         return ValueDescriptor.class.getSimpleName() + "{" +
             "name='" + name + '\'' +
             ", type=" + type +
+            ", arrayDimensions=" + arrayDimensions +
+            ", constraints=" + Arrays.toString(constraints) +
+            ", format=" + format +
+            ", units=" + Arrays.toString(units) +
             '}';
     }
 }

@@ -27,8 +27,8 @@ import javax.persistence.Entity;
 @Entity
 public class VelbusTcpAgent extends VelbusAgent<VelbusTcpAgent, VelbusTcpProtocol> {
 
-    public static final AttributeDescriptor<String> VELBUS_HOST = HOST;
-    public static final AttributeDescriptor<Integer> VELBUS_PORT = PORT;
+    public static final AttributeDescriptor<String> VELBUS_HOST = HOST.setOptional(false);
+    public static final AttributeDescriptor<Integer> VELBUS_PORT = PORT.setOptional(false);
 
     public static final AgentDescriptor<VelbusTcpAgent, VelbusTcpProtocol, VelbusAgentLink> DESCRIPTOR = new AgentDescriptor<>(
         VelbusTcpAgent.class, VelbusTcpProtocol.class, VelbusAgentLink.class

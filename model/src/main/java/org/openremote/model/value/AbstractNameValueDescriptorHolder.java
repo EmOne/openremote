@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescriptorHolder<T>, NameHolder {
@@ -32,12 +33,16 @@ public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescr
     protected String name;
     @JsonIgnore
     protected ValueDescriptor<T> type;
+    protected ValueConstraint[] constraints;
+    protected ValueFormat format;
+    protected String[] units;
 
     AbstractNameValueDescriptorHolder() {}
 
-    public AbstractNameValueDescriptorHolder(String name, ValueDescriptor<T> type) {
+    public AbstractNameValueDescriptorHolder(String name, ValueDescriptor<T> type, ValueConstraint...constraints) {
         this.name = name;
         this.type = type;
+        this.constraints = constraints;
     }
 
     @JsonProperty
@@ -80,5 +85,14 @@ public abstract class AbstractNameValueDescriptorHolder<T> implements ValueDescr
         if (obj == null || getClass() != obj.getClass()) return false;
         AbstractNameValueDescriptorHolder<?> that = (AbstractNameValueDescriptorHolder<?>)obj;
         return Objects.equals(name, that.name);
+    }
+
+    @Override
+    public String toString() {
+        return "name='" + name + '\'' +
+            ", type=" + type +
+            ", constraints=" + Arrays.toString(constraints) +
+            ", format=" + format +
+            ", units=" + Arrays.toString(units);
     }
 }

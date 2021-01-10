@@ -67,7 +67,7 @@ public abstract class Datapoint implements Serializable {
     }
 
     public Datapoint(AttributeRef attributeRef, Object value, long timestamp) {
-        this(attributeRef.getAssetId(), attributeRef.getAttributeName(), value, timestamp);
+        this(attributeRef.getId(), attributeRef.getName(), value, timestamp);
     }
 
     public Datapoint(String assetId, String attributeName, Object value, long timestamp) {

@@ -102,8 +102,8 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
 
             if (attributeRef != null) {
                 query
-                    .setParameter("assetId", attributeRef.getAssetId())
-                    .setParameter("attributeName", attributeRef.getAttributeName());
+                    .setParameter("assetId", attributeRef.getId())
+                    .setParameter("attributeName", attributeRef.getName());
             }
 
             return query.getSingleResult();
@@ -115,8 +115,8 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
                                                String interval,
                                                long fromTimestamp,
                                                long toTimestamp) {
-        String assetId = attributeRef.getAssetId();
-        String attributeName = attributeRef.getAttributeName();
+        String assetId = attributeRef.getId();
+        String attributeName = attributeRef.getName();
 
         Asset<?> asset = assetStorageService.find(assetId);
         if (asset == null) {
@@ -257,7 +257,7 @@ public class AssetPredictedDatapointService implements ContainerService, Protoco
     }
 
     public void updateValue(AttributeRef attributeRef, Object value, long timestamp) {
-        persistenceService.doTransaction(em -> upsertValue(em, attributeRef.getAssetId(), attributeRef.getAttributeName(), value, timestamp));
+        persistenceService.doTransaction(em -> upsertValue(em, attributeRef.getId(), attributeRef.getName(), value, timestamp));
     }
 
     public void updateValue(String assetId, String attributeName, Object value, long timestamp) {

@@ -20,39 +20,35 @@
 package org.openremote.model.value.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.awt.*;
 import java.io.Serializable;
 import java.util.Objects;
 
-@JsonFormat(shape = JsonFormat.Shape.ARRAY)
-@JsonPropertyOrder({"red", "green", "blue"})
 public class ColourRGB implements Serializable {
 
-    protected int red;
-    protected int green;
-    protected int blue;
+    protected int r;
+    protected int g;
+    protected int b;
 
     @JsonCreator
-    public ColourRGB(@JsonProperty("red") int red, @JsonProperty("green") int green, @JsonProperty("blue") int blue) {
-        this.red = red;
-        this.green = green;
-        this.blue = blue;
+    public ColourRGB(@JsonProperty("r") int r, @JsonProperty("g") int g, @JsonProperty("b") int b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
     }
 
-    public int getRed() {
-        return red;
+    public int getR() {
+        return r;
     }
 
-    public int getGreen() {
-        return green;
+    public int getG() {
+        return g;
     }
 
-    public int getBlue() {
-        return blue;
+    public int getB() {
+        return b;
     }
 
     @Override
@@ -62,22 +58,22 @@ public class ColourRGB implements Serializable {
 
         ColourRGB other = (ColourRGB) o;
 
-        if (red != other.red) return false;
-        if (green != other.green) return false;
-        return blue == other.blue;
+        if (r != other.r) return false;
+        if (g != other.g) return false;
+        return b == other.b;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(red, green, blue);
+        return Objects.hash(r, g, b);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "red=" + red +
-            ", green=" + green +
-            ", blue=" + blue +
+            "r=" + r +
+            ", g=" + g +
+            ", b=" + b +
             '}';
     }
 

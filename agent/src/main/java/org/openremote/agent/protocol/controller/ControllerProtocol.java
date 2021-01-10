@@ -265,7 +265,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
 
     private void executeInitialStatus(AttributeRef attributeRef, String deviceName, String sensorName, Consumer<Response> responseConsumer) {
         withLock(getProtocolName() + "::executeInitialStatus::" + attributeRef, () -> {
-            LOG.info("### Initial status check for " + attributeRef.getAttributeName() + " [" + deviceName + "," + sensorName + "] ...");
+            LOG.info("### Initial status check for " + attributeRef.getName() + " [" + deviceName + "," + sensorName + "] ...");
 
             HttpClientProtocol.HttpClientRequest checkRequest = RequestBuilder.buildStatusRequest(deviceName, Arrays.asList(sensorName), controllerWebTarget);
 
@@ -275,7 +275,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
                 response = checkRequest.invoke(null);
                 responseConsumer.accept(response);
             } catch (ProcessingException e) {
-                LOG.log(Level.SEVERE, "### Initial status for " + attributeRef.getAttributeName() + " [" + deviceName + "," + sensorName + "] doesn't succeed", e);
+                LOG.log(Level.SEVERE, "### Initial status for " + attributeRef.getName() + " [" + deviceName + "," + sensorName + "] doesn't succeed", e);
             } finally {
                 if (response != null) {
                     response.close();
@@ -306,7 +306,7 @@ public class ControllerProtocol extends AbstractProtocol<ControllerAgent, Contro
                 LOG.severe("### Status code for initial status received error : " + response.getStatus() + " --> " + response.getStatusInfo().getReasonPhrase());
             }
         } else {
-            LOG.warning("### Initial status check return a null value for " + attributeRef.getAttributeName() + " [" + deviceName + "," + sensorName + "]");
+            LOG.warning("### Initial status check return a null value for " + attributeRef.getName() + " [" + deviceName + "," + sensorName + "]");
         }
 
         if (!this.initStatusDone.get(attributeRef)) {

@@ -156,7 +156,7 @@ public class KNXProtocol extends AbstractProtocol<KNXAgent, KNXAgent.KNXAgentLin
 
     protected void addActionDatapoint(AttributeRef attributeRef, String groupAddress, String dpt) throws KNXFormatException {
         synchronized (attributeActionMap) {
-            Datapoint datapoint = new CommandDP(new GroupAddress(groupAddress), attributeRef.getAttributeName());
+            Datapoint datapoint = new CommandDP(new GroupAddress(groupAddress), attributeRef.getName());
             datapoint.setDPT(0, dpt);
 
             attributeActionMap.put(attributeRef, datapoint);
@@ -172,7 +172,7 @@ public class KNXProtocol extends AbstractProtocol<KNXAgent, KNXAgent.KNXAgentLin
 
     protected void addStatusDatapoint(AttributeRef attributeRef, String groupAddress, String dpt) throws KNXFormatException {
         synchronized (attributeStatusMap) {
-            StateDP datapoint = new StateDP(new GroupAddress(groupAddress), attributeRef.getAttributeName(), 0, dpt);
+            StateDP datapoint = new StateDP(new GroupAddress(groupAddress), attributeRef.getName(), 0, dpt);
             connection.addDatapointValueConsumer(datapoint, value -> handleKNXValueChange(attributeRef, value));
            
             attributeStatusMap.put(attributeRef, datapoint);

@@ -152,7 +152,7 @@ public class EventInterceptHandler extends AbstractInterceptHandler {
             if (attributeRef == null) { //attribute specific
                 connection.assetSubscriptions.put(assetId, subscription.getSubscriptionId());
             } else {
-                attributeAssetFilter.setAttributeNames(attributeRef.getAttributeName());
+                attributeAssetFilter.setAttributeNames(attributeRef.getName());
                 if (isValueSubscription) {
                     connection.assetAttributeValueSubscriptions.put(attributeRef, subscription.getSubscriptionId());
                 } else {
@@ -230,7 +230,7 @@ public class EventInterceptHandler extends AbstractInterceptHandler {
                 }
 
                 Map<String, Object> headers = prepareHeaders(connection);
-                AttributeEvent attributeEvent = new AttributeEvent(assetId, attributeRef.getAttributeName(), value);
+                AttributeEvent attributeEvent = new AttributeEvent(assetId, attributeRef.getName(), value);
                 messageBrokerService.getProducerTemplate().sendBodyAndHeaders(ClientEventService.CLIENT_EVENT_QUEUE, attributeEvent, headers);
             }
         }

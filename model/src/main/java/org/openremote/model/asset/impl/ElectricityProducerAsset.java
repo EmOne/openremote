@@ -23,13 +23,12 @@ import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
-import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemType;
-import org.openremote.model.value.ValueDescriptor;
-import org.openremote.model.value.ValueType;
+import org.openremote.model.value.*;
 
 import javax.persistence.Entity;
 import java.util.Optional;
+
+import static org.openremote.model.Constants.*;
 
 @Entity
 public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
@@ -44,22 +43,19 @@ public class ElectricityProducerAsset extends Asset<ElectricityProducerAsset> {
     public static final AttributeDescriptor<String> STATUS = new AttributeDescriptor<>("status", ValueType.STRING,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );
-    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT)
-    );
-    public static final AttributeDescriptor<Integer> EFFICIENCY = new AttributeDescriptor<>("efficiency", ValueType.PERCENTAGE_INTEGER_0_100);
+    public static final AttributeDescriptor<Double> POWER_CAPACITY = new AttributeDescriptor<>("powerCapacity", ValueType.POSITIVE_NUMBER)
+        .setUnits(UNITS_KILO, UNITS_WATT);
+    public static final AttributeDescriptor<Integer> EFFICIENCY = new AttributeDescriptor<>("efficiency", ValueType.POSITIVE_INTEGER)
+        .setUnits(UNITS_PERCENTAGE).setConstraints(new ValueConstraint.Min(0), new ValueConstraint.Max(100));
     public static final AttributeDescriptor<Double> POWER_TOTAL = new AttributeDescriptor<>("powerTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Double> POWER_FORECAST_DEVIATION = new AttributeDescriptor<>("powerForecastDeviation", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_POWER_KILOWATT),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT);
     public static final AttributeDescriptor<Double> ENERGY_TOTAL = new AttributeDescriptor<>("energyTotal", ValueType.POSITIVE_NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_ENERGY_KILOWATT_HOUR),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_KILO, UNITS_WATT, UNITS_HOUR);
     public static final AttributeDescriptor<PanelOrientation> PANEL_ORIENTATION = new AttributeDescriptor<>("panelOrientation", PANEL_ORIENTATION_VALUE);
 
     public static final AssetDescriptor<ElectricityProducerAsset> DESCRIPTOR = new AssetDescriptor<>("ev-station", "8A293D", ElectricityProducerAsset.class);

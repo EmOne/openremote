@@ -272,7 +272,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
             return;
         }
 
-        Pair<Boolean, Object> ignoreAndConverted = ProtocolUtil.doInboundValueProcessing(state.getAttributeRef().getAssetId(), attribute, agent.getAgentLink(attribute), state.getValue().orElse(null));
+        Pair<Boolean, Object> ignoreAndConverted = ProtocolUtil.doInboundValueProcessing(state.getAttributeRef().getId(), attribute, agent.getAgentLink(attribute), state.getValue().orElse(null));
 
         if (ignoreAndConverted.key) {
             LOG.fine("Value conversion returned ignore so attribute will not be updated: " + state.getAttributeRef());
@@ -288,7 +288,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
      * Update the value of one of this {@link Protocol}s linked {@link Agent}'s {@link Attribute}s.
      */
     final protected void updateAgentAttribute(final AttributeState state) {
-        if (!agent.getAttributes().has(state.getAttributeRef().getAttributeName()) || !agent.getId().equals(state.getAttributeRef().getAssetId())) {
+        if (!agent.getAttributes().has(state.getAttributeRef().getName()) || !agent.getId().equals(state.getAttributeRef().getId())) {
             LOG.warning("Attempt to update non existent agent attribute or agent ID is incorrect: " + state);
             return;
         }

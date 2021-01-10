@@ -21,29 +21,27 @@ package org.openremote.model.value.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.util.Objects;
 
-@JsonPropertyOrder({"red", "green", "blue", "amber", "white"})
 public class ColourRGBAW extends ColourRGB {
 
-    protected int amber;
-    protected int white;
+    protected int a;
+    protected int w;
 
     @JsonCreator
-    public ColourRGBAW(@JsonProperty("red") int red, @JsonProperty("green") int green, @JsonProperty("blue") int blue, @JsonProperty("amber") int amber, @JsonProperty("white") int white) {
-        super(red, green, blue);
-        this.amber = amber;
-        this.white = white;
+    public ColourRGBAW(@JsonProperty("r") int r, @JsonProperty("g") int g, @JsonProperty("b") int b, @JsonProperty("a") int a, @JsonProperty("w") int w) {
+        super(r, g, b);
+        this.a = a;
+        this.w = w;
     }
 
-    public int getAmber() {
-        return amber;
+    public int getA() {
+        return a;
     }
 
-    public int getWhite() {
-        return white;
+    public int getW() {
+        return w;
     }
 
     @Override
@@ -53,22 +51,22 @@ public class ColourRGBAW extends ColourRGB {
 
         ColourRGBAW other = (ColourRGBAW) o;
 
-        return super.equals(other) && amber == other.amber && white == other.white;
+        return super.equals(other) && a == other.a && w == other.w;
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode() + Objects.hash(amber, white);
+        return super.hashCode() + Objects.hash(a, w);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "red=" + red +
-            ", green=" + green +
-            ", blue=" + blue +
-            ", amber=" + amber +
-            ", white=" + white +
+            "r=" + r +
+            ", g=" + g +
+            ", b=" + b +
+            ", a=" + a +
+            ", w=" + w +
             '}';
     }
 }

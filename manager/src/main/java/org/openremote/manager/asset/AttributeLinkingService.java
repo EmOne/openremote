@@ -282,10 +282,10 @@ public class AttributeLinkingService implements ContainerService, AssetUpdatePro
         Asset<?> asset = assetStorageService.find(
             em,
             new AssetQuery()
-                .ids(attributeRef.getAssetId())
+                .ids(attributeRef.getId())
         );
 
-        Attribute<?> attribute = asset != null ? asset.getAttributes().get(attributeRef.getAttributeName()).orElse(null) : null;
+        Attribute<?> attribute = asset != null ? asset.getAttributes().get(attributeRef.getName()).orElse(null) : null;
 
         if (attribute == null) {
             LOG.warning("Attribute or asset could not be found: " + attributeRef);

@@ -40,6 +40,7 @@ import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.asset.impl.*;
 import org.openremote.model.attribute.*;
 import org.openremote.model.geo.GeoJSONPoint;
+import org.openremote.model.value.ValueFormat;
 import org.openremote.model.value.ValueType;
 
 import java.time.DayOfWeek;
@@ -50,7 +51,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.openremote.model.Constants.UNITS_CELSIUS;
+import static org.openremote.model.Constants.*;
 import static org.openremote.model.value.MetaItemType.*;
 import static org.openremote.model.value.ValueType.*;
 
@@ -85,7 +86,7 @@ public abstract class AbstractManagerSetup implements Setup {
         BuildingAsset apartment = new BuildingAsset(name);
 
         apartment.setParent(parent);
-        apartment.setAttributes(
+        apartment.addOrReplaceAttributes(
             new Attribute<>("alarmEnabled", BOOLEAN)
                 .addMeta(
                     new MetaItem<>(LABEL, "Alarm enabled"),
@@ -189,8 +190,9 @@ public abstract class AbstractManagerSetup implements Setup {
 
     protected void addDemoApartmentRoomCO2Sensor(RoomAsset room, boolean shouldBeLinked, Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
-            new Attribute<>("co2Level", POSITIVE_INTEGER.addOrReplaceMeta(new MetaItem<>(UNITS, Constants.UNITS_DENSITY_PARTS_MILLION)))
+            new Attribute<>("co2Level", POSITIVE_INTEGER)
                 .addMeta(
+                    new MetaItem<>(UNITS, Constants.units(UNITS_PART_PER_MILLION)),
                     new MetaItem<>(LABEL, "CO2 level"),
                     new MetaItem<>(RULE_STATE, true),
                     new MetaItem<>(RULE_EVENT, true),
@@ -198,7 +200,6 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
-                    new MetaItem<>(FORMAT, "%4d ppm"),
                     new MetaItem<>(STORE_DATA_POINTS)
                 ));
 
@@ -220,7 +221,7 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
-                    new MetaItem<>(FORMAT, "%3d %%"),
+                    new MetaItem<>(UNITS, Constants.units(UNITS_PERCENTAGE)),
                     new MetaItem<>(STORE_DATA_POINTS)
                 ));
 
@@ -235,14 +236,15 @@ public abstract class AbstractManagerSetup implements Setup {
                                                    boolean shouldBeLinked,
                                                    Supplier<AgentLink<?>> agentLinker) {
         room.getAttributes().addOrReplace(
-            new Attribute<>("currentTemperature", NUMBER.addOrReplaceMeta(new MetaItem<>(UNITS, UNITS_CELSIUS)))
+            new Attribute<>("currentTemperature", NUMBER)
                 .addMeta(
                     new MetaItem<>(LABEL, "Current temperature"),
                     new MetaItem<>(RULE_STATE, true),
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(READ_ONLY, true),
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
-                    new MetaItem<>(FORMAT, "%0.1f° C"),
+                    new MetaItem<>(UNITS, Constants.units(UNITS_CELSIUS)),
+                    new MetaItem<>(FORMAT, ValueFormat.EXACTLY_1_DECIMAL_PLACES),
                     new MetaItem<>(STORE_DATA_POINTS)
                 ));
 
@@ -264,8 +266,8 @@ public abstract class AbstractManagerSetup implements Setup {
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
                     new MetaItem<>(SHOW_ON_DASHBOARD, true),
-                    new MetaItem<>(UNITS, UNITS_CELSIUS),
-                    new MetaItem<>(FORMAT, "%0f° C"),
+                    new MetaItem<>(UNITS, Constants.units(UNITS_CELSIUS)),
+                    new MetaItem<>(FORMAT, ValueFormat.EXACTLY_1_DECIMAL_PLACES),
                     new MetaItem<>(STORE_DATA_POINTS)
                 ));
 
@@ -309,14 +311,14 @@ public abstract class AbstractManagerSetup implements Setup {
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator earliest start time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
-                    new MetaItem<>(UNITS, "SECONDS"),
+                    new MetaItem<>(UNITS, Constants.units(UNITS_SECOND)),
                     new MetaItem<>(RULE_STATE, true)),
             // StopTime
             new Attribute<>("smartSwitchStopTime" + switchName, TIMESTAMP)
                 .addMeta(
                     new MetaItem<>(LABEL, "Smart Switch actuator latest stop time " + switchName),
                     new MetaItem<>(READ_ONLY, true),
-                    new MetaItem<>(UNITS, "SECONDS"),
+                    new MetaItem<>(UNITS, Constants.units(UNITS_SECOND)),
                     new MetaItem<>(RULE_STATE, true)),
             // Enabled
             new Attribute<>("smartSwitchEnabled" + switchName, NUMBER)
@@ -349,13 +351,12 @@ public abstract class AbstractManagerSetup implements Setup {
                                                boolean shouldBeLinked,
                                                Supplier<AgentLink<?>> agentLinker) {
         apartment.getAttributes().addOrReplace(
-            new Attribute<>("ventilationLevel", NUMBER)
+            new Attribute<>("ventilationLevel", POSITIVE_INTEGER)
                 .addMeta(
                     new MetaItem<>(LABEL, "Ventilation level"),
                     new MetaItem<>(RULE_STATE, true),
                     new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                     new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                    new MetaItem<>(FORMAT, "%d"),
                     new MetaItem<>(STORE_DATA_POINTS)),
             new Attribute<>("ventilationAuto", BOOLEAN)
                 .addMeta(

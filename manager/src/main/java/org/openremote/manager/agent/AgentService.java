@@ -447,7 +447,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             }
 
             Map<String, List<Attribute<?>>> groupedAttributes = protocol.getLinkedAttributes().entrySet().stream().collect(
-                Collectors.groupingBy(entry -> entry.getKey().getAssetId(), mapping(Map.Entry::getValue, toList()))
+                Collectors.groupingBy(entry -> entry.getKey().getId(), mapping(Map.Entry::getValue, toList()))
             );
 
             groupedAttributes.forEach((assetId, linkedAttributes) -> unlinkAttributes(agent, assetId, linkedAttributes));

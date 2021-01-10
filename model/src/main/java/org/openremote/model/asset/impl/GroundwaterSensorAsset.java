@@ -19,7 +19,6 @@
  */
 package org.openremote.model.asset.impl;
 
-import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.MetaItem;
@@ -30,13 +29,14 @@ import org.openremote.model.value.ValueType;
 import javax.persistence.Entity;
 import java.util.Optional;
 
+import static org.openremote.model.Constants.UNITS_CELSIUS;
+
 @Entity
 public class GroundwaterSensorAsset extends Asset<GroundwaterSensorAsset> {
 
     public static final AttributeDescriptor<Double> TEMPERATURE = new AttributeDescriptor<>("temperature", ValueType.NUMBER,
-        new MetaItem<>(MetaItemType.UNITS, Constants.UNITS_CELSIUS),
         new MetaItem<>(MetaItemType.READ_ONLY)
-    );
+    ).setUnits(UNITS_CELSIUS);
     public static final AttributeDescriptor<Integer> WATER_LEVEL = new AttributeDescriptor<>("waterLevel", ValueType.POSITIVE_INTEGER,
         new MetaItem<>(MetaItemType.READ_ONLY)
     );

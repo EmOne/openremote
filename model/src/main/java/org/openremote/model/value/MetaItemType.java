@@ -21,13 +21,16 @@ package org.openremote.model.value;
 
 import org.openremote.model.asset.UserAsset;
 import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeLink;
+import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.rules.AssetState;
 import org.openremote.model.rules.TemporaryFact;
 import org.openremote.model.util.TsIgnore;
 
 import javax.validation.constraints.Pattern;
+import java.util.Date;
 
 @TsIgnore
 @SuppressWarnings("rawtypes")
@@ -145,17 +148,24 @@ public final class MetaItemType {
     public static final MetaItemDescriptor<String> LABEL = new MetaItemDescriptor<>("label", ValueType.STRING);
 
     /**
-     * Format string that can be used to render the attribute value, see https://github.com/alexei/sprintf.js.
+     * {@link ValueFormat} to be applied when converting the associated {@link Attribute} to string representation.
      */
-    public static final MetaItemDescriptor<String> FORMAT = new MetaItemDescriptor<>("format", ValueType.STRING);
+    public static final MetaItemDescriptor<ValueFormat> FORMAT = new MetaItemDescriptor<>("format", ValueType.VALUE_FORMAT);
 
     /**
-     * Indicates the units associated with the value, there's some special handling for {@link Boolean} values but
-     * otherwise the value type should be numeric. For numeric
-     * For e.g. if the value represents currency and it's in euro's then the unit type would be EUR.
-     * For e.g. if the value represents distance and it's in kilometers then the unit type would be KM.
+     * Indicates the units associated with the value, there's some special handling for {@link Boolean} and {@link Date}
+     * values but otherwise the value type should be numeric. Units are intended for UI usage and should support
+     * internationalisation, custom unit types can be composed e.g. ["kilo", "metre", "per", "hour"] => "km/h" see
+     * {@link org.openremote.model.Constants} for well known units that UIs should support as a minimum. Currencies get
+     * special handling and should be represented using the upper case 3 letter currency code as defined in ISO 4217
      */
-    public static final MetaItemDescriptor<String> UNITS = new MetaItemDescriptor<>("units", ValueType.STRING);
+    public static final MetaItemDescriptor<String[]> UNITS = new MetaItemDescriptor<>("units", ValueType.STRING.asArray());
+
+    /**
+     * {@link ValueConstraint}s to be applied to the {@link Attribute} value; these override any constraints defined on
+     * any of the descriptors associated with the attribute.
+     */
+    public static final MetaItemDescriptor<ValueConstraint[]> CONSTRAINTS = new MetaItemDescriptor<>("constraints", ValueType.VALUE_CONSTRAINT.asArray());
 
     /**
      * Marks the value as secret and indicates that clients should display this in a concealed manner (e.g. password
