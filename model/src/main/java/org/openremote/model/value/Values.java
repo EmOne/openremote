@@ -487,7 +487,7 @@ public class Values {
             return null;
         }
 
-        LOG.fine("Applying value filters to value of type: " + value.getClass().getName());
+        LOG.finest("Applying value filters to value of type: " + value.getClass().getName());
 
         for (ValueFilter filter : filters) {
 

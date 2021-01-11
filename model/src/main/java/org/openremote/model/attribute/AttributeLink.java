@@ -26,7 +26,6 @@ import org.openremote.model.value.*;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -79,21 +78,21 @@ public class AttributeLink implements Serializable {
         }
     }
 
-    protected AttributeRef attributeRef;
+    protected AttributeRef ref;
     protected ObjectNode converter;
     protected ValueFilter[] filters;
 
     @JsonCreator
-    public AttributeLink(@JsonProperty("attributeRef") AttributeRef attributeRef,
+    public AttributeLink(@JsonProperty("ref") AttributeRef ref,
                          @JsonProperty("converter") ObjectNode converter,
                          @JsonProperty("filters") ValueFilter[] filters) {
-        this.attributeRef = requireNonNull(attributeRef);
+        this.ref = requireNonNull(ref);
         this.converter = converter;
         this.filters = filters;
     }
 
     public AttributeRef getAttributeRef() {
-        return attributeRef;
+        return ref;
     }
 
     public Optional<ObjectNode> getConverter() {
@@ -104,8 +103,8 @@ public class AttributeLink implements Serializable {
         this.converter = converter;
     }
 
-    public void setAttributeRef(AttributeRef attributeRef) {
-        this.attributeRef = attributeRef;
+    public void setAttributeRef(AttributeRef ref) {
+        this.ref = ref;
     }
 
     public ValueFilter[] getFilters() {
@@ -119,7 +118,7 @@ public class AttributeLink implements Serializable {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "attributeRef=" + attributeRef +
+            "ref=" + ref +
             ", converter=" + converter +
             ", filters=" + (filters != null ? Arrays.toString(filters) : "null") +
             '}';

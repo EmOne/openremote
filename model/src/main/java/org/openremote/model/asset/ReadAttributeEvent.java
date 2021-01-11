@@ -25,8 +25,6 @@ import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.event.shared.SharedEvent;
 
-import java.util.Arrays;
-
 /**
  * A client sends this event to the server to refresh the value of the specified attribute, expecting the server to
  * answer "soon" with an {@link AttributeEvent}. If the server decides that the client doesn't have the right
@@ -34,29 +32,29 @@ import java.util.Arrays;
  */
 public class ReadAttributeEvent extends SharedEvent {
 
-    protected AttributeRef attributeRef;
+    protected AttributeRef ref;
 
     @JsonCreator
-    public ReadAttributeEvent(@JsonProperty("attributeRef") AttributeRef attributeRef) {
-        this.attributeRef = attributeRef;
+    public ReadAttributeEvent(@JsonProperty("ref") AttributeRef attributeRef) {
+        this.ref = attributeRef;
     }
 
     public ReadAttributeEvent(String assetId, String attributeName) {
-        this.attributeRef = new AttributeRef(assetId, attributeName);
+        this.ref = new AttributeRef(assetId, attributeName);
     }
 
     public AttributeRef getAttributeRef() {
-        return attributeRef;
+        return ref;
     }
 
-    public void setAttributeRef(AttributeRef attributeRef) {
-        this.attributeRef = attributeRef;
+    public void setAttributeRef(AttributeRef ref) {
+        this.ref = ref;
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "attributeRef='" + attributeRef + '\'' +
+            "ref='" + ref + '\'' +
             '}';
     }
 }

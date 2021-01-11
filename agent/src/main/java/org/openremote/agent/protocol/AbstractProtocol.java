@@ -265,21 +265,21 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
      * {@link ProtocolUtil#doInboundValueProcessing} before sending on the sensor queue.
      */
     final protected void updateLinkedAttribute(final AttributeState state, long timestamp) {
-        Attribute<?> attribute = linkedAttributes.get(state.getAttributeRef());
+        Attribute<?> attribute = linkedAttributes.get(state.getRef());
 
         if (attribute == null) {
             LOG.severe("Update linked attribute called for un-linked attribute: " + state);
             return;
         }
 
-        Pair<Boolean, Object> ignoreAndConverted = ProtocolUtil.doInboundValueProcessing(state.getAttributeRef().getId(), attribute, agent.getAgentLink(attribute), state.getValue().orElse(null));
+        Pair<Boolean, Object> ignoreAndConverted = ProtocolUtil.doInboundValueProcessing(state.getRef().getId(), attribute, agent.getAgentLink(attribute), state.getValue().orElse(null));
 
         if (ignoreAndConverted.key) {
-            LOG.fine("Value conversion returned ignore so attribute will not be updated: " + state.getAttributeRef());
+            LOG.fine("Value conversion returned ignore so attribute will not be updated: " + state.getRef());
             return;
         }
 
-        AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(state.getAttributeRef(), ignoreAndConverted.value), timestamp);
+        AttributeEvent attributeEvent = new AttributeEvent(new AttributeState(state.getRef(), ignoreAndConverted.value), timestamp);
         LOG.fine("Sending linked attribute update on sensor queue: " + attributeEvent);
         producerTemplate.sendBodyAndHeader(SENSOR_QUEUE, attributeEvent, Protocol.SENSOR_QUEUE_SOURCE_PROTOCOL, getProtocolName());
     }
@@ -288,7 +288,7 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
      * Update the value of one of this {@link Protocol}s linked {@link Agent}'s {@link Attribute}s.
      */
     final protected void updateAgentAttribute(final AttributeState state) {
-        if (!agent.getAttributes().has(state.getAttributeRef().getName()) || !agent.getId().equals(state.getAttributeRef().getId())) {
+        if (!agent.getAttributes().has(state.getRef().getName()) || !agent.getId().equals(state.getRef().getId())) {
             LOG.warning("Attempt to update non existent agent attribute or agent ID is incorrect: " + state);
             return;
         }

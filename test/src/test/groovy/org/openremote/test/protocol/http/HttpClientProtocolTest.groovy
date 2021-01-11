@@ -322,7 +322,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                         .setPollingMillis(50)
                             .setValueFilters(
                                 [
-                                    new RegexValueFilter(Pattern.compile("\\d+"), 0, 0)
+                                    new RegexValueFilter(Pattern.compile("\\d+"))
                                 ] as ValueFilter[]
                             )
                         )
@@ -335,7 +335,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                             .setPollingMillis(40)
                             .setValueFilters(
                                 [
-                                    new RegexValueFilter(Pattern.compile("\\d+"), 0, 1)
+                                    new RegexValueFilter(Pattern.compile("\\d+")).setMatchIndex(1)
                                 ] as ValueFilter[]
                             )
                         )

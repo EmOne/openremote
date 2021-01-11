@@ -171,7 +171,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                             .setRequiredValue("true")
                             .setValueFilters(
                                 [
-                                    new RegexValueFilter(Pattern.compile("\\w(\\d+)"), 1, 2)
+                                    new RegexValueFilter(Pattern.compile("\\w(\\d+)")).setMatchGroup(1).setMatchIndex(2)
                                 ] as ValueFilter[]
                             )
                     )
@@ -198,7 +198,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                             .setValueFilters(
                                 [
                                     new SubStringValueFilter(23),
-                                    new RegexValueFilter(Pattern.compile("[a-z|\\s]+(\\d+)%\"}"), 1, 0)
+                                    new RegexValueFilter(Pattern.compile("[a-z|\\s]+(\\d+)%\"}")).setMatchGroup(1)
                                 ] as ValueFilter[]
                             )
                         )

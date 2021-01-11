@@ -21,6 +21,7 @@ import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.AssetQuery.OrderBy
 import org.openremote.model.query.LogicGroup
 import org.openremote.model.query.filter.*
+import org.openremote.model.value.MetaItemType
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
 import spock.lang.Specification
@@ -505,7 +506,7 @@ class AssetQueryTest extends Specification implements ManagerContainerTrait {
                 .select(selectExcludePathAndAttributes())
                 .attributes(
                     new AttributePredicate().meta(
-                        new NameValuePredicate().value(new ArrayPredicate(org.openremote.model.Constants.UNITS_KILO, 0, 3, null, null, false))
+                        new NameValuePredicate(UNITS.name, new ArrayPredicate(org.openremote.model.Constants.UNITS_KILO, 0, 3, null, null, false))
                     )
                 )
         )

@@ -247,7 +247,7 @@ public class MacroProtocol extends AbstractProtocol<MacroAgent, MacroAgent.Macro
             }
 
             Object newActionValue = event.getValue().orElse(null);
-            action.setAttributeState(new AttributeState(action.getAttributeState().getAttributeRef(), newActionValue));
+            action.setAttributeState(new AttributeState(action.getAttributeState().getRef(), newActionValue));
             updateAgentAttribute(new AttributeState(agent.getId(), MacroAgent.MACRO_ACTIONS.getName(), actions));
             updateLinkedAttribute(new AttributeState(event.getAttributeRef(), newActionValue));
         }

@@ -60,7 +60,7 @@ import static org.openremote.model.attribute.AttributeEvent.Source.ATTRIBUTE_LIN
  * [
  * "name": "urn:openremote:asset:meta:attributeLink",
  * "value": {
- * "attributeRef": ["0oI7Gf_kTh6WyRJFUTr8Lg", "light1"],
+ * "ref": ["0oI7Gf_kTh6WyRJFUTr8Lg", "light1"],
  * "converter": {
  * "PRESSED": "@TOGGLE",
  * "LONG_PRESSED": "@IGNORE",
@@ -71,7 +71,7 @@ import static org.openremote.model.attribute.AttributeEvent.Source.ATTRIBUTE_LIN
  * [
  * "name": "urn:openremote:asset:meta:attributeLink",
  * "value": {
- * "attributeRef": ["0oI7Gf_kTh6WyRJFUTr8Lg", "light2"],
+ * "ref": ["0oI7Gf_kTh6WyRJFUTr8Lg", "light2"],
  * "converter": {
  * "0": true,
  * "1": false

@@ -22,8 +22,6 @@ package org.openremote.model.value;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -35,16 +33,38 @@ public class RegexValueFilter extends ValueFilter {
     public static final String NAME = "regex";
 
     public Pattern pattern;
-    public int matchGroup;
-    public int matchIndex;
+    public Integer matchGroup;
+    public Integer matchIndex;
+
+    protected RegexValueFilter() {}
+
+    public RegexValueFilter(Pattern pattern) {
+        this.pattern = pattern;
+    }
 
     @JsonCreator
-    public RegexValueFilter(@JsonProperty("pattern") Pattern pattern,
+    public RegexValueFilter(@JsonProperty("pattern") String pattern,
+                            @JsonProperty("dotAll") Boolean dotAll,
+                            @JsonProperty("multiline") Boolean multiline,
                             @JsonProperty("matchGroup") int matchGroup,
                             @JsonProperty("matchIndex") int matchIndex) {
-        this.pattern = pattern;
+        this(pattern, dotAll == null || dotAll, multiline != null && multiline);
         this.matchGroup = matchGroup;
         this.matchIndex = matchIndex;
+    }
+
+    public RegexValueFilter(String pattern, boolean dotAll, boolean multiline) {
+        this(Pattern.compile(pattern, (dotAll ? Pattern.DOTALL : 0) | (multiline ? Pattern.MULTILINE : 0)));
+    }
+
+    public RegexValueFilter setMatchGroup(Integer matchGroup) {
+        this.matchGroup = matchGroup;
+        return this;
+    }
+
+    public RegexValueFilter setMatchIndex(Integer matchIndex) {
+        this.matchIndex = matchIndex;
+        return this;
     }
 
     @Override
@@ -63,12 +83,15 @@ public class RegexValueFilter extends ValueFilter {
         int matchIndex = 0;
         boolean matched = matcher.find();
 
-        while(matched && matchIndex < this.matchIndex) {
-            matched = matcher.find();
-            matchIndex++;
+        if (this.matchIndex != null) {
+            while (matched && matchIndex < this.matchIndex) {
+                matched = matcher.find();
+                matchIndex++;
+            }
         }
 
         if (matched) {
+            int matchGroup = this.matchGroup == null ? 0 : this.matchGroup;
             if (matchGroup <= matcher.groupCount()) {
                 filteredStr = matcher.group(matchGroup);
             }

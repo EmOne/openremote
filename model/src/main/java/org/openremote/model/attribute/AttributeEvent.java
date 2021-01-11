@@ -117,7 +117,7 @@ public class AttributeEvent extends SharedEvent implements AssetInfo {
     }
 
     public AttributeRef getAttributeRef() {
-        return getAttributeState().getAttributeRef();
+        return getAttributeState().getRef();
     }
 
     public String getAssetId() {

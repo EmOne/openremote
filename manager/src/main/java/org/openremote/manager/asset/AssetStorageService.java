@@ -357,7 +357,7 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
             .filter(
                 or(body().isInstanceOf(ReadAssetsEvent.class), body().isInstanceOf(ReadAssetEvent.class), body().isInstanceOf(ReadAttributeEvent.class)))
             .choice()
-                .when(body().isInstanceOf(ReadAssetEvent.class))
+                .when(or(body().isInstanceOf(ReadAssetEvent.class), body().isInstanceOf(ReadAttributeEvent.class)))
                     .process(exchange -> {
                         LOG.fine("Handling from client: " + exchange.getIn().getBody());
 
@@ -1776,9 +1776,8 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                 }
             } else if (nameValuePredicate.value instanceof ArrayPredicate) {
                 ArrayPredicate arrayPredicate = (ArrayPredicate) nameValuePredicate.value;
-                attributeBuilder.append("true");
                 if (arrayPredicate.negated) {
-                    attributeBuilder.append(" and NOT(");
+                    attributeBuilder.append("NOT(");
                 }
                 if (arrayPredicate.value != null) {
                     valuePathInserter.accept(attributeBuilder, binders);
@@ -1789,33 +1788,28 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                             .append(arrayPredicate.index);
                     }
                     final int pos = binders.size() + 1;
-                    attributeBuilder.append(" @> ?").append(pos);
-                    PGobject pgJsonValue = new PGobject();
-                    pgJsonValue.setType("jsonb");
-                    try {
-                        pgJsonValue.setValue(Values.asJSON(arrayPredicate.value).orElse("null"));
-                    } catch (SQLException e) {
-                        LOG.log(Level.SEVERE, "Failed to build SQL statement for array predicate", e);
-                        return "";
-                    }
-                    binders.add((em, st) -> st.setParameter(pos, pgJsonValue));
+                    attributeBuilder.append(" @> ?").append(pos).append(" \\:\\:jsonb");
+                    binders.add((em, st) -> st.setParameter(pos, Values.asJSON(arrayPredicate.value).orElse(Values.NULL_LITERAL)));
+                } else {
+                    attributeBuilder.append("true");
                 }
+
                 if (arrayPredicate.lengthEquals != null) {
-                    attributeBuilder.append("json_array_length(");
+                    attributeBuilder.append(" and jsonb_array_length(");
                     valuePathInserter.accept(attributeBuilder, binders);
                     attributeBuilder
                         .append(") = ")
                         .append(arrayPredicate.lengthEquals);
                 }
                 if (arrayPredicate.lengthGreaterThan != null) {
-                    attributeBuilder.append("json_array_length(");
+                    attributeBuilder.append(" and jsonb_array_length(");
                     valuePathInserter.accept(attributeBuilder, binders);
                     attributeBuilder
                         .append(") > ")
                         .append(arrayPredicate.lengthGreaterThan);
                 }
                 if (arrayPredicate.lengthLessThan != null) {
-                    attributeBuilder.append("json_array_length(");
+                    attributeBuilder.append(" and jsonb_array_length(");
                     valuePathInserter.accept(attributeBuilder, binders);
                     attributeBuilder
                         .append(") < ")

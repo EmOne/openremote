@@ -167,7 +167,7 @@ class AttributeLinkingTest extends Specification implements ManagerContainerTrai
         converterLoop.put("TRUE", "PRESSED")
         converterLoop.put("FALSE", "PRESSED")
         def attributeLinkLoop = Values.createObjectMap()
-        attributeLinkLoop.put("attributeRef", new AttributeRef(asset1.id, "button"))
+        attributeLinkLoop.put("ref", new AttributeRef(asset1.id, "button"))
         attributeLinkLoop.put("converter", converterLoop)
         asset2.getAttribute("lightOnOff").get().addMeta(new MetaItem<>(AssetMeta.ATTRIBUTE_LINK, attributeLinkLoop))
         asset2 = assetStorageService.merge(asset2)

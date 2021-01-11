@@ -19,8 +19,6 @@
  */
 package org.openremote.model.attribute;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
@@ -35,8 +33,8 @@ import java.util.Optional;
  */
 public class AttributeState implements Serializable {
 
-    @JsonProperty("ref")
-    protected AttributeRef attributeRef;
+    @JsonProperty
+    protected AttributeRef ref;
     protected Object value;
     protected boolean deleted;
 
@@ -50,20 +48,20 @@ public class AttributeState implements Serializable {
         this(new AttributeRef(assetId, attributeName), value);
     }
 
-    public AttributeState(AttributeRef attributeRef, Object value) {
-        this.attributeRef = Objects.requireNonNull(attributeRef);
+    public AttributeState(AttributeRef ref, Object value) {
+        this.ref = Objects.requireNonNull(ref);
         this.value = value;
     }
 
     /**
      * Sets the {@link #value} to <code>null</code>.
      */
-    public AttributeState(AttributeRef attributeRef) {
-        this(attributeRef, null);
+    public AttributeState(AttributeRef ref) {
+        this(ref, null);
     }
 
-    public AttributeRef getAttributeRef() {
-        return attributeRef;
+    public AttributeRef getRef() {
+        return ref;
     }
 
     @SuppressWarnings("unchecked")
@@ -82,7 +80,7 @@ public class AttributeState implements Serializable {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "attributeRef=" + attributeRef +
+            "ref=" + ref +
             ", value=" + value +
             ", deleted=" + deleted +
             '}';
