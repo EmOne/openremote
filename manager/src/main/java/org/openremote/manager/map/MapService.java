@@ -43,6 +43,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -54,10 +55,11 @@ import static org.openremote.manager.web.ManagerWebService.API_PATH;
 
 public class MapService implements ContainerService {
 
+    public static final String MAP_SHARED_DATA_BASE_URI = "/shared";
     public static final String MAP_TILES_PATH = "MAP_TILES_PATH";
-    public static final String MAP_TILES_PATH_DEFAULT = "deployment/map/mapdata.mbtiles";
+    public static final String MAP_TILES_PATH_DEFAULT = "manager/src/map/mapdata.mbtiles";
     public static final String MAP_SETTINGS_PATH = "MAP_SETTINGS_PATH";
-    public static final String MAP_SETTINGS_PATH_DEFAULT = "deployment/map/mapsettings.json";
+    public static final String MAP_SETTINGS_PATH_DEFAULT = "manager/src/map/mapsettings.json";
     public static final String MAP_TILESERVER_HOST = "MAP_TILESERVER_HOST";
     public static final String MAP_TILESERVER_HOST_DEFAULT = null;
     public static final String MAP_TILESERVER_PORT = "MAP_TILESERVER_PORT";
@@ -151,16 +153,34 @@ public class MapService implements ContainerService {
 
         mapTilesPath = Paths.get(getString(container.getConfig(), MAP_TILES_PATH, MAP_TILES_PATH_DEFAULT));
         if (!Files.isRegularFile(mapTilesPath)) {
-            throw new IllegalStateException(
-                    "Map tiles data file not found (wrong working directory?): " + mapTilesPath.toAbsolutePath()
-            );
+            LOG.warning("Map tiles data file not found '" + mapTilesPath.toAbsolutePath() + "', falling back to built in map");
+            mapTilesPath = null;
         }
 
         mapSettingsPath = Paths.get(getString(container.getConfig(), MAP_SETTINGS_PATH, MAP_SETTINGS_PATH_DEFAULT));
         if (!Files.isRegularFile(mapSettingsPath)) {
-            throw new IllegalStateException(
-                    "Map settings file not found: " + mapSettingsPath.toAbsolutePath()
-            );
+            LOG.warning("Map settings file not found '" + mapSettingsPath.toAbsolutePath() + "', faling back to built in map settings");
+            mapSettingsPath = null;
+        }
+
+//        if (mapTilesPath == null || mapSettingsPath == null) {
+//            return;
+//        }
+
+        if (mapTilesPath == null) {
+            if (Files.isRegularFile(Paths.get("/opt/map/mapdata.mbtiles"))) {
+                mapTilesPath = Paths.get("/opt/map/mapdata.mbtiles");
+            } else if (Files.isRegularFile(Paths.get("manager/src/map/mapdata.mbtiles"))) {
+                mapTilesPath = Paths.get("manager/src/map/mapdata.mbtiles");
+            }
+        }
+
+        if (mapSettingsPath == null) {
+            if (Files.isRegularFile(Paths.get("/opt/map/mapsettings.json"))) {
+                mapSettingsPath = Paths.get("/opt/map/mapsettings.json");
+            } else if (Files.isRegularFile(Paths.get("manager/src/map/mapsettings.json"))) {
+                mapSettingsPath = Paths.get("manager/src/map/mapsettings.json");
+            }
         }
 
         container.getService(ManagerWebService.class).getApiSingletons().add(
@@ -202,6 +222,11 @@ public class MapService implements ContainerService {
 
     @Override
     public void start(Container container) throws Exception {
+
+        if (mapTilesPath == null || mapSettingsPath == null) {
+            return;
+        }
+
         LOG.info("Starting map service with tile data: " + mapTilesPath.toAbsolutePath());
         Class.forName(org.sqlite.JDBC.class.getName());
         connection = DriverManager.getConnection("jdbc:sqlite:" + mapTilesPath.toAbsolutePath());
@@ -313,7 +338,7 @@ public class MapService implements ContainerService {
         Optional.ofNullable(settings.has("sprite") && settings.get("sprite").isTextual() ? settings.get("sprite").asText() : null).ifPresent(sprite -> {
             String spriteUri =
                     baseUriBuilder.clone()
-                            .replacePath(ManagerWebService.SHARED_PATH)
+                            .replacePath(MAP_SHARED_DATA_BASE_URI)
                             .path(sprite)
                             .build().toString();
             settings.put("sprite", spriteUri);
@@ -323,7 +348,7 @@ public class MapService implements ContainerService {
         Optional.ofNullable(settings.has("glyphs") && settings.get("glyphs").isTextual() ? settings.get("glyphs").asText() : null).ifPresent(glyphs -> {
             String glyphsUri =
                     baseUriBuilder.clone()
-                            .replacePath(ManagerWebService.SHARED_PATH)
+                            .replacePath(MAP_SHARED_DATA_BASE_URI)
                             .build().toString() + "/fonts/" + glyphs;
             settings.put("glyphs", glyphsUri);
         });

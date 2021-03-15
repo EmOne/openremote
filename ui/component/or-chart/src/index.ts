@@ -53,6 +53,9 @@ export interface ChartViewConfig {
     timestamp?: Date;
     compareTimestamp?: Date;
     period?: moment.unitOfTime.Base;
+    deltaFormat?: string;
+    decimals?: number;
+    periodCompare?: boolean;
 }
 
 export interface OrChartEventDetail {
@@ -380,6 +383,8 @@ export class OrChart extends translate(i18next)(LitElement) {
 
     protected _style!: CSSStyleDeclaration;
 
+    protected _updateTimestampTimer: number | null = null;
+    
     firstUpdated() {
         if (this._dialogElem) {
             this._dialog = new MDCDialog(this._dialogElem);
@@ -459,9 +464,9 @@ export class OrChart extends translate(i18next)(LitElement) {
                             .type="${endDateInputType}" 
                             ?disabled="${disabled}" 
                             .value="${this.timestamp}" 
-                            @or-input-changed="${(evt: OrInputChangedEvent) => this.timestamp = this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-input>
-                        <or-icon class="button-icon" icon="chevron-left" @click="${() => this.timestamp = this._updateTimestamp(this.timestamp!, false)}"></or-icon>
-                        <or-icon class="button-icon" icon="chevron-right" @click="${() => this.timestamp = this._updateTimestamp(this.timestamp!, true)}"></or-icon>
+                            @or-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-input>
+                        <or-icon class="button-icon" icon="chevron-left" @click="${() => this._updateTimestamp(this.timestamp!, false, undefined, 0)}"></or-icon>
+                        <or-icon class="button-icon" icon="chevron-right" @click="${() =>this._updateTimestamp(this.timestamp!, true, undefined, 0)}"></or-icon>
                     </div>
                     ${this.periodCompare ? html `
                         <div class="period-controls">
@@ -471,16 +476,16 @@ export class OrChart extends translate(i18next)(LitElement) {
                                 .type="${endDateInputType}" 
                                 ?disabled="${disabled}" 
                                 .value="${this.compareTimestamp}" 
-                                @or-input-changed="${(evt: OrInputChangedEvent) => this.compareTimestamp = this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-input>
-                            <or-icon class="button-icon" icon="chevron-left" @click="${() => this.compareTimestamp = this._updateTimestamp(this.compareTimestamp!, false)}"></or-icon>
-                            <or-icon class="button-icon" icon="chevron-right" @click="${() => this.compareTimestamp = this._updateTimestamp(this.compareTimestamp!, true)}"></or-icon>
+                                @or-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate(), undefined, true)}"></or-input>
+                            <or-icon class="button-icon" icon="chevron-left" @click="${() =>  this._updateTimestamp(this.compareTimestamp!, false, true, 0)}"></or-icon>
+                            <or-icon class="button-icon" icon="chevron-right" @click="${() => this._updateTimestamp(this.compareTimestamp!, true, true, 0)}"></or-icon>
                         </div>
                     ` : html``}
 
                     <div id="attribute-list">
                         ${this.assetAttributes && this.assetAttributes.map((attr, index) => {
 
-                            const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(attr.name!);
+                            const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(attr.name!, this.assets[index]!.type!);
                             const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assets[index]!.type, attr.name, attr);
                             const label = Util.getAttributeLabel(attr, descriptors[0], this.assets[index]!.type, true);
                             const bgColor = Util.getMetaValue('color', attr, undefined) ? Util.getMetaValue('color', attr, undefined) : "";
@@ -510,7 +515,7 @@ export class OrChart extends translate(i18next)(LitElement) {
                     <div class="mdc-dialog__surface">
                     <h2 class="mdc-dialog__title" id="my-dialog-title">${i18next.t("addAttribute")}</h2>
                     <div class="dialog-container mdc-dialog__content" id="my-dialog-content">
-                        <or-asset-tree id="chart-asset-tree" .selectedIds="${this.activeAsset ? [this.activeAsset.id] : undefined}"></or-asset-tree>
+                        <or-asset-tree id="chart-asset-tree" readonly .selectedIds="${this.activeAsset ? [this.activeAsset.id] : undefined}"></or-asset-tree>
                             ${this.activeAsset && this.activeAsset.attributes ? html`
                                 <or-input id="chart-attribute-picker" 
                                         style="display:flex;"
@@ -719,6 +724,8 @@ export class OrChart extends translate(i18next)(LitElement) {
             this.assets = view.assetIds.map((assetId: string)  => assets.find(x => x.id === assetId)!);
             this.assetAttributes = view.attributes.map((attr: string, index: number) => assets[index] && assets[index].attributes ? assets[index].attributes![attr] : undefined).filter(attr => !!attr) as Attribute<any>[];
             this.period = view.period;
+            if(typeof view.periodCompare != 'undefined') this.periodCompare = view.periodCompare;
+            
         });
     }
 
@@ -748,7 +755,8 @@ export class OrChart extends translate(i18next)(LitElement) {
         config.views[viewSelector][this.panelName] = {
             assetIds: assetIds,
             attributes: attributes,
-            period: this.period
+            period: this.period,
+            periodCompare: this.periodCompare
         };
         const message = {
             provider: "STORAGE",
@@ -870,6 +878,7 @@ export class OrChart extends translate(i18next)(LitElement) {
     setPeriodCompare(periodCompare:boolean) {
         this.periodCompare = periodCompare;
         this._loadData();
+        this.saveSettings();
     }
 
     protected async _loadData() {
@@ -1113,13 +1122,24 @@ export class OrChart extends translate(i18next)(LitElement) {
         return interval;
     }
 
-    protected _updateTimestamp(timestamp: Date, forward?: boolean) {
-        const newMoment = moment(timestamp);
+    protected _updateTimestamp(timestamp: Date, forward?: boolean, compare=false, timeout=1500) {
 
-        if (forward !== undefined) {
-            newMoment.add(forward ? 1 : -1, this.period);
+        if (this._updateTimestampTimer) {
+            window.clearTimeout(this._updateTimestampTimer);
+            this._updateTimestampTimer = null;
         }
+        this._updateTimestampTimer = window.setTimeout(() => {
+                const newMoment = moment(timestamp);
 
-        return newMoment.toDate();
+                if (forward !== undefined) {
+                    newMoment.add(forward ? 1 : -1, this.period);
+                }
+                if(compare) {
+                    this.compareTimestamp = newMoment.toDate()
+                } else {
+                    this.timestamp = newMoment.toDate()
+                }
+        }, timeout);
     }
+        
 }

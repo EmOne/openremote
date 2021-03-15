@@ -32,19 +32,23 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
 
+import static org.openremote.model.Constants.*;
+
 @Entity
 public class BuildingAsset extends CityAsset {
 
     public static final AttributeDescriptor<String> STREET = new AttributeDescriptor<>("street", ValueType.TEXT);
     public static final AttributeDescriptor<String> POSTAL_CODE = new AttributeDescriptor<>("postalCode", ValueType.TEXT);
+    public static final AttributeDescriptor<Integer> AREA = new AttributeDescriptor<>("area", ValueType.POSITIVE_INTEGER)
+        .withUnits(UNITS_METRE, UNITS_SQUARED);
+    public static final AttributeDescriptor<String> COUNTRY = CityAsset.COUNTRY.withOptional(true);
 
     public static final AssetDescriptor<BuildingAsset> DESCRIPTOR = new AssetDescriptor<>("office-building", "4b5966", BuildingAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    BuildingAsset() {
-        this(null);
+    protected BuildingAsset() {
     }
 
     public BuildingAsset(String name) {
@@ -53,6 +57,10 @@ public class BuildingAsset extends CityAsset {
 
     public Optional<String> getStreet() {
         return getAttributes().getValue(STREET);
+    }
+
+    public Optional<Integer> getArea() {
+        return getAttributes().getValue(AREA);
     }
 
     public Optional<String> getPostalCode() {

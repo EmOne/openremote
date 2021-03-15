@@ -45,18 +45,17 @@ public class ElectricityProducerSolarAsset extends ElectricityProducerAsset {
     public static final ValueDescriptor<PanelOrientation> PANEL_ORIENTATION_VALUE = new ValueDescriptor<>("panelOrientation", PanelOrientation.class);
 
     public static final AttributeDescriptor<PanelOrientation> PANEL_ORIENTATION = new AttributeDescriptor<>("panelOrientation", PANEL_ORIENTATION_VALUE);
-    public static final AttributeDescriptor<Integer> PANEL_AZIMUTH = new AttributeDescriptor<>("panelAzimuth", ValueType.POSITIVE_INTEGER
+    public static final AttributeDescriptor<Integer> PANEL_AZIMUTH = new AttributeDescriptor<>("panelAzimuth", ValueType.INTEGER
     ).withUnits(UNITS_DEGREE);
     public static final AttributeDescriptor<Integer> PANEL_PITCH = new AttributeDescriptor<>("panelPitch", ValueType.POSITIVE_INTEGER
     ).withUnits(UNITS_DEGREE);
 
-    public static final AssetDescriptor<ElectricityProducerSolarAsset> DESCRIPTOR = new AssetDescriptor<>("white-balance-sunny", "8A293D", ElectricityProducerSolarAsset.class);
+    public static final AssetDescriptor<ElectricityProducerSolarAsset> DESCRIPTOR = new AssetDescriptor<>("white-balance-sunny", "EABB4D", ElectricityProducerSolarAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    ElectricityProducerSolarAsset() {
-        this(null);
+    protected ElectricityProducerSolarAsset() {
     }
 
     public ElectricityProducerSolarAsset(String name) {
@@ -135,36 +134,6 @@ public class ElectricityProducerSolarAsset extends ElectricityProducerAsset {
     @Override
     public ElectricityProducerSolarAsset setEnergyExportTotal(Double value) {
         super.setEnergyExportTotal(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerSolarAsset setEnergyCapacity(Double value) {
-        super.setEnergyCapacity(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerSolarAsset setEnergyLevel(Double value) {
-        super.setEnergyLevel(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerSolarAsset setEnergyLevelPercentage(Integer value) {
-        super.setEnergyLevelPercentage(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerSolarAsset setEnergyLevelPercentageMin(Integer value) {
-        super.setEnergyLevelPercentageMin(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerSolarAsset setEnergyLevelPercentageMax(Integer value) {
-        super.setEnergyLevelPercentageMax(value);
         return this;
     }
 

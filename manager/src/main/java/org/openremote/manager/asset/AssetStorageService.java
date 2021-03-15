@@ -669,7 +669,17 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                             LOG.info(msg);
                             return new IllegalStateException(msg);
                         });
-                    if (!childAssetType.equals(asset.getType())) {
+
+                    // Look through type hierarchy for a match - this allows sub types
+                    Class<?> clazz = asset.getClass();
+                    boolean typeMatch = childAssetType.equals(clazz.getSimpleName());
+
+                    while (!typeMatch && clazz != Asset.class) {
+                        clazz = clazz.getSuperclass();
+                        typeMatch = childAssetType.equals(clazz.getSimpleName());
+                    }
+
+                    if (!typeMatch) {
                         String msg = "Asset type does not match parent GROUP asset's childAssetType attribute: asset=" + asset;
                         LOG.info(msg);
                         throw new IllegalStateException(msg);
@@ -1138,10 +1148,12 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     statement.setString(6, attributeName);
 
                     int updatedRows = statement.executeUpdate();
-                    LOG.fine("Stored asset '" + asset.getId()
-                        + "' attribute '" + attributeName
-                        + "' (affected rows: " + updatedRows + ") value: "
-                        + (value != null ? Values.asJSON(value).orElse("null") : "null"));
+                    if (LOG.isLoggable(Level.FINEST)) {
+                        LOG.finest("Stored asset '" + asset.getId()
+                            + "' attribute '" + attributeName
+                            + "' (affected rows: " + updatedRows + ") value: "
+                            + (value != null ? Values.asJSON(value).orElse("null") : "null"));
+                    }
                     return updatedRows == 1;
                 }
             });
@@ -1166,15 +1178,15 @@ public class AssetStorageService extends RouteBuilder implements ContainerServic
                     new AssetEvent(AssetEvent.Cause.CREATE, loadedAsset, null)
                 );
 
-                // Raise attribute event for each attribute
-                asset.getAttributes().forEach(newAttribute ->
-                    clientEventService.publishEvent(
-                        new AttributeEvent(asset.getId(),
-                            newAttribute.getName(),
-                            newAttribute.getValue().orElse(null),
-                            newAttribute.getTimestamp().orElse(timerService.getCurrentTimeMillis()))
-                            .setParentId(asset.getParentId()).setRealm(asset.getRealm())
-                    ));
+//                // Raise attribute event for each attribute
+//                asset.getAttributes().forEach(newAttribute ->
+//                    clientEventService.publishEvent(
+//                        new AttributeEvent(asset.getId(),
+//                            newAttribute.getName(),
+//                            newAttribute.getValue().orElse(null),
+//                            newAttribute.getTimestamp().orElse(timerService.getCurrentTimeMillis()))
+//                            .setParentId(asset.getParentId()).setRealm(asset.getRealm())
+//                    ));
                 break;
             case UPDATE:
 

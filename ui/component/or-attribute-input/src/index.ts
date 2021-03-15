@@ -59,7 +59,7 @@ export function getAttributeInputWrapper(content: TemplateResult, value: any, lo
     if (helperText) {
         content = html`
                     <div id="wrapper-helper">
-                        ${label ? html`<div style="margin-left: 16px">${label}</div>` : ``}
+                        ${label ? html`<div id="wrapper-label">${label}</div>` : ``}
                         <div id="wrapper-input">${content}</div>
                         <div id="helper-text">${helperText}</div>
                     </div>
@@ -143,13 +143,12 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
                 display: flex;
             }
             
-            #wrapper-input > or-input {
+            #wrapper-label, #helper-text {
                 margin-left: 16px;
             }
             
             /* Copy of mdc text field helper text styles */
-            #helper-text {
-                margin-left: 16px;
+            #helper-text {                
                 min-width: 255px;
                 color: rgba(0, 0, 0, 0.6);
                 font-family: Roboto, sans-serif;
@@ -494,7 +493,8 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
             readonly: this.isReadonly(),
             disabled: this.disabled,
             compact: this.compact,
-            label: this.getLabel()
+            label: this.getLabel(),
+            inputType: this.inputType
         };
 
         if (this.customProvider) {
@@ -510,7 +510,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
 
         // Fallback to simple input provider
         const valueChangeHandler = (detail: OrInputChangedEventDetail) => {
-            if (detail.enterPressed || !this._templateProvider || !this._templateProvider.supportsSendButton) {
+            if (detail.enterPressed || !this._templateProvider || !this.showButton || !this._templateProvider.supportsSendButton) {
                 this._onInputValueChanged(detail.value);
             } else {
                 this._newValue = detail.value;
@@ -533,6 +533,11 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
     }
 
     public isReadonly(): boolean {
+        if(!manager.hasRole("write:attributes")) {
+            this.readonly = !manager.hasRole("write:attributes");
+            return this.readonly;
+        }
+
         return this.readonly !== undefined ? this.readonly : Util.getMetaValue(WellknownMetaItems.READONLY, this.attribute, this._attributeDescriptor);
     }
 
@@ -541,7 +546,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
         if (!this.assetType || !this._templateProvider) {
             return html``;
         }
-
+        
         // Check if attribute hasn't been loaded yet or pending write
         const loading = (this.attributeRefs && !this._attributeEvent) || !!this._writeTimeoutHandler;
         let content: TemplateResult;
@@ -621,6 +626,10 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
         }
 
         if (this._writeTimeoutHandler) {
+            return;
+        }
+
+        if (this._newValue === undefined) {
             return;
         }
 

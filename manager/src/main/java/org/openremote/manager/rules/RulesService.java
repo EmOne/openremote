@@ -33,7 +33,7 @@ import org.openremote.manager.datapoint.AssetDatapointService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.gateway.GatewayService;
 import org.openremote.manager.notification.NotificationService;
-import org.openremote.manager.predicted.AssetPredictedDatapointService;
+import org.openremote.manager.datapoint.AssetPredictedDatapointService;
 import org.openremote.manager.rules.flow.FlowResourceImpl;
 import org.openremote.manager.rules.geofence.GeofenceAssetAdapter;
 import org.openremote.manager.security.ManagerIdentityService;
@@ -74,7 +74,6 @@ import static org.openremote.container.persistence.PersistenceEvent.isPersistenc
 import static org.openremote.container.util.MapAccess.getString;
 import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.attribute.Attribute.getAddedOrModifiedAttributes;
-import static org.openremote.model.value.MetaItemType.RULE_STATE;
 
 /**
  * Manages {@link RulesEngine}s for stored {@link Ruleset}s and processes asset attribute updates.
@@ -257,7 +256,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
         ).forEach(this::deployGlobalRuleset);
 
         LOG.info("Deploying tenant rulesets");
-        tenants = identityService.getIdentityProvider().getTenants();
+        tenants = Arrays.stream(identityService.getIdentityProvider().getTenants()).filter(Tenant::getEnabled).toArray(Tenant[]::new);
         rulesetStorageService.findAll(
             TenantRuleset.class,
             new RulesetQuery()
@@ -404,7 +403,7 @@ public class RulesService extends RouteBuilder implements ContainerService, Asse
             // Check if enabled status has changed
             boolean wasEnabled = Arrays.stream(tenants).anyMatch(t -> tenant.getRealm().equals(t.getRealm()) && tenant.getId().equals(t.getId()));
             boolean isEnabled = tenant.getEnabled() && cause != PersistenceEvent.Cause.DELETE;
-            tenants = identityService.getIdentityProvider().getTenants();
+            tenants = Arrays.stream(identityService.getIdentityProvider().getTenants()).filter(Tenant::getEnabled).toArray(Tenant[]::new);
 
             if (wasEnabled == isEnabled) {
                 // Nothing to do here

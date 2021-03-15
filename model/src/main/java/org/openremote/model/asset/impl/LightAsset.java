@@ -43,14 +43,13 @@ public class LightAsset extends Asset<LightAsset> {
         .withFormat(new ValueFormat().setAsSlider(true));
     public static final AttributeDescriptor<ColourRGB> COLOUR_RGB = new AttributeDescriptor<>("colourRGB", ValueType.COLOUR_RGB);
     public static final AttributeDescriptor<Integer> COLOUR_TEMPERATURE = new AttributeDescriptor<>("colourTemperature", ValueType.POSITIVE_INTEGER)
-        .withUnits(UNITS_KELVIN);
+        .withUnits(UNITS_KELVIN).withConstraints(new ValueConstraint.Min(1000), new ValueConstraint.Max(10000));
     public static final AssetDescriptor<LightAsset> DESCRIPTOR = new AssetDescriptor<>("lightbulb", "e6688a", LightAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    LightAsset() {
-        this(null);
+    protected LightAsset() {
     }
 
     public LightAsset(String name) {

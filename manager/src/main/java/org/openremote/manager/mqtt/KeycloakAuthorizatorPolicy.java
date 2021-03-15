@@ -3,6 +3,7 @@ package org.openremote.manager.mqtt;
 import io.moquette.broker.security.IAuthorizatorPolicy;
 import io.moquette.broker.subscriptions.Token;
 import io.moquette.broker.subscriptions.Topic;
+
 import org.keycloak.adapters.rotation.AdapterTokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.representations.AccessToken;
@@ -57,7 +58,7 @@ public class KeycloakAuthorizatorPolicy implements IAuthorizatorPolicy {
         return verifyRights(topic, username, clientId, ClientRole.READ_ASSETS);
     }
 
-    private boolean verifyRights(Topic topic, String username, String clientId, ClientRole... roles) {
+    protected boolean verifyRights(Topic topic, String username, String clientId, ClientRole... roles) {
         MqttConnection connection = mqttConnectionMap.get(clientId);
         if (connection == null) {
             LOG.info("No connection found for clientId: " + clientId);
@@ -103,7 +104,7 @@ public class KeycloakAuthorizatorPolicy implements IAuthorizatorPolicy {
             accessToken = AdapterTokenVerifier.verifyToken(connection.accessToken, identityProvider.getKeycloakDeployment(connection.realm, KEYCLOAK_CLIENT_ID));
         } catch (VerificationException e) {
             String suppliedClientSecret = new String(connection.password, StandardCharsets.UTF_8);
-            connection.accessToken = identityProvider.getExternalKeycloak().getAccessToken(connection.realm, new ClientCredentialsAuthForm(connection.username, suppliedClientSecret)).getToken();
+            connection.accessToken = identityProvider.getAccessToken(connection.realm, connection.username, suppliedClientSecret);
             try {
                 accessToken = AdapterTokenVerifier.verifyToken(connection.accessToken, identityProvider.getKeycloakDeployment(connection.realm, KEYCLOAK_CLIENT_ID));
             } catch (VerificationException verificationException) {

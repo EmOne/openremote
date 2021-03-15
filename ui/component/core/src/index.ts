@@ -4,7 +4,7 @@ import rest from "@openremote/rest";
 import {AxiosRequestConfig} from "axios";
 import {EventProvider, EventProviderFactory, EventProviderStatus, WebSocketEventProvider} from "./event";
 import i18next, { InitOptions } from "i18next";
-import i18nextXhr from "i18next-xhr-backend";
+import i18nextBackend from "i18next-http-backend";
 import moment from "moment";
 import {
     AgentDescriptor,
@@ -110,11 +110,11 @@ export enum MapType {
 }
 
 export interface ManagerConfig {
-    managerUrl: string;
+    managerUrl?: string;
     keycloakUrl?: string;
     appVersion?: string;
     auth?: Auth;
-    realm: string;
+    realm?: string;
     clientId?: string;
     autoLogin?: boolean;
     credentials?: Credentials;
@@ -266,7 +266,7 @@ export class AssetModelUtil {
         return match ? match.assetDescriptor : undefined;
     }
 
-    public static getAttributeDescriptor(attributeName?: string, assetTypeOrDescriptor?: string | AssetDescriptor | AssetTypeInfo): AttributeDescriptor | undefined {
+    public static getAttributeDescriptor(attributeName: string, assetTypeOrDescriptor: string | AssetDescriptor | AssetTypeInfo): AttributeDescriptor | undefined {
         if (!attributeName) {
             return;
         }
@@ -503,7 +503,7 @@ export class Manager implements EventProviderFactory {
     }
 
     get displayRealm() {
-        return this._displayRealm || this._config.realm;
+        return this._displayRealm || this._config.realm!;
     }
 
     set displayRealm(realm: string) {
@@ -610,7 +610,7 @@ export class Manager implements EventProviderFactory {
             return false;
         }
 
-        const managerUrl = new URL(this._config.managerUrl);
+        const managerUrl = new URL(this._config.managerUrl!);
         const windowUrl = window.location;
         return managerUrl.protocol === windowUrl.protocol
             && managerUrl.hostname === windowUrl.hostname
@@ -757,7 +757,7 @@ export class Manager implements EventProviderFactory {
         }
 
         try {
-            await i18next.use(i18nextXhr).init(initOptions);
+            await i18next.use(i18nextBackend).init(initOptions);
         } catch (e) {
             console.error(e);
             this._setError(ORError.TRANSLATION_ERROR);
@@ -839,7 +839,7 @@ export class Manager implements EventProviderFactory {
 
         switch (this._config.eventProviderType) {
             case EventProviderType.WEBSOCKET:
-                this._events = new WebSocketEventProvider(this._config.managerUrl);
+                this._events = new WebSocketEventProvider(this._config.managerUrl!);
                 this._events.subscribeStatusChange((status: EventProviderStatus) => this._onEventProviderStatusChanged(status));
                 connected = await this._events.connect();
                 break;
@@ -870,7 +870,7 @@ export class Manager implements EventProviderFactory {
 
     protected async doConsoleInit(): Promise<boolean> {
         try {
-            const orConsole = new Console(this._config.realm, this._config.consoleAutoEnable!, () => {
+            const orConsole = new Console(this._config.realm!, this._config.consoleAutoEnable!, () => {
                 this._emitEvent(OREvent.CONSOLE_READY);
             });
 
@@ -1016,12 +1016,12 @@ export class Manager implements EventProviderFactory {
         this._setAuthenticated(authenticated);
     }
 
-    public isSuperUser() {
-        return this.getRealm() && this.getRealm() === "master" && this.hasRealmRole("admin");
+    public isSuperUser(): boolean {
+        return !!(this.getRealm() && this.getRealm() === "master" && this.hasRealmRole("admin"));
     }
 
-    public getApiBaseUrl() {
-        let baseUrl = this._config.managerUrl;
+    public getApiBaseUrl(): string {
+        let baseUrl = this._config.managerUrl!;
         baseUrl += "/api/" + this._config.realm + "/";
         return baseUrl;
     }

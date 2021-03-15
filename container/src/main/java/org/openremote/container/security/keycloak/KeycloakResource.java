@@ -32,8 +32,6 @@ import static javax.ws.rs.core.MediaType.*;
 
 public interface KeycloakResource {
 
-    String KEYCLOAK_CONTEXT_PATH = "auth";
-
     @GET
     @Path("/")
     @Produces(TEXT_HTML)

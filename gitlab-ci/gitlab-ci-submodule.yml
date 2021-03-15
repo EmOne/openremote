@@ -141,16 +141,19 @@ build manually staging docker images:
 # This step is executed when build fails. The purpose is to e-mail a git commiter about the problem.
 email failed pipeline:
   stage: build_fail
+  needs: ["build staging docker images"]
   <<: *notify_email
   when: on_failure
 
 build FAILED:
   stage: build_fail
+  needs: ["build staging docker images"]
   <<: *notify_whatsapp
   when: on_failure
 
 test-master:
   stage: test
+  needs: []
   allow_failure: false
   before_script:
     - docker run -v $(pwd):/or
@@ -160,8 +163,9 @@ test-master:
       -v /var/run/docker.sock:/var/run/docker.sock registry.gitlab.com/openremote/openremote:master
       /bin/sh -c "docker-compose -f openremote/profile/dev-testing.yml up --no-build -d"
   script:
-    - docker run --network host -v $(pwd):/or registry.gitlab.com/openremote/openremote:master
-      /bin/sh -c "./gradlew clean test"
+    #- docker run --network host -v $(pwd):/or registry.gitlab.com/openremote/openremote:master
+    #  /bin/sh -c "./gradlew clean test"
+    - echo Tests moved to github actions
   rules:
     - if: $CI_COMMIT_MESSAGE !~ /skip-test/
       when: on_success
@@ -240,6 +244,7 @@ include:
     - *ssh_config
     - SSH "docker-compose -p ${PROJECT_NAME} -f profile/${CI_ENVIRONMENT_SLUG}.yml logs --no-color --timestamp > ${CI_ENVIRONMENT_SLUG}.log"
     - SCP ${DEPLOYMENT_HOST_USER}@${DEPLOYMENT_HOST}:~/${CI_ENVIRONMENT_SLUG}.log .
+    - tail -n 100 ${CI_ENVIRONMENT_SLUG}.log
     - SSH "rm ~/${CI_ENVIRONMENT_SLUG}.log"
   artifacts:
     when: on_failure

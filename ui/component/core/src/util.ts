@@ -27,6 +27,7 @@ import i18next from "i18next";
 import Qs from "qs";
 import {AssetModelUtil} from "./index";
 import moment from "moment";
+import DateTimeFormatOptions = Intl.DateTimeFormatOptions;
 
 export class Deferred<T> {
 
@@ -204,6 +205,10 @@ export function isObject(object: any): boolean {
     return false;
 }
 
+export function isFunction(object: any): boolean {
+    return !!(object && object.constructor && object.call && object.apply);
+}
+
 export function objectsEqual(obj1?: any, obj2?: any, deep: boolean = true): boolean {
     if (obj1 === null || obj1 === undefined || obj2 === null || obj2 === undefined) {
         return obj1 === obj2;
@@ -283,7 +288,7 @@ export function camelCaseToSentenceCase(str: string): string {
             if (nextWord || (!previousCapital && !nextTwoCapitalsOrEndOfString)) v = v.toLowerCase();
         }
         return v;
-    }).join("");
+    }).join("").trim();
 }
 
 export function stringMatch(needle: string, haystack: string): boolean {
@@ -529,7 +534,7 @@ export function getValueAsString(value: any, formatProvider: () => ValueFormat |
                             const weekNo = getWeekNumber(value);
                             valueStr = format.week === ValueFormatStyleRepresentation.DIGIT_2 ? String(weekNo).padStart(2,"0") : Number(weekNo).toString(10);
                         } else {
-                            valueStr = new Intl.DateTimeFormat(language || i18next.language, format).format(value);
+                            valueStr = new Intl.DateTimeFormat(language || i18next.language, format as DateTimeFormatOptions).format(value);
                         }
                         break;
                 }
@@ -622,6 +627,62 @@ export function getMetaValueFormat(metaItem: NameValueHolder<any> | undefined, d
     return getValueFormatConstraintOrUnits(WellknownMetaItems.FORMAT, metaValueHolder, descriptor, assetType, false);
 }
 
+export function mergeObjects(a: object | undefined, b: object | undefined, mergeArrays: boolean): object {
+    if (a && !b) {
+        return {...a};
+    }
+    if (b && !a) {
+        return {...b};
+    }
+    const merged = {...a};
+    let path: string[] = [];
+    Object.entries(b!).forEach(([k, v]) => {
+        mergeObjectKey(merged, path, k, v,mergeArrays)
+    });
+    return merged;
+}
+
+function mergeObjectKey(destination: object, path: string[], key: string, value: any, mergeArrays: boolean) {
+    let dest: any = destination;
+
+    path.forEach((p) => {
+        if (!dest.hasOwnProperty(p)) {
+            dest[p] = {};
+        }
+        dest = dest[p];
+    });
+
+    if (!dest) {
+        return;
+    }
+
+    if (dest.hasOwnProperty(key)) {
+        if (value === null || value === undefined) {
+            delete dest[key];
+        } else if (Array.isArray(value)) {
+            dest[key] = [...value];
+        } else if (typeof(value) === "object") {
+            dest[key] = {...value};
+        } else {
+            dest[key] = value;
+        }
+    } else {
+        if (value === undefined || value === null) {
+            delete dest[key];
+        } else if (Array.isArray(dest[key])) {
+                if (mergeArrays) {
+                    dest[key] = [...dest[key], ...value];
+                } else {
+                    dest[key] = [...value];
+                }
+        } else if (typeof(value) === "object") {
+            dest[key] = mergeObjects({...dest[key]}, value, mergeArrays);
+        } else {
+            dest[key] = value;
+        }
+    }
+}
+
 /**
  * Looks for the requested {@link ValueFormat}, {@link ValueConstraint[]} or units string[] defined in the translation
  * file in several locations (see {@link doStandardTranslationLookup}).
@@ -651,7 +712,7 @@ function getValueFormatConstraintOrUnits<T>(lookup: WellknownMetaItems.FORMAT | 
 
     // Look in meta
     if (nameValueHolder && (nameValueHolder as MetaHolder).meta) {
-        matched = getMetaValue(WellknownMetaItems.FORMAT, nameValueHolder as Attribute<any>, descriptor) as T;
+        matched = getMetaValue(lookup, nameValueHolder as Attribute<any>, descriptor) as T;
 
         if (matched) {
             if (lookup === WellknownMetaItems.FORMAT) {

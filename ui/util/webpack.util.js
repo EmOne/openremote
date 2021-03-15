@@ -4,9 +4,9 @@ const webpack = require("webpack");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
-function getAppConfig(mode, isDevServer, dirname) {
+function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
     const production = mode === "production";
-    const managerUrl = production ? undefined : "http://localhost:8080";
+    managerUrl = managerUrl || (production ? undefined : "http://localhost:8080");
     const OUTPUT_PATH = isDevServer ? 'src' : 'dist';
 
     const config = {
@@ -32,7 +32,7 @@ function getAppConfig(mode, isDevServer, dirname) {
                     ]
                 },
                 {
-                    test: /\.(png|jpg|gif|svg|eot|ttf|woff|woff2)$/,
+                    test: /\.(png|jpg|ico|gif|svg|eot|ttf|woff|woff2)$/,
                     type: "asset",
                     generator: {
                         filename: 'images/[hash][ext][query]'
@@ -89,6 +89,7 @@ function getAppConfig(mode, isDevServer, dirname) {
         new webpack.DefinePlugin({
             PRODUCTION: JSON.stringify(production),
             MANAGER_URL: JSON.stringify(managerUrl),
+            KEYCLOAK_URL: JSON.stringify(keycloakUrl),
             "process.env":   {
                 BABEL_ENV: JSON.stringify(mode)
             }

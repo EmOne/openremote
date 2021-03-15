@@ -48,6 +48,12 @@ services:
       - private
     depends_on:
       - manager
+    healthcheck:
+        interval: 3s
+        timeout: 3s
+        start_period: 2s
+        retries: 30
+        test: ["CMD", "curl", "--fail", "--silent", "http://localhost:80"]
     environment:
       TZ: Europe/Amsterdam
       DOMAINNAME: ${DOMAINNAME:-localhost}
@@ -56,10 +62,6 @@ services:
       # Enable --staging will manage fake certificates, so avoid hitting the rate limits of Let's Encrypt
       # when testing (this is important, you are limited to 5 duplicate certificates per week!)
       # LE_EXTRA_ARGS: '--staging --logs-dir=/etc/letsencrypt'
-
-      # Traffic should be forwarded to this service (defaults to manager:8080)
-      # PROXY_BACKEND_HOST: manager
-      # PROXY_BACKEND_PORT: 8080
 
       # The proxy supports up to 10 custom redirects from hostname to any path on the
       # backend service. This can be used to give consoles a vanity domain name.
@@ -110,6 +112,12 @@ services:
       - private
     depends_on:
       - keycloak
+    healthcheck:
+        interval: 3s
+        timeout: 3s
+        start_period: 2s
+        retries: 120
+        test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080"]
     environment:
 
       # It is important that all services have the same timezone and are time synchronized.
@@ -137,25 +145,6 @@ services:
       #SETUP_EMAIL_FROM_KEYCLOAK: 'no-reply@openremote.io'
       #SETUP_EMAIL_FROM_DEFAULT: 'no-reply@openremote.io'
 
-      # Other demo data can be imported as needed, these examples only use the simulator protocol.
-      SETUP_IMPORT_DEMO_USERS: 'true'
-      SETUP_IMPORT_DEMO_ASSETS: 'true'
-      SETUP_IMPORT_DEMO_RULES: 'true'
-      SETUP_IMPORT_DEMO_SCENES: 'true'
-
-      # Create a demo agent with example configurations for all built-in protocols:
-      #
-      # - KNX IP gateway
-      # - Velbus IP gateway or serial bridge
-      #
-      SETUP_IMPORT_DEMO_AGENT: 'true'
-      SETUP_IMPORT_DEMO_AGENT_KNX: 'false'
-      # SETUP_IMPORT_DEMO_AGENT_KNX_GATEWAY_IP: '10.0.0.11'
-      # SETUP_IMPORT_DEMO_AGENT_KNX_LOCAL_IP: '10.0.0.12'
-      SETUP_IMPORT_DEMO_AGENT_VELBUS: 'false'
-      # SETUP_IMPORT_DEMO_AGENT_VELBUS_COM_PORT: 'COM3'
-      # TODO: Additional docker settings are necessary to use com ports and multicast from within containers
-
       # The public host name of this OpenRemote installation. This name is used in bearer tokens
       # and must be the name you access the web services under. If you change proxy#DOMAINNAME, also
       # change this to match.
@@ -167,33 +156,16 @@ services:
       # The public port of this OpenRemote installation.
       IDENTITY_NETWORK_WEBSERVER_PORT: 443
 
-      # The service-internal JDBC connection URL for the database service.
-      DATABASE_CONNECTION_URL: jdbc:postgresql://postgresql/openremote
-
-      # The database connection settings, passwords should be changed in production!
-      DATABASE_USERNAME: openremote
-      DATABASE_PASSWORD: CHANGE_ME_DB_USER_PASSWORD
-      DATABASE_MIN_POOL_SIZE: 5
-      DATABASE_MAX_POOL_SIZE: 20
-      DATABASE_CONNECTION_TIMEOUT_SECONDS: 300
-
       # The service-internal host name and port of the identity provider.
       KEYCLOAK_HOST: keycloak
       KEYCLOAK_PORT: 8080
-      MASTER_REALM_KEYCLOAK_THEME: ${MASTER_REALM_KEYCLOAK_THEME:-openremote}
 
-      # The service-internal webservice interface binding, bind to all interfaces
-      # when running  in container. Default is 127.0.0.1.
-      WEBSERVER_LISTEN_HOST: 0.0.0.0
-
-      APP_DEFAULT: ${APP_DEFAULT:-main}
-
-      JAVA_OPTS: '-Xms400m -Xmx400m
+      JAVA_OPTS: -Xms400m -Xmx400m
                   -XX:CompressedClassSpaceSize=25m -XX:MaxMetaspaceSize=150m
                   -XX:InitialCodeCacheSize=50m -XX:ReservedCodeCacheSize=50m
                   -XX:MaxDirectMemorySize=25m
                   -XX:NativeMemoryTracking=summary
-                  -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/javadump.core.hprof'
+                  -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/javadump.core.hprof
 
     #volumes:
     #  - deployment-data:/deployment
@@ -215,7 +187,13 @@ services:
       - private
     depends_on:
       - postgresql
-      
+    healthcheck:
+        test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/auth"]
+        interval: 3s
+        timeout: 3s
+        # This was 600s in the Dockerfile, but that seems way too long.
+        start_period: 60s
+        retries: 30
     environment:
 
       # It is important that all services have the same timezone and are time synchronized.
@@ -229,27 +207,20 @@ services:
       # SETUP_ADMIN_PASSWORD: # Allow override on CLI
 
       # Configure how Keycloak connects to the database
-      DB_VENDOR: postgres
-      DB_ADDR: postgresql
-      DB_PORT: 5432
-      DB_DATABASE: openremote
-      DB_USER: openremote
-      DB_SCHEMA: public
-      DB_PASSWORD: CHANGE_ME_DB_USER_PASSWORD
-      KEYCLOAK_USER: admin
-      PROXY_ADDRESS_FORWARDING: 'true'
+      KEYCLOAK_FRONTEND_URL: 'https://${IDENTITY_NETWORK_HOST:-localhost}/auth'
 
       # CHANGE THIS PASSWORD BEFORE STARTING THE STACK! THIS IS ONLY FOR DEMO!
       KEYCLOAK_PASSWORD: ${SETUP_ADMIN_PASSWORD:-secret}
 
       # Custom JVM options (increase heap size if required)
-      JAVA_OPTS: '-Xms300m -Xmx300m
-                  -XX:CompressedClassSpaceSize=25m -XX:MaxMetaspaceSize=200m
-                  -XX:InitialCodeCacheSize=50m -XX:ReservedCodeCacheSize=50m
-                  -XX:MaxDirectMemorySize=25m
-                  -XX:NativeMemoryTracking=summary
-                  -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/javadump.core.hprof
-                  -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true'
+      JAVA_OPTS: -Xms300m -Xmx300m
+        -XX:CompressedClassSpaceSize=50m -XX:MaxMetaspaceSize=250m
+        -XX:InitialCodeCacheSize=50m -XX:ReservedCodeCacheSize=50m
+        -XX:MaxDirectMemorySize=25m
+        -XX:NativeMemoryTracking=summary
+        -XX:+ExitOnOutOfMemoryError
+        -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/javadump.core.hprof
+        -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true
 
     ports:
       - "8081:8080"
@@ -273,20 +244,17 @@ services:
     image: openremote/postgresql:${DATE_TAG:-latest}
     networks:
       - private
-      
+    healthcheck:
+        interval: 3s
+        timeout: 3s
+        start_period: 2s
+        retries: 30
+        test: ["CMD", "gosu", "postgres", "pg_isready"]
     environment:
 
       # It is important that all services have the same timezone and are time synchronized.
       # Bearer tokens are only valid for minutes, and authentication fails if Keycloak drifts.
       TZ: Europe/Amsterdam
-
-      # Create database and user if there is no data. For production, run
-      # this once with your volume mapping for the data directory (see docker-compose.yml),
-      # then remove the variables and restart to preserve the stored data. It
-      # doesn't hurt if you don't remove it, an existing will never be reconfigured.
-      POSTGRES_DB: openremote
-      POSTGRES_USER: openremote
-      POSTGRES_PASSWORD: CHANGE_ME_DB_USER_PASSWORD
 
       # You can open an SQL console on a running container with:
       # docker exec -it <container ID> psql -U openremote

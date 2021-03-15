@@ -35,6 +35,7 @@ import org.openremote.model.attribute.MetaItem
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
+import org.openremote.test.protocol.KNXTestingNetworkLink
 import tuwien.auto.calimero.server.Launcher
 import tuwien.auto.calimero.server.knxnetip.DefaultServiceContainer
 
@@ -90,7 +91,7 @@ class KNXProtocolTest extends Specification implements ManagerContainerTrait {
         
 
         when: "KNX agents are created"
-        def knxAgent1 = new KNXAgent("KNX Agent 2")
+        def knxAgent1 = new KNXAgent("KNX Agent 1")
             .setHost("127.0.0.1")
             .setBindHost("127.0.0.1")
             .setRealm(Constants.MASTER_REALM)

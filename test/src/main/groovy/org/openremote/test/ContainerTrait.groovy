@@ -126,9 +126,10 @@ trait ContainerTrait {
                             println("Purging ${assetRulesets.size()} asset ruleset(s)")
                             assetRulesets.forEach {
                                 rulesetStorageService.delete(AssetRuleset.class, it.id)
+                                def assetEngine = rulesService.assetEngines.get(((AssetRuleset) it).assetId)
                                 def rulesStopped = false
-                                while (!rulesStopped) {
-                                    rulesStopped = rulesService.assetEngines.isEmpty() || !rulesService.assetEngines.containsKey(((AssetRuleset) it).assetId) || !rulesService.assetEngines.get(((AssetRuleset) it).assetId).deployments.containsKey(it.id)
+                                while (assetEngine != null && !rulesStopped) {
+                                    rulesStopped = assetEngine.deployments.containsKey(it.id)
                                     if (counter++ > 100) {
                                         throw new IllegalStateException("Failed to purge ruleset: " + it.name)
                                     }
@@ -140,9 +141,10 @@ trait ContainerTrait {
                             println("Purging ${tenantRulesets.size()} tenant ruleset(s)")
                             tenantRulesets.forEach {
                                 rulesetStorageService.delete(TenantRuleset.class, it.id)
+                                def tenantEngine = rulesService.tenantEngines.get(((TenantRuleset) it).realm)
                                 def rulesStopped = false
-                                while (!rulesStopped) {
-                                    rulesStopped = rulesService.tenantEngines.isEmpty() || !rulesService.tenantEngines.containsKey(((TenantRuleset) it).realm) || !rulesService.tenantEngines.get(((TenantRuleset) it).realm).deployments.containsKey(it.id)
+                                while (tenantEngine != null && !rulesStopped) {
+                                    rulesStopped = !tenantEngine.deployments.containsKey(it.id)
                                     if (counter++ > 100) {
                                         throw new IllegalStateException("Failed to purge ruleset: " + it.name)
                                     }
@@ -268,31 +270,40 @@ trait ContainerTrait {
         def agentService = container.hasService(AgentService.class) ? container.getService(AgentService.class) : null
         def rulesService = container.hasService(RulesService.class) ? container.getService(RulesService.class) : null
         def assetProcessingService = container.hasService(AssetProcessingService.class) ? container.getService(AssetProcessingService.class) : null
+        int i=0
 
         if (agentService != null) {
             println("Waiting for agents to be deployed")
-            while (TestFixture.assets.stream().filter { it instanceof Agent }.any { !agentService.agentMap.containsKey(it.id) }) {
+            i=0
+            while (i < 100 && TestFixture.assets.stream().filter { it instanceof Agent }.any { !agentService.agentMap.containsKey(it.id) }) {
                 Thread.sleep(100)
+                i++
             }
             println("Agents are deployed")
         }
 
         if (rulesService != null) {
             println("Waiting for global rulesets to be deployed")
-            while (TestFixture.globalRulesets.stream().filter { it.enabled }.any { rulesService.globalEngine == null || !rulesService.globalEngine.deployments.containsKey(it.id) }) {
+            i=0
+            while (i < 100 && TestFixture.globalRulesets.stream().filter { it.enabled }.any { rulesService.globalEngine == null || !rulesService.globalEngine.deployments.containsKey(it.id) }) {
                 Thread.sleep(100)
+                i++
             }
             println("Global rulesets are deployed")
 
             println("Waiting for tenant rulesets to be deployed")
-            while (TestFixture.tenantRulesets.stream().filter { it.enabled }.any { !rulesService.tenantEngines.containsKey(it.realm) || !rulesService.tenantEngines.get(it.realm).deployments.containsKey(it.id) }) {
+            i=0
+            while (i < 100 && TestFixture.tenantRulesets.stream().filter { it.enabled }.any { !rulesService.tenantEngines.containsKey(it.realm) || !rulesService.tenantEngines.get(it.realm).deployments.containsKey(it.id) }) {
                 Thread.sleep(100)
+                i++
             }
             println("Tenant rulesets are deployed")
 
             println("Waiting for asset rulesets to be deployed")
-            while (TestFixture.assetRulesets.stream().filter { it.enabled }.any { !rulesService.assetEngines.containsKey(it.assetId) || !rulesService.assetEngines.get(it.assetId).deployments.containsKey(it.id) }) {
+            i=0
+            while (i < 100 && TestFixture.assetRulesets.stream().filter { it.enabled }.any { !rulesService.assetEngines.containsKey(it.assetId) || !rulesService.assetEngines.get(it.assetId).deployments.containsKey(it.id) }) {
                 Thread.sleep(100)
+                i++
             }
             println("Asset rulesets are deployed")
         }

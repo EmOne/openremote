@@ -95,8 +95,7 @@ build-deployment-manager-swarm:
     - docker buildx build --push --platform $PLATFORM -t openremote/deployment:latest deployment
     - docker buildx build --push --platform $PLATFORM -t openremote/manager-swarm:latest -f manager/build/install/manager/swarm.Dockerfile manager/build/install/manager
   rules:
-    - if: $RUN_TESTS == "true"
-      when: never
+    - when: never
     - if: $CI_COMMIT_MESSAGE !~ /skip-build/
       when: manual
   retry:
@@ -123,8 +122,7 @@ build-keycloak-postgresql-proxy:
     - docker buildx build --push --platform linux/amd64 -t openremote/keycloak:latest keycloak
     - docker buildx build --push --platform $PLATFORM -t openremote/postgresql:latest postgresql
   rules:
-    - if: $RUN_TESTS == "true"
-      when: never
+    - when: never
     - if: $CI_COMMIT_MESSAGE =~ /skip-build/
       when: never
     - changes:
@@ -194,6 +192,7 @@ build-keycloak-postgresql-proxy:
     - if [ $DOCKER_IMAGE_TAG ]; then echo "export CI_ENVIRONMENT=$DOCKER_IMAGE_TAG" >> deploy.sh; fi
     - echo "export SETUP_WIPE_CLEAN_INSTALL=$SETUP_WIPE_CLEAN_INSTALL" >> deploy.sh
     - if [ $SETUP_ADMIN_PASSWORD ]; then echo "export SETUP_ADMIN_PASSWORD=$SETUP_ADMIN_PASSWORD" >> deploy.sh; fi
+    - if [ $IDENTITY_NETWORK_HOST ]; then echo "export IDENTITY_NETWORK_HOST=$IDENTITY_NETWORK_HOST" >> deploy.sh; fi
     - if [ $NEW_IMAGES ]; then echo "docker pull \$CI_REGISTRY_IMAGE/manager:\$CI_ENVIRONMENT"    >> deploy.sh; fi
     - if [ $NEW_IMAGES ]; then echo "docker pull \$CI_REGISTRY_IMAGE/deployment:\$CI_ENVIRONMENT" >> deploy.sh; fi
     - if [ $NEW_IMAGES ]; then echo "docker pull \$CI_REGISTRY_IMAGE/proxy:\$CI_ENVIRONMENT"      >> deploy.sh; fi
@@ -228,8 +227,7 @@ email failed build:
   stage: build_fail
   <<: *notify_email
   rules:
-    - if: $RUN_TESTS == "true"
-      when: never
+    - when: never
     - if: $CI_COMMIT_MESSAGE =~ /deploy-demo/
       when: on_failure
     - if: $CI_COMMIT_MESSAGE =~ /skip-build/
@@ -240,8 +238,7 @@ build FAILED:
   stage: build_fail
   <<: *notify_whatsapp
   rules:
-    - if: $RUN_TESTS == "true"
-      when: never
+    - when: never
     - if: $CI_COMMIT_MESSAGE =~ /deploy-demo/
       when: on_failure
     - if: $CI_COMMIT_MESSAGE =~ /skip-build/
@@ -262,35 +259,9 @@ test-master:
       /bin/sh -c "./gradlew clean test"
   rules:
     - when: never
-    - if: $CI_COMMIT_MESSAGE !~ /skip-test/
-      when: delayed
-      start_in: 2h # Give github actions time to finish (usually a little more than 1h)
-  artifacts:
-    when: on_failure
-    paths:
-      - "test/build/reports/tests/test/*"
-      - "test/build/reports/tests/test/*/*"
-    expire_in: 4 weeks
-  retry:
-    max: 2
-
-test-master-trigger:
-  stage: test
-  before_script:
-    - docker run -v $(pwd):/or
-      -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-      /bin/sh -c "docker-compose -f profile/dev-testing.yml pull"
-    - docker run -v $(pwd):/or
-      -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-      /bin/sh -c "docker-compose -f profile/dev-testing.yml up --no-build -d"
-  script:
-    - docker run --network host -v $(pwd):/or "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-      /bin/sh -c "./gradlew clean test"
-  rules:
-    - if: $RUN_TESTS != "true"
-      when: never
     - if: $RUN_TESTS == "true"
-      when: always
+      when: never
+    - if: $CI_COMMIT_MESSAGE !~ /skip-test/
   artifacts:
     when: on_failure
     paths:
@@ -312,6 +283,7 @@ deploy demo on OVH:
       when: manual
   variables:
     DEPLOYMENT_HOST: ${PROJECT_NAME}.openremote.io
+    IDENTITY_NETWORK_HOST: ${PROJECT_NAME}.openremote.io
     SETUP_WIPE_CLEAN_INSTALL: "true"
     DOCKER_IMAGE_TAG: latest
     NEW_IMAGES: "true"
@@ -328,6 +300,7 @@ redeploy demo on OVH:
       when: on_success
   variables:
     DEPLOYMENT_HOST: ${PROJECT_NAME}.openremote.io
+    IDENTITY_NETWORK_HOST: ${PROJECT_NAME}.openremote.io
     SETUP_WIPE_CLEAN_INSTALL: "true"
     DOCKER_IMAGE_TAG: latest
   environment:
@@ -337,22 +310,24 @@ redeploy demo on OVH:
 
 email failed tests:
   stage: tests_fail
-  needs: ["test-master-trigger"]
+  needs: ["test-master"]
   before_script:
     - export STAGE='tests'
   <<: *notify_email
   rules:
-    - if: $RUN_TESTS != "true"
+    - when: never
+    - if: $RUN_TESTS == "true"
       when: never
     - if: $CI_COMMIT_MESSAGE !~ /skip-test/
       when: on_failure
 
 test FAILED:
   stage: tests_fail
-  needs: ["test-master-trigger"]
+  needs: ["test-master"]
   <<: *notify_whatsapp
   rules:
-    - if: $RUN_TESTS != "true"
+    - when: never
+    - if: $RUN_TESTS == "true"
       when: never
     - if: $CI_COMMIT_MESSAGE !~ /skip-test/
       when: on_failure

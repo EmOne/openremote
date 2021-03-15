@@ -99,6 +99,7 @@ export interface ValueInputProviderOptions {
     readonly?: boolean;
     disabled?: boolean;
     compact?: boolean;
+    inputType?: InputType;
 }
 
 export interface ValueInputProvider {
@@ -134,12 +135,12 @@ function inputTypeSupportsHelperText(inputType: InputType) {
 }
 
 function inputTypeSupportsLabel(inputType: InputType) {
-    return inputTypeSupportsHelperText(inputType) || inputType === InputType.CHECKBOX || inputType === InputType.SWITCH;
+    return inputTypeSupportsHelperText(inputType) || inputType === InputType.CHECKBOX;
 }
 
 export const getValueHolderInputTemplateProvider: ValueInputProviderGenerator = (assetDescriptor: AssetDescriptor | string, valueHolder: NameValueHolder<any> | undefined, valueHolderDescriptor: ValueDescriptorHolder | undefined, valueDescriptor: ValueDescriptor, valueChangeNotifier: (value: any | undefined) => void, options: ValueInputProviderOptions) => {
 
-    let inputType: InputType | undefined;
+    let inputType: InputType | undefined = options.inputType;
     let step: number | undefined;
     let pattern: string | undefined;
     let min: any;
@@ -153,86 +154,92 @@ export const getValueHolderInputTemplateProvider: ValueInputProviderGenerator = 
     const format: ValueFormat | undefined = (valueHolder && ((valueHolder as MetaHolder).meta) || (valueDescriptor && (valueDescriptor as MetaHolder).meta) ? Util.getAttributeValueFormat(valueHolder as Attribute<any>, valueHolderDescriptor as AttributeDescriptor, assetType) : Util.getMetaValueFormat(valueHolder as Attribute<any>, valueHolderDescriptor as AttributeDescriptor, assetType));
 
     // Determine input type
-    switch (valueDescriptor.name) {
-        case WellknownValueTypes.TEXT:
-        case WellknownValueTypes.EMAIL:
-        case WellknownValueTypes.UUID:
-        case WellknownValueTypes.ASSETID:
-        case WellknownValueTypes.HOSTORIPADDRESS:
-        case WellknownValueTypes.IPADDRESS:
-            inputType = Util.getMetaValue(WellknownMetaItems.MULTILINE, valueHolder, valueHolderDescriptor) === true ? InputType.TEXTAREA : InputType.TEXT;
-            break;
-        case WellknownValueTypes.BOOLEAN:
-            if (format && format.asNumber) {
-                inputType = InputType.NUMBER;
-                step = 1;
-                min = 0;
-                max = 1;
-                valueConverter = (v) => !!v;
+    if (!inputType) {
+        switch (valueDescriptor.name) {
+            case WellknownValueTypes.TEXT:
+            case WellknownValueTypes.EMAIL:
+            case WellknownValueTypes.UUID:
+            case WellknownValueTypes.ASSETID:
+            case WellknownValueTypes.HOSTORIPADDRESS:
+            case WellknownValueTypes.IPADDRESS:
+                inputType = Util.getMetaValue(WellknownMetaItems.MULTILINE, valueHolder, valueHolderDescriptor) === true ? InputType.TEXTAREA : InputType.TEXT;
                 break;
-            }
-            if (format && (format.asOnOff || format.asOpenClosed)) {
-                inputType = InputType.SWITCH;
-            } else {
-                inputType = InputType.CHECKBOX;
-            }
+            case WellknownValueTypes.BOOLEAN:
+                if (format && format.asNumber) {
+                    inputType = InputType.NUMBER;
+                    step = 1;
+                    min = 0;
+                    max = 1;
+                    valueConverter = (v) => !!v;
+                    break;
+                }
+                if (format && (format.asOnOff || format.asOpenClosed)) {
+                    inputType = InputType.SWITCH;
+                } else {
+                    inputType = InputType.CHECKBOX;
+                }
 
-            if (format && format.asMomentary) {
-                inputType = InputType.BUTTON_MOMENTARY;
-            }
-            break;
-        case WellknownValueTypes.BIGNUMBER:
-        case WellknownValueTypes.NUMBER:
-        case WellknownValueTypes.POSITIVEINTEGER:
-        case WellknownValueTypes.POSITIVENUMBER:
-        case WellknownValueTypes.LONG:
-        case WellknownValueTypes.INTEGER:
-        case WellknownValueTypes.BYTE:
-        case WellknownValueTypes.INTEGERBYTE:
-        case WellknownValueTypes.DIRECTION:
-        case WellknownValueTypes.TCPIPPORTNUMBER:
-            if (valueDescriptor.name === WellknownValueTypes.BYTE || valueDescriptor.name === WellknownValueTypes.INTEGERBYTE) {
-                min = 0;
-                max = 255;
+                if (format && format.asMomentary) {
+                    inputType = InputType.BUTTON_MOMENTARY;
+                }
+                break;
+            case WellknownValueTypes.BIGNUMBER:
+            case WellknownValueTypes.NUMBER:
+            case WellknownValueTypes.POSITIVEINTEGER:
+            case WellknownValueTypes.POSITIVENUMBER:
+            case WellknownValueTypes.LONG:
+            case WellknownValueTypes.INTEGER:
+            case WellknownValueTypes.BYTE:
+            case WellknownValueTypes.INTEGERBYTE:
+            case WellknownValueTypes.DIRECTION:
+            case WellknownValueTypes.TCPIPPORTNUMBER:
+                if (valueDescriptor.name === WellknownValueTypes.BYTE || valueDescriptor.name === WellknownValueTypes.INTEGERBYTE) {
+                    min = 0;
+                    max = 255;
+                    step = 1;
+                } else if (valueDescriptor.name === WellknownValueTypes.INTEGER || valueDescriptor.name === WellknownValueTypes.LONG) {
+                    step = 1;
+                }
+                if (format && format.asDate) {
+                    inputType = InputType.DATETIME;
+                } else if (format && format.asBoolean) {
+                    inputType = InputType.CHECKBOX;
+                    valueConverter = (v) => v ? 1 : 0;
+                } else if (format && format.asSlider) {
+                    inputType = InputType.RANGE;
+                } else {
+                    inputType = InputType.NUMBER;
+                }
+                break;
+            case WellknownValueTypes.BIGINTEGER:
+                inputType = InputType.BIG_INT;
                 step = 1;
-            } else if (valueDescriptor.name === WellknownValueTypes.INTEGER || valueDescriptor.name === WellknownValueTypes.LONG) {
-                step = 1;
-            }
-            if (format && format.asDate) {
+                break;
+            case WellknownValueTypes.COLOURRGB:
+                inputType = InputType.COLOUR;
+                break;
+            case WellknownValueTypes.DATEANDTIME:
+            case WellknownValueTypes.TIMESTAMP:
+            case WellknownValueTypes.TIMESTAMPISO8601:
                 inputType = InputType.DATETIME;
-            } else if (format && format.asBoolean) {
-                inputType = InputType.CHECKBOX;
-                valueConverter = (v) => v ? 1 : 0;
-            } else if (format && format.asSlider) {
-                inputType = InputType.RANGE;
-            } else {
-                inputType = InputType.NUMBER;
-            }
-            break;
-        case WellknownValueTypes.BIGINTEGER:
-            inputType = InputType.BIG_INT;
-            step = 1;
-            break;
-        case WellknownValueTypes.COLOURRGB:
-            inputType = InputType.COLOUR;
-            break;
-        case WellknownValueTypes.DATEANDTIME:
-        case WellknownValueTypes.TIMESTAMP:
-        case WellknownValueTypes.TIMESTAMPISO8601:
-            inputType = InputType.DATETIME;
-            break;
-        case WellknownValueTypes.TIMERCRONEXPRESSION:
-            inputType = InputType.CRON;
-            break;
-        case WellknownValueTypes.TIMEDURATIONISO8601:
-            inputType = InputType.DURATION_TIME;
-            break;
-        case WellknownValueTypes.PERIODDURATIONISO8601:
-            inputType = InputType.DURATION_PERIOD;
-            break;
-        case WellknownValueTypes.TIMEANDPERIODDURATIONISO8601:
-            inputType = InputType.DURATION;
-            break;
+                break;
+            case WellknownValueTypes.TIMERCRONEXPRESSION:
+                inputType = InputType.CRON;
+                break;
+            case WellknownValueTypes.TIMEDURATIONISO8601:
+                inputType = InputType.DURATION_TIME;
+                break;
+            case WellknownValueTypes.PERIODDURATIONISO8601:
+                inputType = InputType.DURATION_PERIOD;
+                break;
+            case WellknownValueTypes.TIMEANDPERIODDURATIONISO8601:
+                inputType = InputType.DURATION;
+                break;
+        }
+
+        if (valueDescriptor.arrayDimensions && valueDescriptor.arrayDimensions > 0) {
+            inputType = InputType.JSON;
+        }
     }
 
     if (!inputType) {
@@ -342,11 +349,11 @@ export const getValueHolderInputTemplateProvider: ValueInputProviderGenerator = 
             .min="${min}" .max="${max}" .format="${format}" .focused="${focused}" .required="${required}"
             .options="${selectOptions}" .readonly="${readonly}" .disabled="${disabled}" .step="${step}"
             .helperText="${helperText}" .helperPersistent="${true}"
-        }}" @or-input-changed="${(e: OrInputChangedEvent) => {
-            e.stopPropagation();
-            e.detail.value = valueConverter ? valueConverter(e.detail.value) : e.detail.value;
-            valueChangeNotifier(e.detail);
-        }}"></or-input>`
+            @or-input-changed="${(e: OrInputChangedEvent) => {
+                e.stopPropagation();
+                e.detail.value = valueConverter ? valueConverter(e.detail.value) : e.detail.value;
+                valueChangeNotifier(e.detail);
+            }}"></or-input>`
     };
 
     return {
@@ -445,6 +452,10 @@ const style = css`
         border-radius: 50% !important;
     }
 
+    .mdc-text-field__input::-webkit-calendar-picker-indicator {
+        display: block;
+    }
+
     ::-webkit-clear-button {display: none;}
     ::-webkit-inner-spin-button { display: none; }
     ::-webkit-datetime-edit { padding: 0em;}
@@ -457,7 +468,7 @@ const style = css`
     .mdc-text-field--focused .mdc-text-field__input:required ~ .mdc-notched-outline .mdc-floating-label::after {
         color: var(--mdc-theme-primary);
     }
-    
+
     .mdc-text-field, .mdc-text-field-helper-line {
         width: 100%;
     }
@@ -493,6 +504,11 @@ const style = css`
     /* Give slider min width like select etc. */
     .mdc-slider {
         min-width: 200px;
+        flex: 1;
+    }
+    
+    .mdc-switch {
+        margin: 0 24px;
     }
     
     #field {
@@ -643,6 +659,10 @@ export class OrInput extends LitElement {
     @property({type: Boolean})
     public disabled: boolean = false;
 
+    @property({type: Boolean})
+    public continuous: boolean = false;
+
+
     /* TEXT INPUT STYLES END */
 
     protected _mdcComponent?: MDCComponent<any>;
@@ -702,6 +722,17 @@ export class OrInput extends LitElement {
             (this._mdcComponent2 as any).focus();
         } else if (this._mdcComponent && typeof (this._mdcComponent as any).focus === "function") {
             (this._mdcComponent as any).focus();
+        }
+    }
+
+    public setCustomValidity(msg?: string) {
+        const elem = this.shadowRoot!.getElementById("elem") as HTMLElement;
+        if (!elem || !(elem as any).setCustomValidity) {
+            return;
+        }
+        (elem as any).setCustomValidity(msg);
+        if (this._mdcComponent && (this._mdcComponent as any).valid) {
+            (this._mdcComponent as any).valid = (elem as any).checkValidity();
         }
     }
 
@@ -852,7 +883,7 @@ export class OrInput extends LitElement {
                 case InputType.BUTTON_MOMENTARY: {
                     const isMomentary = this.type === InputType.BUTTON_MOMENTARY;
                     const isIconButton = !this.action && !this.label;
-                    const classes = {
+                    let classes = {
                         "mdc-icon-button": isIconButton,
                         "mdc-fab": !isIconButton && this.action,
                         "mdc-fab--extended": !isIconButton && this.action && !!this.label,
@@ -888,7 +919,8 @@ export class OrInput extends LitElement {
                                     return html`
                                     <div id="field" class="mdc-form-field">
                                         <div id="component" class="mdc-checkbox">
-                                            <input type="checkbox" 
+                                            <input type="checkbox"
+                                                id="elem"
                                                 ?checked="${this.value && this.value.includes(optValue)}"
                                                 ?required="${this.required}"
                                                 name="${optValue}"
@@ -906,12 +938,17 @@ export class OrInput extends LitElement {
                             </div>
                     `;
                 case InputType.CHECKBOX:
+                    let classList = {
+                        "mdc-checkbox": true,
+                        "mdc-checkbox--disabled": this.disabled || this.readonly
+                    };
                     return html`
                         <div id="field" class="mdc-form-field">
-                            <div id="component" class="mdc-checkbox">
+                            <div id="component" class="${classMap(classList)}">
                                 <input type="checkbox" 
+                                    id="elem"
                                     ?checked="${this.value}"
-                                    ?required="${this.required}"
+                                    ?required="${!this.required}"
                                     ?disabled="${this.disabled || this.readonly}"
                                     @change="${(e: Event) => this.onValueChange((e.target as HTMLInputElement), (e.target as HTMLInputElement).checked)}"
                                     class="mdc-checkbox__native-control" id="elem"/>
@@ -975,7 +1012,8 @@ export class OrInput extends LitElement {
                                     break;
                             }
 
-                            // Numbers/dates must be in english locale
+                            // Numbers/dates must be in english locale without commas etc.
+                            format.useGrouping = false;
                             valMinMax = valMinMax.map((val) => val !== undefined ? Util.getValueAsString(val, () => format, "en-GB") : undefined) as [any,any,any];
                         }
                     }
@@ -1052,20 +1090,35 @@ export class OrInput extends LitElement {
                     }
 
                     if (this.type === InputType.RANGE) {
+
+                        const classes = {
+                            "mdc-slider": true,
+                            "mdc-slider--range": this.continuous,
+                            "mdc-slider--discreet": !this.continuous,
+                            "mdc-slider--disabled": this.disabled
+                        };
+
                         inputElem = html`
                             <span id="wrapper">
                                 ${this.label ? html`<label for="component" class="${this.disabled ? "mdc-switch--disabled" : ""}">${this.label}</label>` : ``}
-                                <div id="component" class="mdc-slider" @MDCSlider:change="${(ev:CustomEvent<MDCSliderChangeEventDetail>) => this.onValueChange(undefined, ev.detail.value)}">
-                                  <input class="mdc-slider__input" ?disabled="${this.readonly || this.disabled}" type="range" min="${ifDefined(valMinMax[1])}" max="${ifDefined(valMinMax[2])}" value="${ifDefined(valMinMax[0])}" name="slider" aria-label="${this.label}">
-                                  <div class="mdc-slider__track">
-                                    <div class="mdc-slider__track--inactive"></div>
-                                    <div class="mdc-slider__track--active">
-                                      <div class="mdc-slider__track--active_fill"></div>
+                                <div id="component" class="${classMap(classes)}" @MDCSlider:change="${(ev:CustomEvent<MDCSliderChangeEventDetail>) => this.onValueChange(undefined, ev.detail.value)}">
+                                    <input id="elem" class="mdc-slider__input" type="range" min="${ifDefined(valMinMax[1])}" max="${ifDefined(valMinMax[2])}" value="${valMinMax[0] || valMinMax[1] || 0}" name="slider" step="${this.step || 1}" ?readonly="${this.readonly}" ?disabled="${this.disabled}" aria-label="${ifDefined(this.label)}" />
+                                    <div class="mdc-slider__track">
+                                        <div class="mdc-slider__track--inactive"></div>
+                                        <div class="mdc-slider__track--active">
+                                            <div class="mdc-slider__track--active_fill"></div>
+                                        </div>
                                     </div>
-                                  </div>
-                                  <div class="mdc-slider__thumb">
-                                    <div class="mdc-slider__thumb-knob"></div>
-                                  </div>
+                                    <div class="mdc-slider__thumb">
+                                        ${!this.continuous ? html`<div class="mdc-slider__value-indicator-container" aria-hidden="true">
+                                            <div class="mdc-slider__value-indicator">
+                                                <span class="mdc-slider__value-indicator-text">
+                                                  50
+                                                </span>
+                                            </div>
+                                        </div>` : ``}
+                                        <div class="mdc-slider__thumb-knob"></div>
+                                    </div>
                                 </div>
                                 ${inputElem ? html`<div style="width: 75px; margin-left: 20px;">${inputElem}</div>` : ``}
                             </span>
@@ -1173,6 +1226,9 @@ export class OrInput extends LitElement {
             } else if (this.type === InputType.SWITCH && this._mdcComponent) {
                 const swtch = this._mdcComponent as MDCSwitch;
                 swtch.checked = this.value;
+            } else if (this.type === InputType.CHECKBOX && this._mdcComponent) {
+                const checkbox = this._mdcComponent as MDCCheckbox;
+                checkbox.disabled = this.disabled || this.readonly;
             }
         }
     }
@@ -1206,8 +1262,8 @@ export class OrInput extends LitElement {
             if (this._mdcComponent instanceof MDCTextField) {
                 this._mdcComponent.valid = valid;
             }
+            if(!valid && this.type != InputType.CHECKBOX) return
         }
-
         const previousValue = this.value;
 
         if (newValue === "null") {

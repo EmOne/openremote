@@ -43,6 +43,12 @@ distributions {
             from(project.projectDir) {
                 include("*Dockerfile")
             }
+            into ("web") {
+                from("${projectDir}/src/web")
+            }
+            into ("map") {
+                from("${projectDir}/src/map")
+            }
         }
     }
 }

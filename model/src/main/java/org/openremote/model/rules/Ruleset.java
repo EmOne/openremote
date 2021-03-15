@@ -246,8 +246,12 @@ public abstract class Ruleset {
 
     @PreUpdate
     @PrePersist
-    public void updateLastModified() { // Don't call this setLastModified(), it confuses gwt-jackson
+    protected void updateLastModified() {
         setLastModified(new Date());
+    }
+
+    public Ruleset setLastModified() {
+        return setLastModified(new Date());
     }
 
     public Ruleset setLastModified(Date lastModified) {

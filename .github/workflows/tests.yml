@@ -1,0 +1,41 @@
+# This workflow will build a Java project with Gradle
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
+
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: start containers needed for testing
+        run: docker-compose -f profile/dev-testing.yml up --no-build -d
+      - name: Check running containers
+        run: docker ps -a
+      - name: tests with Gradle
+        run: ./gradlew clean test
+        # Typically it takes 10 minutes to complete tests, default timeout is 6h, to be agile we need to pivot quicker :-)
+        timeout-minutes: 30
+      - name: Share tests artifacts
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: tests-run-artifacts
+          path: |
+            test/build/reports/tests/test

@@ -24,22 +24,42 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeMap;
 import org.openremote.model.geo.GeoJSONPoint;
+import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Collection;
+import java.util.Optional;
+
+import static org.openremote.model.Constants.*;
 
 @Entity
 public class ElectricityProducerWindAsset extends ElectricityProducerAsset {
 
+    public static final AttributeDescriptor<Double> WIND_SPEED_REFERENCE = new AttributeDescriptor<>("windSpeedReference", ValueType.POSITIVE_NUMBER
+    ).withUnits(UNITS_METRE, UNITS_PER, UNITS_SECOND);
+    public static final AttributeDescriptor<Double> WIND_SPEED_MIN = new AttributeDescriptor<>("windSpeedMin", ValueType.POSITIVE_NUMBER
+    ).withUnits(UNITS_METRE, UNITS_PER, UNITS_SECOND);
+
     public static final AssetDescriptor<ElectricityProducerWindAsset> DESCRIPTOR = new AssetDescriptor<>("wind-turbine", "4B87EA", ElectricityProducerWindAsset.class);
 
-    ElectricityProducerWindAsset() {
+    /**
+     * For use by hydrators (i.e. JPA/Jackson)
+     */
+    protected ElectricityProducerWindAsset() {
     }
 
     public ElectricityProducerWindAsset(String name) {
         super(name);
     }
 
+    public Optional<Double> getWindSpeedReference() {
+        return getAttributes().getValue(WIND_SPEED_REFERENCE);
+    }
+
+    public Optional<Double> getWindSpeedMin() {
+        return getAttributes().getValue(WIND_SPEED_MIN);
+    }
 
     @Override
     public ElectricityProducerWindAsset setPower(Double value) {
@@ -86,36 +106,6 @@ public class ElectricityProducerWindAsset extends ElectricityProducerAsset {
     @Override
     public ElectricityProducerWindAsset setEnergyExportTotal(Double value) {
         super.setEnergyExportTotal(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerWindAsset setEnergyCapacity(Double value) {
-        super.setEnergyCapacity(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerWindAsset setEnergyLevel(Double value) {
-        super.setEnergyLevel(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerWindAsset setEnergyLevelPercentage(Integer value) {
-        super.setEnergyLevelPercentage(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerWindAsset setEnergyLevelPercentageMin(Integer value) {
-        super.setEnergyLevelPercentageMin(value);
-        return this;
-    }
-
-    @Override
-    public ElectricityProducerWindAsset setEnergyLevelPercentageMax(Integer value) {
-        super.setEnergyLevelPercentageMax(value);
         return this;
     }
 

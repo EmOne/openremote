@@ -23,8 +23,10 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeMap;
+import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
@@ -34,20 +36,31 @@ import java.util.Optional;
 import static org.openremote.model.Constants.*;
 
 @Entity
-public class ElectricVehicleAsset extends ElectricityStorageAsset {
+public class ElectricVehicleAsset extends ElectricityBatteryAsset {
 
     public static final AttributeDescriptor<ElectricityChargerAsset.ConnectorType> CONNECTOR_TYPE = new AttributeDescriptor<>("connectorType", ElectricityChargerAsset.CONNECTOR_TYPE_VALUE);
-    public static final AttributeDescriptor<Integer> ODOMETER = new AttributeDescriptor<>("odometer", ValueType.POSITIVE_INTEGER)
+    public static final AttributeDescriptor<Integer> ODOMETER = new AttributeDescriptor<>("odometer", ValueType.POSITIVE_INTEGER,
+        new MetaItem<>(MetaItemType.READ_ONLY))
         .withUnits(UNITS_KILO, UNITS_METRE);
-    public static final AttributeDescriptor<Boolean> CHARGER_CONNECTED = new AttributeDescriptor<>("chargerConnected", ValueType.BOOLEAN);
+    public static final AttributeDescriptor<Boolean> CHARGER_CONNECTED = new AttributeDescriptor<>("chargerConnected", ValueType.BOOLEAN,
+        new MetaItem<>(MetaItemType.READ_ONLY));
+    public static final AttributeDescriptor<String> CHARGER_ID = new AttributeDescriptor<>("chargerID", ValueType.TEXT,
+        new MetaItem<>(MetaItemType.READ_ONLY));
+    public static final AttributeDescriptor<Integer> MILEAGE_CAPACITY = new AttributeDescriptor<>("mileageCapacity", ValueType.POSITIVE_INTEGER)
+        .withUnits(UNITS_KILO, UNITS_METRE);
+    public static final AttributeDescriptor<Double> MILEAGE_CHARGED = new AttributeDescriptor<>("mileageCharged", ValueType.POSITIVE_NUMBER,
+        new MetaItem<>(MetaItemType.READ_ONLY)
+    ).withUnits(UNITS_KILO, UNITS_METRE);
+    public static final AttributeDescriptor<Integer> MILEAGE_MIN = new AttributeDescriptor<>("mileageMin", ValueType.POSITIVE_INTEGER)
+        .withUnits(UNITS_KILO, UNITS_METRE);
+    public static final AttributeDescriptor<String> VEHICLE_CATEGORY = new AttributeDescriptor<>("vehicleCategory", ValueType.TEXT);
 
     public static final AssetDescriptor<ElectricVehicleAsset> DESCRIPTOR = new AssetDescriptor<>("car-electric", "49B0D8", ElectricVehicleAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    ElectricVehicleAsset() {
-        this(null);
+    protected ElectricVehicleAsset() {
     }
 
     public ElectricVehicleAsset(String name) {
@@ -81,6 +94,50 @@ public class ElectricVehicleAsset extends ElectricityStorageAsset {
         return this;
     }
 
+    public Optional<String> getChargerId() {
+        return getAttributes().getValue(CHARGER_ID);
+    }
+
+    public ElectricVehicleAsset setChargerId(String value) {
+        getAttributes().getOrCreate(CHARGER_ID).setValue(value);
+        return this;
+    }
+
+    public Optional<Integer> getMileageCapacity() {
+        return getAttributes().getValue(MILEAGE_CAPACITY);
+    }
+
+    public ElectricVehicleAsset setMileageCapacity(Integer value) {
+        getAttributes().getOrCreate(MILEAGE_CAPACITY).setValue(value);
+        return this;
+    }
+
+    public Optional<Double> getMileageCharged() {
+        return getAttributes().getValue(MILEAGE_CHARGED);
+    }
+
+    public ElectricVehicleAsset setMileageCharged(Double value) {
+        getAttributes().getOrCreate(MILEAGE_CHARGED).setValue(value);
+        return this;
+    }
+
+    public Optional<Integer> getMileageMin() {
+        return getAttributes().getValue(MILEAGE_MIN);
+    }
+
+    public ElectricVehicleAsset setMileageMin(Integer value) {
+        getAttributes().getOrCreate(MILEAGE_MIN).setValue(value);
+        return this;
+    }
+
+    public Optional<String> getVehicleCategory() {
+        return getAttributes().getValue(VEHICLE_CATEGORY);
+    }
+
+    public ElectricVehicleAsset setVehicleCategory(String value) {
+        getAttributes().getOrCreate(VEHICLE_CATEGORY).setValue(value);
+        return this;
+    }
 
     @Override
     public ElectricVehicleAsset setPower(Double value) {

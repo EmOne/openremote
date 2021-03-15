@@ -89,37 +89,49 @@ Resources:
           free -h
           cat /proc/sys/vm/swappiness
           cat /proc/sys/vm/vfs_cache_pressure
+          sudo apt update
           # Install docker
           sudo groupadd docker
           sudo gpasswd -a ubuntu docker
-          sudo snap install docker
+          sudo apt install docker.io -y
+          sudo apt install docker-compose -y
+          # Install openremote-cli tool
+          sudo apt install python3-pip -y
+          sudo pip3 install -U openremote-cli
           # Prepare deployment files
           cd /home/ubuntu # we need this because on arm docker-compose cannot read /
-          wget https://github.com/openremote/openremote/raw/master/profile/deploy-no-build.yml
-          wget https://github.com/openremote/openremote/raw/master/profile/demo-basic-no-build.yml
+          # Create volume for deployment (needed for SWARM due to concurency in compose-file)
+          docker volume create openremote_deployment-data
+          docker run --rm -v openremote_deployment-data:/deployment openremote/deployment:latest
+          wget https://github.com/openremote/openremote/raw/master/mvp/mvp-docker-compose.yml
+          docker swarm init
           if [ ${HostName} ] && [ ${DomainName} ]
           then
-            export DOMAINNAME=${HostName}.${DomainName}
-            export IDENTITY_NETWORK_HOST=$DOMAINNAME
-            echo a $DOMAINNAME $IDENTITY_NETWORK_HOST
+            echo export DOMAINNAME=${HostName}.${DomainName} >> deploy.sh
+            echo 'export IDENTITY_NETWORK_HOST=$DOMAINNAME' >> deploy.sh
           elif [ ${DomainName} ]
           then
-            export DOMAINNAME=${DomainName}
-            export IDENTITY_NETWORK_HOST=$DOMAINNAME
-            echo b $DOMAINNAME $IDENTITY_NETWORK_HOST
+            echo export DOMAINNAME=${DomainName} >> deploy.sh
+            echo 'export IDENTITY_NETWORK_HOST=$DOMAINNAME' >> deploy.sh
           elif [ ${HostName} ]
           then
-            export DOMAINNAME=${HostName}
-            export IDENTITY_NETWORK_HOST=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo c $DOMAINNAME $IDENTITY_NETWORK_HOST
+            echo export DOMAINNAME=${HostName} >> deploy.sh
+            echo export 'IDENTITY_NETWORK_HOST=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)' >> deploy.sh
           else
-            export DOMAINNAME=localhost
-            export IDENTITY_NETWORK_HOST=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo d $DOMAINNAME $IDENTITY_NETWORK_HOST
+            echo export DOMAINNAME=localhost >> deploy.sh
+            echo export 'IDENTITY_NETWORK_HOST=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)' >> deploy.sh
           fi
-          export SETUP_ADMIN_PASSWORD=${OpenRemotePassword}
-          export LE_EMAIL=me@privacy.net
-          docker-compose -f demo-basic-no-build.yml -p openremote up -d
+          echo export SETUP_ADMIN_PASSWORD=${OpenRemotePassword} >> deploy.sh
+          echo export LE_EMAIL=me@privacy.net >> deploy.sh
+          # Running docker-compose before docker stack deploy has to do with AWS
+          # problems to fetch letsencrypt CERT in the swarm mode.
+          echo 'docker-compose -f mvp-docker-compose.yml -p openremote up -d' >> deploy.sh
+          #echo sleep 10 >> deploy.sh # give time to fetch CERT from letsencrypt
+          #echo 'docker-compose -f demo-basic-no-build.yml -p openremote down' >> deploy.sh
+          #echo openremote-cli deploy -v >> deploy.sh
+          chmod +x deploy.sh
+          chown --recursive 1000:1000 *
+          ./deploy.sh
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

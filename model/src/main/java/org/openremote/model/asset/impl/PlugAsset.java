@@ -34,13 +34,12 @@ public class PlugAsset extends Asset<PlugAsset> {
     public static final AttributeDescriptor<Boolean> ON_OFF = new AttributeDescriptor<>("onOff", ValueType.BOOLEAN)
         .withFormat(ValueFormat.BOOLEAN_ON_OFF());
 
-    public static final AssetDescriptor<PlugAsset> DESCRIPTOR = new AssetDescriptor<>("plug", "e6688a", PlugAsset.class);
+    public static final AssetDescriptor<PlugAsset> DESCRIPTOR = new AssetDescriptor<>("power-socket-eu", "e6688a", PlugAsset.class);
 
     /**
      * For use by hydrators (i.e. JPA/Jackson)
      */
-    PlugAsset() {
-        this(null);
+    protected PlugAsset() {
     }
 
     public PlugAsset(String name) {

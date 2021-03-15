@@ -2,6 +2,7 @@ package org.openremote.test.console
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.firebase.messaging.Message
+import org.openremote.container.timer.TimerService
 import org.openremote.container.util.UniqueIdentifierGenerator
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.notification.NotificationService
@@ -11,8 +12,8 @@ import org.openremote.manager.rules.RulesService
 import org.openremote.manager.rules.RulesetStorageService
 import org.openremote.manager.rules.geofence.ORConsoleGeofenceAssetAdapter
 import org.openremote.manager.setup.SetupService
-import org.openremote.manager.setup.builtin.KeycloakTestSetup
-import org.openremote.manager.setup.builtin.ManagerTestSetup
+import org.openremote.test.setup.KeycloakTestSetup
+import org.openremote.test.setup.ManagerTestSetup
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.AssetResource
 import org.openremote.model.asset.impl.ConsoleAsset
@@ -22,7 +23,6 @@ import org.openremote.model.console.ConsoleProvider
 import org.openremote.model.console.ConsoleRegistration
 import org.openremote.model.console.ConsoleResource
 import org.openremote.model.geo.GeoJSONPoint
-import org.openremote.model.notification.AbstractNotificationMessage
 import org.openremote.model.notification.Notification
 import org.openremote.model.notification.NotificationSendResult
 import org.openremote.model.notification.PushNotificationMessage
@@ -41,8 +41,8 @@ import javax.ws.rs.WebApplicationException
 import java.util.concurrent.TimeUnit
 import java.util.stream.IntStream
 
-import static org.openremote.manager.setup.builtin.ManagerTestSetup.DEMO_RULE_STATES_SMART_BUILDING
-import static org.openremote.manager.setup.builtin.ManagerTestSetup.SMART_BUILDING_LOCATION
+import static org.openremote.test.setup.ManagerTestSetup.DEMO_RULE_STATES_SMART_BUILDING
+import static org.openremote.test.setup.ManagerTestSetup.SMART_BUILDING_LOCATION
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.asset.AssetResource.Util.WRITE_ATTRIBUTE_HTTP_METHOD
 import static org.openremote.model.asset.AssetResource.Util.getWriteAttributeUrl
@@ -66,6 +66,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         def pushNotificationHandler = container.getService(PushNotificationHandler.class)
         def notificationService = container.getService(NotificationService.class)
         def assetStorageService = container.getService(AssetStorageService.class)
+        def timerService = container.getService(TimerService.class)
         def keycloakTestSetup = container.getService(SetupService.class).getTaskOfType(KeycloakTestSetup.class)
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
         def rulesService = container.getService(RulesService.class)
@@ -74,8 +75,11 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         and: "a mock push notification handler is injected"
         PushNotificationHandler mockPushNotificationHandler = Spy(pushNotificationHandler)
         mockPushNotificationHandler.isValid() >> true
-        mockPushNotificationHandler.sendMessage(_ as Long, _ as Notification.Source, _ as String, _ as Notification.Target, _ as AbstractNotificationMessage) >> {
-                id, source, sourceId, target, message ->
+        mockPushNotificationHandler.sendMessage(_ as Long, _ as Notification.Source, _ as String, _ as Notification.Target, _ as PushNotificationMessage) >> {
+                Long id, Notification.Source source, String sourceId, Notification.Target target, PushNotificationMessage message ->
+
+                    message.title = target.id // Makes it easier to test/debug
+                    message.body = timerService.getCurrentTimeMillis() // Makes it easier to test/debug
                     notificationIds << id
                     targetTypes << target.type
                     targetIds << target.id
@@ -409,7 +413,6 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
             assert !tenantBuildingEngine.facts.getOptional("welcomeHome_${testUser3Console2.id}").isPresent()
         }
 
-
         when: "time advances"
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
@@ -493,7 +496,11 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
             assert geofences.size() == 0
         }
 
-        when: "a new ruleset is deployed on the console parent asset with multiple location predicate rules (including a duplicate and a rectangular predicate)"
+        when: "the notifications are cleared"
+        notificationIds.clear()
+        messages.clear()
+
+        and: "a new ruleset is deployed on the console parent asset with multiple location predicate rules (including a duplicate and a rectangular predicate)"
         def newRuleset = new AssetRuleset(
             testUser3Console1.parentId,
             "Console test location predicates",
@@ -516,9 +523,9 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
 
         then: "a push notification should have been sent to the two remaining consoles telling them to refresh their geofences"
         conditions.eventually {
-            assert notificationIds.size() == 4
-            assert ((PushNotificationMessage) messages[2]).data.get("action").asText() == "GEOFENCE_REFRESH"
-            assert ((PushNotificationMessage) messages[3]).data.get("action").asText() == "GEOFENCE_REFRESH"
+            assert notificationIds.size() == 2
+            assert ((PushNotificationMessage) messages[0]).data.get("action").asText() == "GEOFENCE_REFRESH"
+            assert ((PushNotificationMessage) messages[1]).data.get("action").asText() == "GEOFENCE_REFRESH"
         }
 
         then: "the geofences of testUser3Console1 should contain the welcome home geofence and new radial geofence (but not the rectangular and duplicate predicates)"
@@ -546,16 +553,22 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
             assert geofence2.url == getWriteAttributeUrl(new AttributeRef(testUser3Console1.id, Asset.LOCATION.name))
         }
 
-        when: "an existing ruleset containing a radial location predicate is updated"
+        when: "the notifications are cleared"
+        notificationIds.clear()
+        messages.clear()
+
+        and: "an existing ruleset containing a radial location predicate is updated"
         newRuleset.rules = getClass().getResource("/org/openremote/test/rules/BasicLocationPredicates2.groovy").text
         newRuleset = rulesetStorageService.merge(newRuleset)
         newLocationPredicate = new RadialGeofencePredicate(150, 10, 40)
 
-        then: "a push notification should have been sent to the two remaining consoles telling them to refresh their geofences"
+        then: "a push notification should have been sent to the two remaining consoles telling them to refresh their geofences (from the tenant engine and asset engine)"
         conditions.eventually {
-            assert notificationIds.size() == 6
-            assert ((PushNotificationMessage) messages[4]).data.get("action").asText() == "GEOFENCE_REFRESH"
-            assert ((PushNotificationMessage) messages[5]).data.get("action").asText() == "GEOFENCE_REFRESH"
+            assert messages.stream()
+                    .filter({ it instanceof PushNotificationMessage })
+                    .filter({
+                        ((PushNotificationMessage) it).data.get("action").asText() == "GEOFENCE_REFRESH"
+                    }).count() == 4
         }
 
         then: "the geofences of testUser3Console1 should still contain two geofences but the location of the second should have been updated"
@@ -583,12 +596,12 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
             assert geofence2.url == getWriteAttributeUrl(new AttributeRef(testUser3Console1.id, Asset.LOCATION.name))
         }
 
-        when: "a location predicate ruleset is removed"
-        rulesetStorageService.delete(AssetRuleset.class, newRuleset.id)
-
-        and: "previous notification messages are cleared"
+        when: "previous notification messages are cleared"
         notificationIds.clear()
         messages.clear()
+
+        and: "a location predicate ruleset is removed"
+        rulesetStorageService.delete(AssetRuleset.class, newRuleset.id)
 
         then: "only the welcome home geofence should remain"
         conditions.eventually {
@@ -609,8 +622,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
                     .filter({ it instanceof PushNotificationMessage })
                     .filter({
                 ((PushNotificationMessage) it).data.get("action").asText() == "GEOFENCE_REFRESH"
-            })
-                    .count() == 2
+            }).count() == 2
         }
 
         when: "previous notification messages are cleared"

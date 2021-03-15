@@ -22,8 +22,6 @@ package org.openremote.manager.setup;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.container.persistence.PersistenceService;
-import org.openremote.manager.setup.builtin.BuiltinSetupTasks;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -32,13 +30,13 @@ import java.util.logging.Logger;
 /**
  * Executes setup tasks for a clean installation when the application starts.
  * <p>
- * This service is disabled when {@link PersistenceService#SETUP_WIPE_CLEAN_INSTALL} is <code>false</code>.
+ * This service is disabled when {@link PersistenceService#isSetupWipeCleanInstall} is <code>false</code>.
  * <p>
  * First, this service will load an implementation of {@link SetupTasks} from the
  * classpath using {@link ServiceLoader}. If multiple providers are found, an error
  * is raised. If a provider is found, only its tasks will be used.
  * <p>
- * If no {@link SetupTasks} provider is found on the classpath, the {@link BuiltinSetupTasks} are used.
+ * If no {@link SetupTasks} provider is found on the classpath, an instance of {@link EmptySetupTasks} is used.
  */
 public class SetupService implements ContainerService {
 
@@ -60,7 +58,7 @@ public class SetupService implements ContainerService {
         boolean isClean = container.getService(PersistenceService.class).isSetupWipeCleanInstall();
 
         if (!isClean) {
-            LOG.info("Setup service disabled, " + PersistenceService.SETUP_WIPE_CLEAN_INSTALL + "=false");
+            LOG.info("Setup service disabled, clean install = false");
             return;
         }
 
@@ -79,8 +77,8 @@ public class SetupService implements ContainerService {
         );
 
         if (setupTasks == null) {
-            LOG.info("No custom SetupTasks provider found on classpath, enabling: " + BuiltinSetupTasks.class.getName());
-            setupTasks = new BuiltinSetupTasks();
+            LOG.info("No custom SetupTasks provider found on classpath, system will be empty");
+            setupTasks = new EmptySetupTasks();
         }
 
         setupList.addAll(setupTasks.createTasks(container));

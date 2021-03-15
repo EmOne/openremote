@@ -14,7 +14,8 @@ import {
     AssetEventCause,
     AttributeEvent,
     SharedEvent,
-    WellknownAttributes
+    WellknownAttributes,
+    WellknownMetaItems
 } from "@openremote/model";
 import manager, {AssetModelUtil, subscribe, Util} from "@openremote/core";
 import "@openremote/or-icon";
@@ -50,6 +51,15 @@ declare global {
         [OrMapAssetCardLoadAssetEvent.NAME]: OrMapAssetCardLoadAssetEvent;
     }
 }
+
+
+export const DefaultConfig: MapAssetCardConfig = {
+    default: {
+        exclude: ["notes"]
+    },
+    assetTypes: {
+    }
+};
 
 @customElement("or-map-asset-card")
 export class OrMapAssetCard extends subscribe(manager)(LitElement) {
@@ -109,12 +119,14 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
         }
     }
     
-    getCardConfig() {
-        if (!this.config) { return; }
-        if (!this.asset) { return this.config.default; }
+    protected getCardConfig(): MapAssetCardTypeConfig | undefined {
+        let cardConfig = this.config || DefaultConfig;
 
-        const config = this.config.assetTypes && this.config.assetTypes.hasOwnProperty(this.asset.type!) ? this.config.assetTypes[this.asset.type!] : this.config.default;
-        return config;
+        if (!this.asset) {
+            return cardConfig.default;
+        }
+
+        return cardConfig.assetTypes && cardConfig.assetTypes.hasOwnProperty(this.asset.type!) ? cardConfig.assetTypes[this.asset.type!] : cardConfig.default;
     }
 
     protected render(): TemplateResult | undefined {
@@ -132,7 +144,9 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
         const excludedAttributes = cardConfig && cardConfig.exclude ? cardConfig.exclude : [];
         const attrs = attributes.filter((attr) =>
             (!includedAttributes || includedAttributes.indexOf(attr.name!) >= 0)
-            && (!excludedAttributes || excludedAttributes.indexOf(attr.name!) < 0));
+            && (!excludedAttributes || excludedAttributes.indexOf(attr.name!) < 0)
+            && (!attr.meta || !attr.meta.hasOwnProperty(WellknownMetaItems.SHOWONDASHBOARD) || !!Util.getMetaValue(WellknownMetaItems.SHOWONDASHBOARD, attr)))
+            .sort(Util.sortByString((listItem) => listItem.name!));
 
         return html`
             <div id="card-container" style="${styleStr}">

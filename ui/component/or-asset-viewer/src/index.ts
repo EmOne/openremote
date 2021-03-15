@@ -39,6 +39,8 @@ import {GenericAxiosResponse} from "axios";
 import {OrIcon} from "@openremote/or-icon";
 import "./or-edit-asset-panel";
 import {OrEditAssetModifiedEvent} from "./or-edit-asset-panel";
+import "@openremote/or-mwc-components/dist/or-mwc-snackbar";
+import {showSnackbar} from "@openremote/or-mwc-components/dist/or-mwc-snackbar";
 
 export interface PanelConfig {
     type?: "info" | "history" | "group" | "survey" | "survey-results";
@@ -310,6 +312,7 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: { [
         includedAttributes.forEach((attribute) => {
             const itemConfig = infoConfig.attributes && infoConfig.attributes.itemConfig && infoConfig.attributes.itemConfig[attribute.name!] ? infoConfig.attributes.itemConfig[attribute.name!] : {};
             if (itemConfig.label === undefined) {
+                // Get label here so we can sort the attributes
                 const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type!, attribute.name, attribute);
                 itemConfig.label = Util.getAttributeLabel(attribute, descriptors[0], asset.type, true);
             }
@@ -459,11 +462,20 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: { [
         let availableAttributes: string[] = [];
         let selectedAttributes: string[] = [];
 
+      
         if (groupConfig.childAssetTypes && groupConfig.childAssetTypes[childAssetType]) {
             availableAttributes = groupConfig.childAssetTypes[childAssetType].availableAttributes ? groupConfig.childAssetTypes[childAssetType].availableAttributes! : [];
             selectedAttributes = groupConfig.childAssetTypes[childAssetType].selectedAttributes ? groupConfig.childAssetTypes[childAssetType].selectedAttributes! : [];
         }
-
+        const configStr = window.localStorage.getItem('OrAssetConfig')
+        const viewSelector = asset.id ? asset.id : window.location.hash;
+        if(configStr) {
+            const config = JSON.parse(configStr);
+            const view = config.views[viewSelector];
+            if(view) {
+                selectedAttributes = [...view]
+            }
+        }
         // Get available and selected attributes from asset descriptor if not defined in config
         if (availableAttributes.length === 0) {
             const descriptor = AssetModelUtil.getAssetTypeInfo(childAssetType);
@@ -537,6 +549,31 @@ export function getPanelContent(panelName: string, asset: Asset, attributes: { [
                 arr.unshift(childAsset.name!);
                 return arr;
             });
+
+            let config;
+            const configStr = window.localStorage.getItem('OrAssetConfig')
+            if(configStr) {
+                config = JSON.parse(configStr);
+                if(asset.id) {
+                    config.views[asset.id] = selectedAttributes;
+                }
+            } else {
+                config = {
+                    views: {
+                        [asset.id!]: selectedAttributes
+                    }
+                }
+            }
+           
+
+            const message = {
+                provider: "STORAGE",
+                action: "STORE",
+                key: "OrAssetConfig",
+                value: JSON.stringify(config)
+    
+            }
+            manager.console._doSendProviderMessage(message)
             window.setTimeout(() => OrAssetViewer.generateGrid(hostElement.shadowRoot), 0);
         };
 
@@ -728,6 +765,7 @@ export async function saveAsset(asset: Asset): Promise<SaveResult> {
         }
     } catch (e) {
         success = false;
+        showSnackbar(undefined, i18next.t("createAssetFailed"), i18next.t("dismiss"));
         console.error("Failed to save asset", e);
     }
 
@@ -866,6 +904,9 @@ export class OrAssetViewer extends subscribe(manager)(translate(i18next)(LitElem
             this._attributes = undefined;
 
             if (this.asset) {
+                if (!this.asset.attributes) {
+                    this.asset.attributes = {};
+                }
                 this._viewerConfig = this._getPanelConfig(this.asset);
                 this._attributes = this.asset.attributes;
                 this._assetModified = !this.asset.id;
@@ -937,13 +978,13 @@ export class OrAssetViewer extends subscribe(manager)(translate(i18next)(LitElem
                         ${editMode ? html`<or-input id="name-input" .type="${InputType.TEXT}" min="1" max="1023" comfortable required outlined .label="${i18next.t("name")}" .value="${this.asset.name}" @or-input-changed="${(e: OrInputChangedEvent) => {this.asset!.name = e.detail.value; this._onAssetModified();}}"></or-input>` : html`<span>${this.asset.name}</span>`}
                     </div>
                     ${!this._isReadonly() ? html`
-                        <span id="edit-wrapper">
+                        <span id="edit-wrapper" class="mobileHidden">
                             <or-translate value="editAsset"></or-translate>
                             <or-input id="edit-btn" .type="${InputType.SWITCH}" .value="${this.editMode}" @or-input-changed="${(ev: OrInputChangedEvent) => this._onEditToggleClicked(ev.detail.value)}"></or-input>
                         </span>
                     `: ``}
-                    <div id="right-wrapper">
-                        ${this.asset!.createdOn ? html`<or-translate id="created-time" class="mobileHidden" value="createdOnWithDate" .options="${{ date: new Date(this.asset!.createdOn!) } as TOptions<InitOptions>}"></or-translate>` : ``}
+                    <div id="right-wrapper" class="mobileHidden">
+                        ${this.asset!.createdOn ? html`<or-translate id="created-time" value="createdOnWithDate" .options="${{ date: new Date(this.asset!.createdOn!) } as TOptions<InitOptions>}"></or-translate>` : ``}
                         ${editMode ? html`<or-input id="save-btn" .disabled="${!this.isModified()}" raised .type="${InputType.BUTTON}" .label="${i18next.t("save")}" @or-input-changed="${() => this._onSaveClicked()}"></or-input>` : ``}
                     </div>
                 </div>
@@ -1038,9 +1079,7 @@ export class OrAssetViewer extends subscribe(manager)(translate(i18next)(LitElem
         this.wrapperElem.classList.remove("saving");
         this.saveBtnElem.disabled = false;
 
-        if (!result.success) {
-            showErrorDialog(i18next.t("saveAssetFailed"));
-        } else {
+        if (result.success) {
             this._assetModified = false;
             this.assetId = result.assetId;
             this.reloadAsset();

@@ -1,96 +1,50 @@
 # OpenRemote v3
 
-![installDist and build multi-arch Docker containers](https://github.com/openremote/openremote/workflows/installDist%20and%20build%20multi-arch%20Docker%20containers/badge.svg)[![CI/CD pipeline](https://gitlab.com/openremote/openremote/badges/master/pipeline.svg)](https://gitlab.com/openremote/openremote/pipelines)[![Open Source? Yes!](https://badgen.net/badge/Open%20Source%20%3F/Yes%21/blue?icon=github)](https://github.com/Naereen/badges/)
-
+![CI/CD](https://github.com/openremote/openremote/workflows/CI/CD/badge.svg)
+[![Open Source? Yes!](https://badgen.net/badge/Open%20Source%20%3F/Yes%21/blue?icon=github)](https://github.com/Naereen/badges/)
+<!-- ![tests](https://github.com/openremote/openremote/workflows/tests/badge.svg) -->
 
 [Source](https://github.com/openremote/openremote) **·** [Documentation](https://github.com/openremote/openremote/wiki) **·** [Community](https://forum.openremote.io) **·** [Issues](https://github.com/openremote/openremote/issues) **·** [Docker Images](https://hub.docker.com/u/openremote/) **·** [OpenRemote Inc.](https://openremote.io)
 
-We are currently working on OpenRemote Manager v3, a concise 100% open source IoT platform. This is **beta** software.
+Welcome to the OpenRemote 3.0 platform; an intuitive user-friendly 100% open source IoT platform. We have our origins in Home Automation
+but our 3.0 platform is focused on generic IoT applications and is a completely different stack to any of our 2.x services. As the code
+base is 100% open source then the applications are limitless. Here's an architecture overview:
+
+![Architecture 3.0](https://github.com/openremote/Documentation/blob/master/manuscript/figures/architecture-3.jpg)
 
 ## Quickstart
 
-Before following this quickstart make sure you have [prepared your environment](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Preparing-the-environment). There are two options how to start with OpenRemote:
+You can quickly try the online demo with restricted access, login credentials are `smartcity:smartcity`:
 
-1. Starting OpenRemote with images from Docker Hub (easiest)
-2. Starting OpenRemote with source-build images
+[Online demo](https://demo.openremote.io/manager/?realm=smartcity)
 
-### 1. Starting OpenRemote with images from Docker Hub
+The quickest way to get your own environment with full access is to make use of our docker images (both `amd64` and `arm64` are supported). First make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop) installed (v18+). Then download the docker compose file:
 
-We publish Docker images to [Docker Hub](https://hub.docker.com/u/openremote/):
+[OpenRemote Stack](https://raw.githubusercontent.com/openremote/openremote/master/docker-compose.yml) (Right click 'Save link as...')
 
-```
-docker-compose pull
-```
+In a terminal `cd` to where you just saved the compose file and then run:
 
-To run OpenRemote using Docker Hub images, execute the following command from the checked out root project directory:
+`docker-compose -p openremote up`
 
-```
-docker-compose up --no-build
-```
+If all goes well then you should now be able to access the OpenRemote Manager UI at [https://localhost](https://localhost), you will need to accept the self-signed 
+certificate, see [here](https://www.technipages.com/google-chrome-bypass-your-connection-is-not-private-message) for details how to do this in Chrome (similar for other browsers).
 
-To run OpenRemote is swarm mode, which uses Docker Hub images:
-
-```
-docker stack deploy --compose-file swarm/swarm-docker-compose.yml openremote
-```
-you don't need to pull or build images in this case, docker swarm mode does this automatically.
-
-### 2. Starting OpenRemote with source-build images
-
-Alternatively you can build the Docker images locally from source, please see [here](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Preparing-the-environment) for required tooling. First build the code:
-
-```
-./gradlew clean installDist
-```
-
-We have also embeded tooling in a docker container and you can use it instead in case you have different tooling installed, e.g. higer version of JDK than 8.
-```
-docker run --rm -v $(pwd):/or registry.gitlab.com/openremote/openremote:master ./gradlew clean installDist
-```
-
-Next, if you are using Docker Community Edition build the Docker images and start the stack with:
-
-```
-docker-compose up --build
-```
-
-A first build will download many dependencies (and cache them locally for future builds), this can take up to 30 minutes.
-
-### Using the OpenRemote demo
-
-When all Docker containers are ready, you can access the OpenRemote UI and API with a web browser (if you are using Docker Toolbox replace `localhost` with `192.168.99.100`):
-
-**OpenRemote Manager:** https://localhost  
+### Login credentials
 Username: admin  
 Password: secret
 
-**Demo Smart City App:** https://localhost/main/?realm=smartcity
-Username: smartcity  
-Password: smartcity
+## What next
+Try creating assets, agents, rules, users, realms, etc. using the Manager UI, please refer to the [wiki](https://github.com/openremote/openremote/wiki) for more information, some things to try:
 
-You must accept and make an exception for the 'insecure' self-signed SSL certificate. You can configure a production installation of OpenRemote with a your own certificate or automatically use one from [Let's Encrypt](https://letsencrypt.org/).
+- [Manager UI Guide](https://github.com/openremote/openremote/wiki/Demo-Smart-City)
+- [Creating a HTTP Agent](https://github.com/openremote/openremote/wiki/User-Guide%3A-Connecting-to-a-HTTP-API)
+- [Setting up an IDE](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Setting-up-an-IDE)
+- [Working on the UI](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Working-on-the-UI)
 
-### Preserving data and configuration
+## Where's the data stored?
+Persistent data is stored in a PostgreSQL DB which is stored in the `openremote_postgresql-data` docker volume which is durably stored independently of the running containers (see all with `docker volume ls`).
+If you want to create a backup of your installation, just make a copy of this volume.
 
-Interrupting the `docker-compose up` execution stops the stack running in the foreground. The OpenRemote containers will stop but not be removed. To stop **and** remove the containers, use:
-
-```
-docker-compose down
-```
-
-This will not affect your data, which is durably stored independently from containers in Docker volumes (see all with `docker volume ls`):
-
-- `openremote_deployment-data` (map tiles, static resources)
-- `openremote_postgresql-data` (user/asset database storage)
-- `openremote_proxy-data` (SSL proxy configuration and certificates)
-
-If you want to create a backup of your installation, make a copy of these volumes.
-
-**The default configuration will wipe the user/asset database storage and import demo data when containers are started!** This can be changed with the environment variable `SETUP_WIPE_CLEAN_INSTALL`.  Set it to to `false` in `docker-compose.yml` or provide it on the command line.
-
-When a configuration environment variable is changed, you must recreate containers. Stop and remove them with `docker-compose down` and then `docker-compose up` the stack again.
-
-More configuration options of the images are documented [in the deploy.yml profile](https://github.com/openremote/openremote/blob/master/profile/deploy.yml).
 
 ## Contributing to OpenRemote
 
@@ -98,12 +52,6 @@ We work with Java, Groovy, TypeScript, Gradle, Docker, and a wide range of APIs 
 
 For more information and how to set up a development environment, see the [Developer Guide](https://github.com/openremote/openremote/wiki).
 
-
 ## Discuss OpenRemote
 
 Join us on the [community forum](https://forum.openremote.io/).
-
-## See also
-
-- [Next 'Get Started' step: Connecting to an HTTP API](https://github.com/openremote/openremote/wiki/User-Guide%3A-Connecting-to-a-HTTP-API)
-- [Get Started](https://openremote.io/get-started-manager/)
