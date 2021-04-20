@@ -16,11 +16,13 @@ import i18next from "i18next";
 import {translate} from "@openremote/or-translate";
 import {Attribute, AttributeRef, DatapointInterval, ValueDatapoint, ValueDescriptor} from "@openremote/model";
 import manager, {AssetModelUtil, DefaultColor2, DefaultColor3, DefaultColor4, DefaultColor5} from "@openremote/core";
-import "@openremote/or-input";
+import "@openremote/or-mwc-components/or-mwc-input";
 import "@openremote/or-panel";
 import "@openremote/or-translate";
-import Chart, {ChartTooltipCallback} from "chart.js";
-import {InputType, OrInputChangedEvent} from "@openremote/or-input";
+import "@openremote/or-chart";
+import {Chart, ScatterDataPoint, ChartConfiguration, TimeUnit, TimeScaleOptions} from "chart.js";
+import "chartjs-adapter-moment";
+import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import {MDCDataTable} from "@material/data-table";
 import {JSONPath} from "jsonpath-plus";
 import moment from "moment";
@@ -109,13 +111,13 @@ const style = css`
         --internal-or-attribute-history-graph-fill-color: var(--or-attribute-history-graph-fill-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));       
         --internal-or-attribute-history-graph-fill-opacity: var(--or-attribute-history-graph-fill-opacity, 1);       
         --internal-or-attribute-history-graph-line-color: var(--or-attribute-history-graph-line-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));       
-        --internal-or-attribute-history-graph-point-color: var(--or-attribute-history-graph-point-color, var(--or-app-color3, ${unsafeCSS(DefaultColor3)}));
-        --internal-or-attribute-history-graph-point-border-color: var(--or-attribute-history-graph-point-border-color, var(--or-app-color5, ${unsafeCSS(DefaultColor5)}));
-        --internal-or-attribute-history-graph-point-radius: var(--or-attribute-history-graph-point-radius, 4);
+        --internal-or-attribute-history-graph-point-color: var(--or-attribute-history-graph-point-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));
+        --internal-or-attribute-history-graph-point-border-color: var(--or-attribute-history-graph-point-border-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));
+        --internal-or-attribute-history-graph-point-radius: var(--or-attribute-history-graph-point-radius, 2);
         --internal-or-attribute-history-graph-point-hit-radius: var(--or-attribute-history-graph-point-hit-radius, 20);       
         --internal-or-attribute-history-graph-point-border-width: var(--or-attribute-history-graph-point-border-width, 2);
-        --internal-or-attribute-history-graph-point-hover-color: var(--or-attribute-history-graph-point-hover-color, var(--or-app-color5, ${unsafeCSS(DefaultColor5)}));       
-        --internal-or-attribute-history-graph-point-hover-border-color: var(--or-attribute-history-graph-point-hover-border-color, var(--or-app-color3, ${unsafeCSS(DefaultColor3)}));
+        --internal-or-attribute-history-graph-point-hover-color: var(--or-attribute-history-graph-point-hover-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));
+        --internal-or-attribute-history-graph-point-hover-border-color: var(--or-attribute-history-graph-point-hover-border-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));
         --internal-or-attribute-history-graph-point-hover-radius: var(--or-attribute-history-graph-point-hover-radius, 4);      
         --internal-or-attribute-history-graph-point-hover-border-width: var(--or-attribute-history-graph-point-hover-border-width, 2);
         
@@ -183,6 +185,7 @@ const style = css`
     
     #chart-container {
         position: relative;
+        min-height: 250px;
     }
         
     #table-container {
@@ -234,9 +237,6 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
     public period: moment.unitOfTime.Base = "day";
 
     @property({type: Number})
-    public fromTimestamp?: Date;
-
-    @property({type: Number})
     public toTimestamp?: Date;
 
     @property({type: Object})
@@ -256,11 +256,15 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
     @query("#table")
     protected _tableElem!: HTMLDivElement;
     protected _table?: MDCDataTable;
-    protected _chart?: Chart;
+    protected _chart?: Chart<"line", ScatterDataPoint[]>;
     protected _type?: ValueDescriptor;
     protected _style!: CSSStyleDeclaration;
+    protected _startOfPeriod?: number;
+    protected _endOfPeriod?: number;
+    protected _timeUnits?: TimeUnit;
+    protected _stepSize?: number;
+    protected _updateTimestampTimer?: number;
 
-    protected _updateTimestampTimer: number | null = null;
     connectedCallback() {
         super.connectedCallback();
         this._style = window.getComputedStyle(this);
@@ -273,19 +277,12 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
 
     shouldUpdate(_changedProperties: PropertyValues): boolean {
 
-        let returnFalse = false;
-
-        if (!this.fromTimestamp) {
-            this.fromTimestamp = new Date();
-            returnFalse = true;
-        }
-
-        if (returnFalse) {
-            // Will update on next pass
+        if (!this.toTimestamp) {
+            this.toTimestamp = new Date();
             return false;
         }
 
-        let reloadData = _changedProperties.has("period") || _changedProperties.has("fromTimestamp");
+        let reloadData = _changedProperties.has("period") || _changedProperties.has("toTimestamp");
 
         if (_changedProperties.has("assetId") || _changedProperties.has("attributeRef") || _changedProperties.has("attribute")) {
             this._type = undefined;
@@ -313,11 +310,11 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
         return html`
             <div id="container">
                 <div id="controls">
-                    <or-input  .type="${InputType.SELECT}" ?disabled="${disabled}" .label="${i18next.t("timeframe")}" @or-input-changed="${(evt: OrInputChangedEvent) => this.period = evt.detail.value}" .value="${this.period}" .options="${this._getPeriodOptions()}"></or-input>
+                    <or-mwc-input  .type="${InputType.SELECT}" ?disabled="${disabled}" .label="${i18next.t("timeframe")}" @or-mwc-input-changed="${(evt: OrInputChangedEvent) => this.period = evt.detail.value}" .value="${this.period}" .options="${this._getPeriodOptions()}"></or-mwc-input>
                     <div id="ending-controls">
-                        <or-input id="ending-date" .type="${InputType.DATETIME}" ?disabled="${disabled}" label="${i18next.t("ending")}" .value="${this.fromTimestamp}" @or-input-changed="${(evt: OrInputChangedEvent) =>  this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-input>
-                        <or-icon class="button button-icon" ?disabled="${disabled}" icon="chevron-left" @click="${() => this._updateTimestamp(this.fromTimestamp!, false, 0)}"></or-icon>
-                        <or-icon class="button button-icon" ?disabled="${disabled}" icon="chevron-right" @click="${() => this._updateTimestamp(this.fromTimestamp!, true, 0)}"></or-icon>
+                        <or-mwc-input id="ending-date" .type="${InputType.DATETIME}" ?disabled="${disabled}" label="${i18next.t("ending")}" .value="${this.toTimestamp}" @or-mwc-input-changed="${(evt: OrInputChangedEvent) =>  this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-mwc-input>
+                        <or-icon class="button button-icon" ?disabled="${disabled}" icon="chevron-left" @click="${() => this._updateTimestamp(this.toTimestamp!, false, 0)}"></or-icon>
+                        <or-icon class="button button-icon" ?disabled="${disabled}" icon="chevron-right" @click="${() => this._updateTimestamp(this.toTimestamp!, true, 0)}"></or-icon>
                         <or-icon class="button button-icon" ?disabled="${disabled}" icon="chevron-double-right" @click="${() => this._updateTimestamp(new Date())}"></or-icon>
                     </div>
                 </div>
@@ -350,6 +347,8 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
         const isChart = this._type && (this._type.jsonType === "number" || this._type.jsonType === "boolean");
 
         if (isChart) {
+            const data = this._data as ScatterDataPoint[];
+
             if (!this._chart) {
                 let bgColor = this._style.getPropertyValue("--internal-or-attribute-history-graph-fill-color").trim();
                 const opacity = Number(this._style.getPropertyValue("--internal-or-attribute-history-graph-fill-opacity").trim());
@@ -361,12 +360,12 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
                     }
                 }
 
-                this._chart = new Chart(this._chartElem, {
-                    type: "bar",
+                const options = {
+                    type: "line",
                     data: {
                         datasets: [
                             {
-                                data: this._data,
+                                data: data,
                                 backgroundColor: bgColor,
                                 borderColor: this._style.getPropertyValue("--internal-or-attribute-history-graph-line-color"),
                                 pointBorderColor: this._style.getPropertyValue("--internal-or-attribute-history-graph-point-border-color"),
@@ -377,66 +376,73 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
                                 pointHoverBorderColor: this._style.getPropertyValue("--internal-or-attribute-history-graph-point-hover-border-color"),
                                 pointHoverRadius: Number(this._style.getPropertyValue("--internal-or-attribute-history-graph-point-hover-radius")),
                                 pointHoverBorderWidth: Number(this._style.getPropertyValue("--internal-or-attribute-history-graph-point-hover-border-width")),
-                                pointHitRadius: Number(this._style.getPropertyValue("--internal-or-attribute-history-graph-point-hit-radius"))
+                                pointHitRadius: Number(this._style.getPropertyValue("--internal-or-attribute-history-graph-point-hit-radius")),
+                                fill: false
                             }
                         ]
                     },
                     options: {
-                        // maintainAspectRatio: false,
-                        // REMOVED AS DOESN'T SIZE CORRECTLY responsive: true,
+                        responsive: true,
+                        maintainAspectRatio: false,
                         onResize:() => this.dispatchEvent(new OrAttributeHistoryEvent('resize')),
-                        legend: {
-                            display: false
-                        },
-                        tooltips: {
-                            displayColors: false,
-                            callbacks: {
-                                label: (tooltipItem, data) => {
-                                    return tooltipItem.yLabel; // Removes the colon before the label
-                                },
-                                footer: () => {
-                                    return " "; // Hack the broken vertical alignment of body with footerFontSize: 0
-                                }
-                            } as ChartTooltipCallback
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                displayColors: false,
+                                xPadding: 10,
+                                yPadding: 10,
+                                titleMarginBottom: 10
+                            }
                         },
                         scales: {
-                            yAxes: [{
-                                ticks: {
-                                    beginAtZero: true
-                                },
-                                gridLines: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
                                     color: "#cccccc"
                                 }
-                            }],
-                            xAxes: [{
+                            },
+                            x: {
                                 type: "time",
+                                min: this._startOfPeriod,
+                                max: this._endOfPeriod,
                                 time: {
+                                    tooltipFormat: 'MMM D, YYYY, HH:mm:ss',
                                     displayFormats: {
                                         millisecond: 'HH:mm:ss.SSS',
                                         second: 'HH:mm:ss',
                                         minute: "HH:mm",
                                         hour: "HH:mm",
                                         week: "w"
-                                    }
+                                    },
+                                    unit: this._timeUnits,
+                                    stepSize: this._stepSize
                                 },
                                 ticks: {
-                                    autoSkip: true,
-                                    maxTicksLimit: 30,
-                                    fontColor: "#000",
-                                    fontFamily: "'Open Sans', Helvetica, Arial, Lucida, sans-serif",
-                                    fontSize: 9,
-                                    fontStyle: "normal"
+                                    color: "#000",
+                                    font: {
+                                        family: "'Open Sans', Helvetica, Arial, Lucida, sans-serif",
+                                        size: 9,
+                                        style: "normal"
+                                    }
                                 },
                                 gridLines: {
                                     color: "#cccccc"
                                 }
-                            }]
+                            }
                         }
                     }
-                });
+                } as ChartConfiguration<"line", ScatterDataPoint[]>;
+
+                this._chart = new Chart<"line", ScatterDataPoint[]>(this._chartElem.getContext("2d")!, options);
             } else {
                 if (changedProperties.has("_data")) {
-                    this._chart.data.datasets![0].data = this._data;
+                    this._chart.options.scales!.x!.min = this._startOfPeriod;
+                    this._chart.options!.scales!.x!.max = this._endOfPeriod;
+                    (this._chart.options!.scales!.x! as TimeScaleOptions).time!.unit = this._timeUnits!;
+                    (this._chart.options!.scales!.x! as TimeScaleOptions).time!.stepSize = this._stepSize!;
+                    this._chart.data.datasets![0].data = data;
                     this._chart.update();
                 }
             }
@@ -509,7 +515,7 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
 
             config.columns = [];
 
-            const dp = this._data!.find((dp) => dp.y !== undefined || dp.y !== null);
+            const dp = this._data!.find((dp) => dp.y !== undefined);
             if (dp) {
                 if (typeof(dp.y) === "object" && !Array.isArray(dp.y)) {
                     config.columns = Object.entries(dp.y as {}).map(([prop, value]) => {
@@ -629,30 +635,8 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
         ];
     }
 
-    protected _getInterval() {
-        let interval: DatapointInterval = DatapointInterval.HOUR;
-        switch (this.period) {
-            case "hour":
-                interval = DatapointInterval.MINUTE;
-                break;
-            case "day":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "week":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "month":
-                interval = DatapointInterval.DAY;
-                break;
-            case "year":
-                interval = DatapointInterval.MONTH;
-                break;
-        }
-        return interval;
-    }
-
     protected async _loadData() {
-        if (this._loading || this._data || !this.assetType || !this.assetId || (!this.attribute && !this.attributeRef)) {
+        if (this._loading || this._data || !this.assetType || !this.assetId || (!this.attribute && !this.attributeRef) || !this.period || !this.toTimestamp) {
             return;
         }
 
@@ -689,34 +673,60 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
             return;
         }
 
-        if (!this.period || !this.fromTimestamp) {
-            this._loading = false;
-            return;
+
+        let interval: DatapointInterval = DatapointInterval.HOUR;
+        let stepSize = 1;
+
+        switch (this.period) {
+            case "hour":
+                interval = DatapointInterval.MINUTE;
+                stepSize = 5;
+                break;
+            case "day":
+                interval = DatapointInterval.HOUR;
+                stepSize = 1;
+                break;
+            case "week":
+                interval = DatapointInterval.HOUR;
+                stepSize = 6;
+                break;
+            case "month":
+                interval = DatapointInterval.DAY;
+                stepSize = 1;
+                break;
+            case "year":
+                interval = DatapointInterval.MONTH;
+                stepSize = 1;
+                break;
         }
-        const startOfPeriod = moment(this.fromTimestamp).subtract(1, this.period).toDate().getTime();
-        const endOfPeriod = moment(this.fromTimestamp).toDate().getTime();
+
+        const lowerCaseInterval = interval.toLowerCase();
+        this._startOfPeriod = moment(this.toTimestamp).subtract(1, this.period).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+        this._endOfPeriod = moment(this.toTimestamp).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+        this._timeUnits =  lowerCaseInterval as TimeUnit;
+        this._stepSize = stepSize;
 
         const response = await manager.rest.api.AssetDatapointResource.getDatapoints(
             assetId,
             attributeName,
             {
-                interval: this._getInterval(),
-                fromTimestamp: startOfPeriod,
-                toTimestamp: endOfPeriod
+                interval: interval,
+                fromTimestamp: this._startOfPeriod,
+                toTimestamp: this._endOfPeriod
             }
         );
 
         this._loading = false;
 
         if (response.status === 200) {
-            this._data = response.data;
+            this._data = response.data.filter(value => value.y !== null && value.y !== undefined) as ScatterDataPoint[];
         }
     }
-    protected _updateTimestamp(timestamp: Date, forward?: boolean, timeout=1500) {
+    protected _updateTimestamp(timestamp: Date, forward?: boolean, timeout= 300) {
 
         if (this._updateTimestampTimer) {
             window.clearTimeout(this._updateTimestampTimer);
-            this._updateTimestampTimer = null;
+            this._updateTimestampTimer = undefined;
         }
         this._updateTimestampTimer = window.setTimeout(() => {
                 const newMoment = moment(timestamp);
@@ -724,7 +734,7 @@ export class OrAttributeHistory extends translate(i18next)(LitElement) {
                 if (forward !== undefined) {
                     newMoment.add(forward ? 1 : -1, this.period);
                 }
-                    this.fromTimestamp = newMoment.toDate()
+                this.toTimestamp = newMoment.toDate()
         }, timeout);
     }
     

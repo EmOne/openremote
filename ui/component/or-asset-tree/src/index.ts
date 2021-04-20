@@ -1,5 +1,5 @@
 import {customElement, html, LitElement, property, PropertyValues, TemplateResult} from "lit-element";
-import "@openremote/or-input";
+import "@openremote/or-mwc-components/or-mwc-input";
 import "@openremote/or-icon";
 import {
     Asset,
@@ -18,21 +18,22 @@ import {
 import "@openremote/or-translate";
 import {style} from "./style";
 import manager, {AssetModelUtil, EventCallback, OREvent, subscribe, Util} from "@openremote/core";
-import {InputType, OrInput} from "@openremote/or-input";
+import {InputType, OrInput} from "@openremote/or-mwc-components/or-mwc-input";
 import Qs from "qs";
 import {getAssetDescriptorIconTemplate} from "@openremote/or-icon";
-import "@openremote/or-mwc-components/dist/or-mwc-menu";
-import {getContentWithMenuTemplate, MenuItem} from "@openremote/or-mwc-components/dist/or-mwc-menu";
-import "@openremote/or-mwc-components/dist/or-mwc-list";
+import "@openremote/or-mwc-components/or-mwc-menu";
+import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
+import {ListItem} from "@openremote/or-mwc-components/or-mwc-list";
+import "@openremote/or-mwc-components/or-mwc-list";
 import {i18next} from "@openremote/or-translate";
-import "@openremote/or-mwc-components/dist/or-mwc-dialog";
+import "@openremote/or-mwc-components/or-mwc-dialog";
 
 import {
     OrMwcDialog,
     showDialog,
     showErrorDialog,
     showOkCancelDialog
-} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
+} from "@openremote/or-mwc-components/or-mwc-dialog";
 import {OrAddAssetDialog, OrAddChangedEvent} from "./or-add-asset-dialog";
 import "./or-add-asset-dialog";
 import { AgentDescriptor } from "@openremote/model";
@@ -236,6 +237,9 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
     @property({type: Array})
     public selectedIds?: string[];
 
+    @property({type: Boolean})
+    public showSortBtn?: boolean = true;
+
     @property({type: String})
     public sortBy?: string = "name";
 
@@ -302,16 +306,16 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                     <or-translate id="title" value="asset_plural"></or-translate>
                 </div>
 
-                <div id="header-btns">                
-                    <or-input ?hidden="${!this.selectedIds || this.selectedIds.length === 0}" type="${InputType.BUTTON}" icon="close" @click="${() => this._onDeselectClicked()}"></or-input>
-                    <or-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length !== 1}" type="${InputType.BUTTON}" icon="content-copy" @click="${() => this._onCopyClicked()}"></or-input>
-                    <or-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length === 0 || this.selectedNodes.some((node) => this.isAncestorSelected(node))}" type="${InputType.BUTTON}" icon="delete" @click="${() => this._onDeleteClicked()}"></or-input>
-                    <or-input ?hidden="${this._isReadonly() || !this._canAdd()}" type="${InputType.BUTTON}" icon="plus" @click="${() => this._onAddClicked()}"></or-input>
-                    <or-input hidden type="${InputType.BUTTON}" icon="magnify" @click="${() => this._onSearchClicked()}"></or-input>
+                <div id="header-btns">
+                    <or-mwc-input ?hidden="${!this.selectedIds || this.selectedIds.length === 0}" type="${InputType.BUTTON}" icon="close" @click="${() => this._onDeselectClicked()}"></or-mwc-input>
+                    <or-mwc-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length !== 1}" type="${InputType.BUTTON}" icon="content-copy" @click="${() => this._onCopyClicked()}"></or-mwc-input>
+                    <or-mwc-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length === 0 || this.selectedNodes.some((node) => this.isAncestorSelected(node))}" type="${InputType.BUTTON}" icon="delete" @click="${() => this._onDeleteClicked()}"></or-mwc-input>
+                    <or-mwc-input ?hidden="${this._isReadonly() || !this._canAdd()}" type="${InputType.BUTTON}" icon="plus" @click="${() => this._onAddClicked()}"></or-mwc-input>
+                    <or-mwc-input hidden type="${InputType.BUTTON}" icon="magnify" @click="${() => this._onSearchClicked()}"></or-mwc-input>
                     
                     ${getContentWithMenuTemplate(
-                            html`<or-input type="${InputType.BUTTON}" icon="sort-variant"></or-input>`,
-                            ["name", "type", "createdOn", "status"].map((sort) => { return {value: sort, text: i18next.t(sort)} as MenuItem; }),
+                            html`<or-mwc-input type="${InputType.BUTTON}" icon="sort-variant" ?hidden="${!this.showSortBtn}"></or-mwc-input>`,
+                            ["name", "type", "createdOn", "status"].map((sort) => { return {value: sort, text: i18next.t(sort)} as ListItem; }),
                             this.sortBy,
                             (v) => this._onSortClicked(v as string))}
                 </div>
@@ -539,13 +543,15 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                     },
                     {
                         actionName: "add",
-                        content: html`<or-input id="add-btn" class="button" .type="${InputType.BUTTON}" label="${i18next.t("add")}" disabled></or-input>`,
+                        content: html`<or-mwc-input id="add-btn" class="button" .type="${InputType.BUTTON}" label="${i18next.t("add")}" disabled></or-mwc-input>`,
                         action: () => {
 
                             const addAssetDialog = dialog.shadowRoot!.getElementById("add-panel") as OrAddAssetDialog;
                             const descriptor = addAssetDialog.selectedType;
+                            const selectedOptionalAttributes = addAssetDialog.selectedAttributes;
                             const name = addAssetDialog.name.trim();
-
+                            const parent = addAssetDialog.parent;
+                            
                             if (!descriptor) {
                                 return;
                             }
@@ -572,8 +578,18 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                                             name: attributeDescriptor.name,
                                             type: attributeDescriptor.type,
                                             meta: attributeDescriptor.meta ? {...attributeDescriptor.meta} : undefined
-                                        } as Attribute<any>;
+                                        } as Attribute<any>; 
                                     });
+                            }
+
+                            if (selectedOptionalAttributes) {
+                                selectedOptionalAttributes?.forEach(attribute => {
+                                    asset.attributes![attribute.name!] = {
+                                        name: attribute.name,
+                                        type: attribute.type,
+                                        meta: attribute.meta ? {...attribute.meta} : undefined
+                                    }
+                                });
                             }
 
                             if (this.selectedIds) {
@@ -597,7 +613,8 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                             padding: 0 !important;
                         }
                     </style>
-                `
+                `,
+                dismissAction: null
             }
         )
     }

@@ -1,6 +1,3 @@
-# This workflow will build a Java project with Gradle
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
-
 name: tests
 
 on:
@@ -13,25 +10,50 @@ on:
   workflow_dispatch:
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
+  tests-linux:
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        java-version: [1.8]
+        os-version: [ubuntu-20.04, ubuntu-18.04, ubuntu-16.04]
+
+    runs-on: ${{ matrix.os-version }}
 
     steps:
       - uses: actions/checkout@v2
-      - name: set up JDK 1.8
+      - run: mkdir -p ~/image-cache
+      - id: cache-images
+        uses: actions/cache@v1
+        with:
+          path: ~/image-cache
+          key: image-cache-${{ runner.os }}
+      - name: set up JDK
         uses: actions/setup-java@v1
         with:
-          java-version: 1.8
+          java-version: ${{ matrix.java-version }}
       - name: grant execute permission for gradlew
         run: chmod +x gradlew
       - name: start containers needed for testing
-        run: docker-compose -f profile/dev-testing.yml up --no-build -d
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+          docker-compose -f profile/dev-testing.yml up --no-build -d
+          docker images --filter 'reference=openremote/*' --format "{{.Repository}}:{{.Tag}}"
+          docker save -o ~/image-cache/postgresql.tar openremote/postgresql:9.6.21.0
+          docker save -o ~/image-cache/keycloak.tar openremote/keycloak:12.0.1.0
+      - name: start containers needed for testing from cache
+        if: steps.cache-images.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/image-cache/postgresql.tar
+          docker load -i ~/image-cache/keycloak.tar
+          docker-compose -f profile/dev-testing.yml up --no-build -d
       - name: Check running containers
         run: docker ps -a
       - name: tests with Gradle
         run: ./gradlew clean test
         # Typically it takes 10 minutes to complete tests, default timeout is 6h, to be agile we need to pivot quicker :-)
-        timeout-minutes: 30
+        timeout-minutes: 60
       - name: Share tests artifacts
         if: failure()
         uses: actions/upload-artifact@v2
@@ -39,3 +61,122 @@ jobs:
           name: tests-run-artifacts
           path: |
             test/build/reports/tests/test
+
+  tests-macos:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        java-version: [1.8]
+        os-version: [macos-10.15]
+        #, macos-11.0]
+
+    runs-on: ${{ matrix.os-version }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: mkdir -p ~/image-cache
+      - id: cache-images
+        uses: actions/cache@v1
+        with:
+          path: |
+            ~/image-cache
+          key: image-cache-${{ runner.os }}
+      - name: install docker
+        id: docker
+        run: |
+          mkdir -p ~/.docker/machine/cache
+          curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
+          brew install docker docker-machine docker-compose
+          docker-machine create --driver virtualbox default
+          docker-machine env default
+          docker-machine stop default
+          vboxmanage modifyvm default --natpf1 "postgresql,tcp,,5432,,5432"
+          vboxmanage modifyvm default --natpf1 "keycloak,tcp,,8081,,8081"
+          docker-machine start default
+          echo "::set-output name=success::1"
+        continue-on-error: true
+      - name: set up JDK
+        if: steps.docker.outputs.success == 1
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java-version }}
+      - name: grant execute permission for gradlew
+        if: steps.docker.outputs.success == 1
+        run: chmod +x gradlew
+      - name: start containers needed for testing and perform test
+        if: steps.docker.outputs.success == 1 &&
+            steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          eval "$(docker-machine env default)"
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+          docker-compose -f profile/dev-testing.yml up --no-build -d
+          docker ps -a
+          docker save -o ~/image-cache/postgresql.tar openremote/postgresql:9.6.21.0
+          docker save -o ~/image-cache/keycloak.tar openremote/keycloak:12.0.1.0
+          ./gradlew clean test
+        # Typically it takes 10 minutes to complete tests, default timeout is 6h, to be agile we need to pivot quicker :-)
+        timeout-minutes: 60
+      - name: start containers needed for testing and perform test from cache
+        if: steps.docker.outputs.success == 1 &&
+            steps.cache-images.outputs.cache-hit == 'true'
+        run: |
+          eval "$(docker-machine env default)"
+          docker load -i ~/image-cache/postgresql.tar
+          docker load -i ~/image-cache/keycloak.tar
+          docker-compose -f profile/dev-testing.yml up --no-build -d
+          docker ps -a
+          ./gradlew clean test
+        # Typically it takes 10 minutes to complete tests, default timeout is 6h, to be agile we need to pivot quicker :-)
+        timeout-minutes: 60
+      - name: check containers when failure
+        if: steps.docker.outputs.success == 1 && failure()
+        run: |
+          eval "$(docker-machine env default)"
+          docker-compose -f profile/dev-testing.yml logs
+        continue-on-error: true
+      - name: Share tests artifacts
+        if: steps.docker.outputs.success == 1 && failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: tests-run-artifacts
+          path: |
+            test/build/reports/tests/test
+
+  tests-windows:
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        java-version: [1.8]
+        os-version: [windows-2019]
+
+    runs-on: ${{ matrix.os-version }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java-version }}
+      - name: I give up
+        run: echo "I give up becuse I'm clueless how to run Linux containers here :-("
+#      - name: grant execute permission for gradlew
+#        run: chmod +x gradlew
+#      - name: start containers needed for testing
+#        run: |
+#          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+#          docker-compose -f profile/dev-testing.yml up --no-build -d
+#      - name: Check running containers
+#        run: docker ps -a
+#      - name: tests with Gradle
+#        run: ./gradlew clean test
+#        # Typically it takes 10 minutes to complete tests, default timeout is 6h, to be agile we need to pivot quicker :-)
+#        timeout-minutes: 30
+#      - name: Share tests artifacts
+#        if: failure()
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: tests-run-artifacts
+#          path: |
+#            test/build/reports/tests/test

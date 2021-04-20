@@ -4,15 +4,15 @@ import {
     AssetQuery,
 } from "@openremote/model";
 
-import "@openremote/or-input";
-import {InputType} from "@openremote/or-input";
+import "@openremote/or-mwc-components/or-mwc-input";
+import {InputType} from "@openremote/or-mwc-components/or-mwc-input";
 import i18next from "i18next";
 import {translate} from "@openremote/or-translate";
 
-import {DialogAction, OrMwcDialog, OrMwcDialogOpenedEvent} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
+import {DialogAction, OrMwcDialog, OrMwcDialogOpenedEvent} from "@openremote/or-mwc-components/or-mwc-dialog";
 const checkValidity = (form:HTMLElement | null, dialog:OrMwcDialog) => {
     if(form) {
-        const inputs = form.querySelectorAll('or-input')
+        const inputs = form.querySelectorAll('or-mwc-input');
         const elements = Array.prototype.slice.call(inputs);
 
         const valid = elements.every((element) => {
@@ -71,6 +71,7 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
                 }
             });
             dialog.dialogContent = html`${container}`;
+            dialog.dismissAction = null;
             this.requestUpdate();
         }
     }
@@ -80,23 +81,21 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
             this.renderDialogHTML(this.action);
         }
     }
-    
-    
 
     checkForm() {
         const dialog: OrMwcDialog = this.shadowRoot!.host as OrMwcDialog;
 
         if (this.shadowRoot) {
-            const messageNotification = this.shadowRoot.querySelector('or-rule-form-message');
+            const messageNotification = this.shadowRoot.querySelector('or-rule-form-email-message');
             const pushNotification = this.shadowRoot.querySelector('or-rule-form-push-notification');
 
             if(pushNotification && pushNotification.shadowRoot) {
-                const form = pushNotification.shadowRoot.querySelector('form')
-                return checkValidity(form, dialog)
+                const form = pushNotification.shadowRoot.querySelector('form');
+                return checkValidity(form, dialog);
             }
             else if(messageNotification && messageNotification.shadowRoot) {
-                const form = messageNotification.shadowRoot.querySelector('form')
-                return checkValidity(form, dialog)
+                const form = messageNotification.shadowRoot.querySelector('form');
+                return checkValidity(form, dialog);
             }
         }
     }
@@ -107,14 +106,14 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
         const notificationPickerModalActions: DialogAction[] = [
             {
                 actionName: "cancel",
-                content: html`<or-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-input>`,
+                content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
                 action: (dialog) => {
                   
                 }
             },
             {
                 actionName: "",
-                content: html`<or-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("ok")}" @click="${this.checkForm}"></or-input>`
+                content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("ok")}" @click="${this.checkForm}"></or-mwc-input>`
             }
         ];
        
@@ -127,8 +126,8 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
         };
 
         return html`
-            <or-input .type="${InputType.BUTTON}" .label="${i18next.t("message")}" @click="${notificationPickerModalOpen}"></or-input>
-            <or-mwc-dialog id="notification-modal" dialogTitle="${this.title}"  .dialogActions="${notificationPickerModalActions}"></or-mwc-dialog>
+            <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("message")}" @click="${notificationPickerModalOpen}"></or-mwc-input>
+            <or-mwc-dialog id="notification-modal" dialogTitle="${this.title}" .dialogActions="${notificationPickerModalActions}"></or-mwc-dialog>
             <slot class="notification-form-slot"></slot>
         `
     }

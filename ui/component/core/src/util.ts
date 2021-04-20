@@ -22,6 +22,7 @@ import {
     AbstractNameValueDescriptorHolder,
     MetaItemDescriptor,
     ValueFormatStyleRepresentation,
+    ValueDatapoint,
 } from "@openremote/model";
 import i18next from "i18next";
 import Qs from "qs";
@@ -417,7 +418,7 @@ export function getAllowedValueLabel(allowedValue: string, fallback?: string): s
         return;
     }
 
-    return i18next.t("label.allowedValue." + allowedValue, {defaultValue: fallback || camelCaseToSentenceCase(allowedValue || "")});
+    return i18next.t("label.allowedValue." + allowedValue, {defaultValue: fallback || camelCaseToSentenceCase(allowedValue || ""), nsSeparator: false});
 }
 
 export function getMetaItemNameValueHolder(metaNameOrDescriptor: MetaItemDescriptor | string, value: any): NameValueHolder<any> {

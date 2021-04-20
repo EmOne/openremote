@@ -22,7 +22,7 @@ import {DefaultBoxShadow, Util} from "@openremote/core";
 import {Page, PageProvider, router} from "@openremote/or-app";
 import {AppStateKeyed} from "@openremote/or-app";
 import {EnhancedStore} from "@reduxjs/toolkit";
-import {showOkCancelDialog} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
+import {showOkCancelDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
 import i18next from "i18next";
 import {AssetEventCause, WellknownAssets} from "@openremote/model";
 
@@ -55,15 +55,9 @@ export const PAGE_ASSETS_CONFIG_DEFAULT: PageAssetsConfig = {
             typesParent: {
                 default: {
                     exclude: [
-                        WellknownAssets.GROUPASSET,
-                        WellknownAssets.CLIENTEVENTAGENT,
                         WellknownAssets.ARTNETAGENT,
                         WellknownAssets.MACROAGENT,
                         WellknownAssets.CONTROLLERAGENT,
-                        WellknownAssets.SERIALAGENT,
-                        WellknownAssets.TCPCLIENTAGENT,
-                        WellknownAssets.UDPCLIENTAGENT,
-                        WellknownAssets.WEBSOCKETCLIENTAGENT,
                         WellknownAssets.TRADFRILIGHTASSET,
                         WellknownAssets.KNXAGENT,
                         WellknownAssets.ZWAGENT,

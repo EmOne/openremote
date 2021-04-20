@@ -25,12 +25,15 @@ import org.openremote.agent.protocol.ProtocolClientEventService;
 import org.openremote.container.web.ConnectionConstants;
 import org.openremote.model.Container;
 import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.model.asset.agent.ConnectionStatus;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.security.ClientRole;
 import org.openremote.model.syslog.SyslogCategory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -63,20 +66,29 @@ public class ClientEventProtocol extends AbstractProtocol<ClientEventAgent, Agen
 
         protocolClientEventService.addExchangeInterceptor(this::onMessageIntercept);
 
-        String clientId = CLIENT_ID_PREFIX + agent.getId();
+        String clientId = CLIENT_ID_PREFIX + agent.getId().substring(12);
 
         String clientSecret = agent.getClientSecret().orElse(UUID.randomUUID().toString());
-        ClientRole[] roles = agent.getClientRoles().orElse(null);
+        List<ClientRole> roles = new ArrayList<>();
+
+        if (agent.isRead().orElse(false)) {
+            roles.add(ClientRole.READ_ASSETS);
+        }
+        if (agent.isWrite().orElse(false)) {
+            roles.add(ClientRole.WRITE_ASSETS);
+        }
 
         ProtocolClientEventService.ClientCredentials clientCredentials =
             new ProtocolClientEventService.ClientCredentials(
                 agent.getRealm(),
-                roles,
+                roles.toArray(new ClientRole[0]),
                 clientId,
                 clientSecret
             );
 
         protocolClientEventService.addClientCredentials(clientCredentials);
+        setConnectionStatus(ConnectionStatus.CONNECTED);
+        updateAgentAttribute(new AttributeState(agent.getId(), ClientEventAgent.CLIENT_SECRET.getName(), clientSecret));
     }
 
     @Override

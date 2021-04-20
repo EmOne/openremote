@@ -54,12 +54,14 @@ import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.GlobalRuleset
 import org.openremote.model.rules.Ruleset
 import org.openremote.model.rules.TenantRuleset
+import spock.util.concurrent.PollingConditions
 
 import javax.websocket.ClientEndpointConfig
 import javax.websocket.Endpoint
 import javax.websocket.Session
 import javax.websocket.WebSocketContainer
 import javax.ws.rs.core.UriBuilder
+import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
 import java.util.stream.Collectors
 import java.util.stream.IntStream
@@ -71,6 +73,10 @@ import static org.openremote.container.web.WebService.WEBSERVER_LISTEN_PORT
 trait ContainerTrait {
 
     Container startContainer(Map<String, String> config, Iterable<ContainerService> services) {
+
+        // Reset and start clock in case any previous tests stopped/modified it (pseudo clock is static so shared between tests)
+        TimerService.Clock.PSEUDO.reset()
+        TimerService.Clock.PSEUDO.advanceTime(-1, TimeUnit.MILLISECONDS) // Put time back so attribute events with the same timestamp as provisioned assets don't get rejected
 
         if (container != null) {
             // Compare config and services
@@ -158,7 +164,8 @@ trait ContainerTrait {
                                 rulesetStorageService.delete(GlobalRuleset.class, it.id)
                                 def rulesStopped = false
                                 while (!rulesStopped) {
-                                    rulesStopped = rulesService.globalEngine == null || !rulesService.globalEngine.deployments.containsKey(it.id)
+                                    def engine = rulesService.globalEngine
+                                    rulesStopped = engine == null || !engine.deployments.containsKey(it.id)
                                     if (counter++ > 100) {
                                         throw new IllegalStateException("Failed to purge ruleset: " + it.name)
                                     }
@@ -171,24 +178,11 @@ trait ContainerTrait {
                         counter = 0
                         def enginesStopped = false
                         while (!enginesStopped) {
-                            enginesStopped = rulesService.globalEngine == null && rulesService.tenantEngines.isEmpty() && rulesService.assetEngines.isEmpty()
+                            enginesStopped = rulesService.tenantEngines == null && rulesService.tenantEngines.isEmpty() && rulesService.assetEngines.isEmpty()
                             if (counter++ > 100) {
                                 throw new IllegalStateException("Rule engines have failed to stop")
                             }
                             Thread.sleep(100)
-                        }
-
-                        if (!TestFixture.assetRulesets.isEmpty()) {
-                            println("Re-inserting ${TestFixture.assetRulesets.size()} asset ruleset(s)")
-                            TestFixture.assetRulesets.forEach { rulesetStorageService.merge(it) }
-                        }
-                        if (!TestFixture.tenantRulesets.isEmpty()) {
-                            println("Re-inserting ${TestFixture.tenantRulesets.size()} tenant ruleset(s)")
-                            TestFixture.tenantRulesets.forEach { rulesetStorageService.merge(it) }
-                        }
-                        if (!TestFixture.globalRulesets.isEmpty()) {
-                            println("Re-inserting ${TestFixture.globalRulesets.size()} global ruleset(s)")
-                            TestFixture.globalRulesets.forEach { rulesetStorageService.merge(it) }
                         }
                     }
 
@@ -227,10 +221,22 @@ trait ContainerTrait {
                         }
                     }
 
-                    // Start clock in case previous test stopped it
-                    def timerService = container.getService(TimerService.class)
-                    if (timerService != null) {
-                        timerService.getClock().start();
+                    // Re-insert rulesets (after assets have been re-inserted)
+                    if (container.hasService(RulesetStorageService.class) && container.hasService(RulesService.class)) {
+                        def rulesetStorageService = container.getService(RulesetStorageService.class)
+
+                        if (!TestFixture.assetRulesets.isEmpty()) {
+                            println("Re-inserting ${TestFixture.assetRulesets.size()} asset ruleset(s)")
+                            TestFixture.assetRulesets.forEach { rulesetStorageService.merge(it) }
+                        }
+                        if (!TestFixture.tenantRulesets.isEmpty()) {
+                            println("Re-inserting ${TestFixture.tenantRulesets.size()} tenant ruleset(s)")
+                            TestFixture.tenantRulesets.forEach { rulesetStorageService.merge(it) }
+                        }
+                        if (!TestFixture.globalRulesets.isEmpty()) {
+                            println("Re-inserting ${TestFixture.globalRulesets.size()} global ruleset(s)")
+                            TestFixture.globalRulesets.forEach { rulesetStorageService.merge(it) }
+                        }
                     }
                 } catch (IllegalStateException e) {
                     System.out.println("Failed to clean the existing container so creating a new one")
@@ -310,8 +316,16 @@ trait ContainerTrait {
 
         if (assetProcessingService != null) {
             println("Waiting for the system to settle down")
-            noEventProcessedIn(assetProcessingService, 300)
+            def j=0
+            while (j < 100 && !noEventProcessedIn(assetProcessingService, 300)) {
+                Thread.sleep(100)
+                j++
+            }
         }
+
+        // Reset and start clock in case any previous tests stopped/modified it (pseudo clock is static so shared between tests)
+        TimerService.Clock.PSEUDO.reset()
+        TimerService.Clock.PSEUDO.advanceTime(10, TimeUnit.MILLISECONDS) // Advance clock so attribute events from tests will succeed (even if actual clock hasn't moved more than a millisecond)
 
         return container
     }

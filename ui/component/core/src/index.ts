@@ -130,6 +130,68 @@ export interface ManagerConfig {
     basicLoginProvider?: (username: string | undefined, password: string | undefined) => PromiseLike<BasicLoginResult>;
 }
 
+export function normaliseConfig(config: ManagerConfig): ManagerConfig {
+    const normalisedConfig: ManagerConfig = config ? Object.assign({}, config) : {};
+
+    if (!normalisedConfig.managerUrl || normalisedConfig.managerUrl === "") {
+        // Assume manager is running on same host as this code
+        normalisedConfig.managerUrl = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "");
+    } else {
+        // Normalise by stripping any trailing slashes
+        normalisedConfig.managerUrl = normalisedConfig.managerUrl.replace(/\/+$/, "");
+    }
+
+    if (!normalisedConfig.realm || normalisedConfig.realm === "") {
+        // Assume master realm
+        normalisedConfig.realm = "master";
+    }
+
+    if (normalisedConfig.auth === Auth.KEYCLOAK) {
+        // Determine URL of keycloak server
+        if (!normalisedConfig.keycloakUrl || normalisedConfig.keycloakUrl === "") {
+            // Assume keycloak is running on same host as the manager
+            normalisedConfig.keycloakUrl = normalisedConfig.managerUrl + "/auth";
+        } else {
+            // Normalise by stripping any trailing slashes
+            normalisedConfig.keycloakUrl = normalisedConfig.keycloakUrl.replace(/\/+$/, "");
+        }
+    }
+
+    if (normalisedConfig.consoleAutoEnable === undefined) {
+        normalisedConfig.consoleAutoEnable = true;
+    }
+
+    if (!normalisedConfig.eventProviderType) {
+        normalisedConfig.eventProviderType = EventProviderType.WEBSOCKET;
+    }
+
+    if (!normalisedConfig.pollingIntervalMillis || normalisedConfig.pollingIntervalMillis < 5000) {
+        normalisedConfig.pollingIntervalMillis = 10000;
+    }
+
+    if (normalisedConfig.loadIcons === undefined) {
+        normalisedConfig.loadIcons = true;
+    }
+
+    if (normalisedConfig.loadTranslations === undefined) {
+        normalisedConfig.loadTranslations = ["or"];
+    }
+
+    if (normalisedConfig.translationsLoadPath === undefined) {
+        normalisedConfig.translationsLoadPath = "locales/{{lng}}/{{ns}}.json";
+    }
+
+    if (normalisedConfig.loadDescriptors === undefined) {
+        normalisedConfig.loadDescriptors = true;
+    }
+
+    if (normalisedConfig.clientId === undefined) {
+        normalisedConfig.clientId = "openremote";
+    }
+
+    return normalisedConfig;
+}
+
 export class IconSetAddedEvent extends CustomEvent<void> {
 
     public static readonly NAME = "or-iconset-added";
@@ -522,68 +584,6 @@ export class Manager implements EventProviderFactory {
         return this._config.mapType || MapType.VECTOR;
     }
 
-    protected static normaliseConfig(config: ManagerConfig): ManagerConfig {
-        const normalisedConfig: ManagerConfig = Object.assign({}, config);
-
-        if (!normalisedConfig.managerUrl || normalisedConfig.managerUrl === "") {
-            // Assume manager is running on same host as this code
-            normalisedConfig.managerUrl = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "");
-        } else {
-            // Normalise by stripping any trailing slashes
-            normalisedConfig.managerUrl = normalisedConfig.managerUrl.replace(/\/+$/, "");
-        }
-
-        if (!normalisedConfig.realm || normalisedConfig.realm === "") {
-            // Assume master realm
-            normalisedConfig.realm = "master";
-        }
-
-        if (normalisedConfig.auth === Auth.KEYCLOAK) {
-            // Determine URL of keycloak server
-            if (!normalisedConfig.keycloakUrl || normalisedConfig.keycloakUrl === "") {
-                // Assume keycloak is running on same host as the manager
-                normalisedConfig.keycloakUrl = normalisedConfig.managerUrl + "/auth";
-            } else {
-                // Normalise by stripping any trailing slashes
-                normalisedConfig.keycloakUrl = normalisedConfig.keycloakUrl.replace(/\/+$/, "");
-            }
-        }
-
-        if (normalisedConfig.consoleAutoEnable === undefined) {
-            normalisedConfig.consoleAutoEnable = true;
-        }
-
-        if (!normalisedConfig.eventProviderType) {
-            normalisedConfig.eventProviderType = EventProviderType.WEBSOCKET;
-        }
-
-        if (!normalisedConfig.pollingIntervalMillis || normalisedConfig.pollingIntervalMillis < 5000) {
-            normalisedConfig.pollingIntervalMillis = 10000;
-        }
-
-        if (normalisedConfig.loadIcons === undefined) {
-            normalisedConfig.loadIcons = true;
-        }
-
-        if (normalisedConfig.loadTranslations === undefined) {
-            normalisedConfig.loadTranslations = ["or"];
-        }
-
-        if (normalisedConfig.translationsLoadPath === undefined) {
-            normalisedConfig.translationsLoadPath = "locales/{{lng}}/{{ns}}.json";
-        }
-
-        if (normalisedConfig.loadDescriptors === undefined) {
-            normalisedConfig.loadDescriptors = true;
-        }
-
-        if (normalisedConfig.clientId === undefined) {
-            normalisedConfig.clientId = "openremote";
-        }
-        
-        return normalisedConfig;
-    }
-
     private _error?: ORError;
     private _config!: ManagerConfig;
     private _authenticated: boolean = false;
@@ -636,7 +636,7 @@ export class Manager implements EventProviderFactory {
             console.log("Already initialised");
         }
 
-        this._config = Manager.normaliseConfig(config);
+        this._config = normaliseConfig(config);
 
         let success = await this.doAuthInit();
 
@@ -990,22 +990,32 @@ export class Manager implements EventProviderFactory {
 
             // Update basic token so we can use rest api to make calls
             this._basicIdentity!.token = btoa(result.username + ":" + result.password);
-            const userResponse = await rest.api.UserResource.getCurrent();
-            const status = userResponse.status;
+            let success = false;
 
-            if (status === 200) {
+            try {
+                const userResponse = await rest.api.UserResource.getCurrent();
+                if (userResponse.status === 200) {
+                    success = true;
+                    this._basicIdentity!.user = userResponse.data;
+                }
+
+                if (!success) {
+                    // Undertow incorrectly returns 403 when no authorization header and a 401 when it is set and not valid
+                    if (userResponse.status === 401 || userResponse.status === 403) {
+                        console.log("Basic authentication invalid credentials, trying again");
+                    }
+                }
+            } catch (e) {
+                console.error("Basic auth failed: ", e);
+            }
+
+            if (success) {
                 console.log("Basic authentication successful");
                 authenticated = true;
-                this._basicIdentity!.user = userResponse.data;
 
                 // Get user roles
                 const rolesResponse = await rest.api.UserResource.getCurrentUserRoles();
                 this._basicIdentity!.roles = rolesResponse.data;
-
-                // Undertow incorrectly returns 403 when no authorization header and a 401 when it is set and not valid
-            } else if (status === 401 || status === 403) {
-                console.log("Basic authentication invalid credentials, trying again");
-                this._basicIdentity = undefined;
             } else {
                 console.log("Unkown response so aborting");
                 this._basicIdentity = undefined;
@@ -1041,10 +1051,6 @@ export class Manager implements EventProviderFactory {
     }
 
     public getAuthorizationHeader(): string | undefined {
-        if (!this.authenticated) {
-            return;
-        }
-
         if (this.getKeycloakToken()) {
             return "Bearer " + this.getKeycloakToken();
         }

@@ -12,20 +12,20 @@ import {
 import {unsafeHTML} from "lit-html/directives/unsafe-html";
 import {AppConfig, RealmAppConfig, router} from "./types";
 import "@openremote/or-translate";
-import "@openremote/or-mwc-components/dist/or-mwc-menu";
-import "@openremote/or-mwc-components/dist/or-mwc-snackbar";
+import "@openremote/or-mwc-components/or-mwc-menu";
+import "@openremote/or-mwc-components/or-mwc-snackbar";
 import "./or-header";
 import "@openremote/or-icon";
 import {updateMetadata} from "pwa-helpers/metadata";
 import i18next from "i18next";
-import manager, {Auth, DefaultColor2, DefaultColor3, ManagerConfig, Util, BasicLoginResult, OREvent} from "@openremote/core";
+import manager, {Auth, DefaultColor2, DefaultColor3, ManagerConfig, Util, BasicLoginResult, OREvent, normaliseConfig, Manager} from "@openremote/core";
 import {DEFAULT_LANGUAGES, HeaderConfig, HeaderItem, Languages} from "./or-header";
-import {DialogConfig, OrMwcDialog, showErrorDialog, showDialog} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
-import {OrMwcSnackbar} from "@openremote/or-mwc-components/dist/or-mwc-snackbar";
+import {DialogConfig, OrMwcDialog, showErrorDialog, showDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import {OrMwcSnackbar} from "@openremote/or-mwc-components/or-mwc-snackbar";
 import {AnyAction, EnhancedStore, Unsubscribe} from "@reduxjs/toolkit";
 import {ThunkMiddleware} from "redux-thunk";
 import {AppStateKeyed, updatePage} from "./app";
-import { InputType, OrInputChangedEvent } from "@openremote/or-input";
+import { InputType, OrInputChangedEvent } from "@openremote/or-mwc-components/or-mwc-input";
 
 const DefaultLogo = require("../images/logo.png");
 const DefaultMobileLogo = require("../images/logo-mobile.png");
@@ -54,6 +54,10 @@ export function getRealmQueryParameter(): string | undefined {
     }
 }
 
+export function getDefaultManagerConfig() {
+    return normaliseConfig(DEFAULT_MANAGER_CONFIG);
+}
+
 const DEFAULT_MANAGER_CONFIG: ManagerConfig = {
     managerUrl: MANAGER_URL,
     keycloakUrl: KEYCLOAK_URL,
@@ -68,7 +72,9 @@ const DEFAULT_MANAGER_CONFIG: ManagerConfig = {
 export class OrApp<S extends AppStateKeyed> extends LitElement {
 
     @property({type: Object})
-    public appConfig!: AppConfig<S>;
+    public appConfig?: AppConfig<S>;
+
+    public appConfigProvider?: (manager: Manager) => AppConfig<S>;
 
     @property({type: Object})
     public managerConfig?: ManagerConfig;
@@ -175,31 +181,6 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
     protected firstUpdated(_changedProperties: Map<PropertyKey, unknown>): void {
         super.firstUpdated(_changedProperties);
 
-        if (!this.appConfig) {
-            console.error("No AppConfig supplied");
-            return;
-        }
-
-        if (!this._store) {
-            console.error("No Redux store supplied");
-            return;
-        }
-
-        if (!this.appConfig.pages || Object.keys(this.appConfig.pages).length === 0) {
-            console.error("No page providers");
-            return;
-        }
-
-        const realm = getRealmQueryParameter();
-        const config = this._getConfig(realm);
-
-        if (!config) {
-            console.error("No default AppConfig or realm specific config for requested realm: " + realm);
-            return;
-        } else {
-            this._config = config;
-        }
-
         const managerConfig = this.managerConfig ? {...DEFAULT_MANAGER_CONFIG,...this.managerConfig} : DEFAULT_MANAGER_CONFIG;
         managerConfig.basicLoginProvider = (u, p) => this.doBasicLogin(u, p);
         manager.addListener(this._onManagerEvent);
@@ -208,7 +189,36 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
 
         manager.init(managerConfig).then((success) => {
             if (success) {
+                this.appConfig = this.appConfig || (this.appConfigProvider ? this.appConfigProvider(manager) : undefined);
+
+                if (!this.appConfig) {
+                    showErrorDialog("appError.noConfig", document.body);
+                    console.error("No AppConfig supplied");
+                    return;
+                }
+
+                if (!this._store) {
+                    showErrorDialog("appError.noReduxStore", document.body);
+                    console.error("No Redux store supplied");
+                    return;
+                }
+
+                if (!this.appConfig.pages || Object.keys(this.appConfig.pages).length === 0) {
+                    showErrorDialog("appError.noPages", document.body);
+                    console.error("No page providers");
+                    return;
+                }
+
                 this._initialised = true;
+                const realm = getRealmQueryParameter();
+                const config = this._getConfig(realm);
+
+                if (!config) {
+                    console.error("No default AppConfig or realm specific config for requested realm: " + realm);
+                    return;
+                } else {
+                    this._config = config;
+                }
 
                 this.appConfig.pages.forEach((pageProvider, index) => {
                     if (pageProvider.routes) {
@@ -224,7 +234,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
 
                 if (this.appConfig.pages.length > 0) {
                     router.on("*", (params, query) => {
-                        this._store.dispatch(updatePage(this.appConfig.pages[0].name));
+                        this._store.dispatch(updatePage(this.appConfig!.pages[0].name));
                     });
                 }
                
@@ -248,7 +258,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                 height: 24px;
             }
             
-            #login_wrapper > or-input {
+            #login_wrapper > or-mwc-input {
                 margin: 10px 0;
                 width: 100%;
             }
@@ -259,8 +269,8 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
             title: html`<img id="login-logo" src="${this._config.logoMobile || this._config.logo}" /></or-icon><or-translate value="login"></or-translate>`,
             content: html`
                 <div id="login_wrapper">
-                    <or-input .label="${i18next.t("user")}" .type="${InputType.TEXT}" min="1" required .value="${username}" @or-input-changed="${(e: OrInputChangedEvent) => u = e.detail.value}"></or-input>            
-                    <or-input .label="${i18next.t("password")}" .type="${InputType.PASSWORD}" min="1" required .value="${password}" @or-input-changed="${(e: OrInputChangedEvent) => p = e.detail.value}"></or-input>           
+                    <or-mwc-input .label="${i18next.t("user")}" .type="${InputType.TEXT}" min="1" required .value="${username}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => u = e.detail.value}"></or-mwc-input>            
+                    <or-mwc-input .label="${i18next.t("password")}" .type="${InputType.PASSWORD}" min="1" required .value="${password}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => p = e.detail.value}"></or-mwc-input>           
                 </div>
             `,
             actions: [
@@ -274,7 +284,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                             password: p!
                         });
                     },
-                    content: html`<or-input .type=${InputType.BUTTON} .label="${i18next.t("submit")}" raised></or-input>`
+                    content: html`<or-mwc-input .type=${InputType.BUTTON} .label="${i18next.t("submit")}" raised></or-mwc-input>`
                 }
             ]
         }, document.body); // Attach to document as or-app isn't visible until initialised
@@ -298,7 +308,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                     this._mainElem.firstElementChild.remove();
                 }
                 if (this._page) {
-                    const pageProvider = this.appConfig.pages.find((page) => page.name === this._page);
+                    const pageProvider = this.appConfig!.pages.find((page) => page.name === this._page);
                     if (pageProvider) {
                         const pageElem = pageProvider.pageCreator();
                         this._mainElem.appendChild(pageElem);
@@ -383,8 +393,8 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
 
     protected _getConfig(realm: string | undefined): RealmAppConfig {
         realm = realm || "default";
-        const defaultConfig = this.appConfig.realms ? this.appConfig.realms.default : {};
-        let realmConfig = this.appConfig.realms ? this.appConfig.realms![realm] : undefined;
+        const defaultConfig = this.appConfig!.realms ? this.appConfig!.realms.default : {};
+        let realmConfig = this.appConfig!.realms ? this.appConfig!.realms![realm] : undefined;
         realmConfig = Util.mergeObjects(defaultConfig, realmConfig, false);
 
         if (this.appConfig && this.appConfig.superUserHeader && manager.isSuperUser()) {
@@ -407,7 +417,8 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
 
         return {
             title: title,
-            actions: actions
+            actions: actions,
+            dismissAction: null
         };
     }
 }

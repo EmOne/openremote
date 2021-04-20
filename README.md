@@ -18,26 +18,42 @@ You can quickly try the online demo with restricted access, login credentials ar
 
 [Online demo](https://demo.openremote.io/manager/?realm=smartcity)
 
-The quickest way to get your own environment with full access is to make use of our docker images (both `amd64` and `arm64` are supported). First make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop) installed (v18+). Then download the docker compose file:
-
+The quickest way to get your own environment with full access is to make use of our docker images (both `amd64` and `arm64` are supported). 
+1. Make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop) installed (v18+). 
+2. Download the docker compose file:
 [OpenRemote Stack](https://raw.githubusercontent.com/openremote/openremote/master/docker-compose.yml) (Right click 'Save link as...')
+3. In a terminal `cd` to where you just saved the compose file and then run:
 
-In a terminal `cd` to where you just saved the compose file and then run:
+    `docker-compose -p openremote up`
 
-`docker-compose -p openremote up`
-
-If all goes well then you should now be able to access the OpenRemote Manager UI at [https://localhost](https://localhost), you will need to accept the self-signed 
+If all goes well then you should now be able to access the OpenRemote Manager UI at [https://localhost](https://localhost). You will need to accept the self-signed 
 certificate, see [here](https://www.technipages.com/google-chrome-bypass-your-connection-is-not-private-message) for details how to do this in Chrome (similar for other browsers).
 
 ### Login credentials
 Username: admin  
 Password: secret
 
+### Not using localhost?
+The URL you use to access the system is important, by default keycloak expects it to be `https://localhost` if you are using a VM then you will need to tell keycloak at startup, so if for example you will be accessing using `https://192.168.1.1` then use the following startup command:
+
+BASH: 
+```
+KEYCLOAK_FRONTEND_URL=https://192.168.1.1/auth docker-compose -p openremote up -d
+```
+or
+
+CMD:
+```
+cmd /C "set KEYCLOAK_FRONTEND_URL=https://192.168.1.1/auth && docker-compose -p openremote up -d"
+```
+
+
 ## What next
 Try creating assets, agents, rules, users, realms, etc. using the Manager UI, please refer to the [wiki](https://github.com/openremote/openremote/wiki) for more information, some things to try:
 
 - [Manager UI Guide](https://github.com/openremote/openremote/wiki/Demo-Smart-City)
-- [Creating a HTTP Agent](https://github.com/openremote/openremote/wiki/User-Guide%3A-Connecting-to-a-HTTP-API)
+- [Creating an HTTP Agent](https://github.com/openremote/openremote/wiki/User-Guide%3A-Connecting-to-a-HTTP-API)
+- [Custom Deployment](https://github.com/openremote/openremote/wiki/User-Guide%3A-Custom-deployment)
 - [Setting up an IDE](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Setting-up-an-IDE)
 - [Working on the UI](https://github.com/openremote/openremote/wiki/Developer-Guide%3A-Working-on-the-UI)
 

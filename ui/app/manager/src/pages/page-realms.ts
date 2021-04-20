@@ -16,8 +16,8 @@ import {AppStateKeyed} from "@openremote/or-app";
 import { ClientRole, Tenant } from "@openremote/model";
 import { i18next } from "@openremote/or-translate";
 import { OrIcon } from "@openremote/or-icon";
-import { InputType, OrInputChangedEvent } from "@openremote/or-input";
-import {showOkCancelDialog} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
+import { InputType, OrInputChangedEvent } from "@openremote/or-mwc-components/or-mwc-input";
+import {showOkCancelDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
 
 const tableStyle = require("@material/data-table/dist/mdc.data-table.css");
 
@@ -114,7 +114,7 @@ class PageRealms<S extends AppStateKeyed> extends Page<S> {
           padding-left: 16px;
         }
 
-        or-input {
+        or-mwc-input {
             margin-bottom: 20px;
             margin-right: 16px;
         }
@@ -222,7 +222,7 @@ class PageRealms<S extends AppStateKeyed> extends Page<S> {
   public realm?: string;
 
   get name(): string {
-    return "roles";
+    return "realm_plural";
   }
 
   constructor(store: EnhancedStore<S>) {
@@ -328,11 +328,11 @@ class PageRealms<S extends AppStateKeyed> extends Page<S> {
          <div id="wrapper">
                 <div id="title">
                 <or-icon icon="domain"></or-icon>${i18next.t(
-                  "realm management"
+                  "realm_plural"
                 )}
                 </div>
                 <div class="panel">
-                <p class="panel-title">${i18next.t("realms")}</p>
+                <p class="panel-title">${i18next.t("realm_plural")}</p>
                   <div id="table-roles" class="mdc-data-table">
                   <table class="mdc-data-table__table" aria-label="attribute list" >
                       <thead>
@@ -367,11 +367,11 @@ class PageRealms<S extends AppStateKeyed> extends Page<S> {
                                  
                                   <div class="row">
                                     <div class="column">
-                                      <or-input ?readonly="${tenant.id}" .label="${i18next.t("realm")}" .type="${InputType.TEXT}" min="1" required .value="${tenant.realm}" @or-input-changed="${(e: OrInputChangedEvent) => tenant.realm = e.detail.value}"></or-input>            
-                                      <or-input ?readonly="${readonly}" .label="${i18next.t("enabled")}" .type="${InputType.SWITCH}" min="1" .value="${tenant.enabled}" @or-input-changed="${(e: OrInputChangedEvent) =>tenant.enabled = e.detail.value}}"></or-input>
+                                      <or-mwc-input ?readonly="${tenant.id}" .label="${i18next.t("realm")}" .type="${InputType.TEXT}" min="1" required .value="${tenant.realm}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => tenant.realm = e.detail.value}"></or-mwc-input>            
+                                      <or-mwc-input ?readonly="${readonly}" .label="${i18next.t("enabled")}" .type="${InputType.SWITCH}" min="1" .value="${tenant.enabled}" @or-mwc-input-changed="${(e: OrInputChangedEvent) =>tenant.enabled = e.detail.value}}"></or-mwc-input>
                                     </div>
                                     <div class="column">
-                                      <or-input .label="${i18next.t("displayName")}" .type="${InputType.TEXT}" min="1" required .value="${tenant.displayName}" @or-input-changed="${(e: OrInputChangedEvent) => tenant.displayName = e.detail.value}"></or-input>            
+                                      <or-mwc-input .label="${i18next.t("displayName")}" .type="${InputType.TEXT}" min="1" required .value="${tenant.displayName}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => tenant.displayName = e.detail.value}"></or-mwc-input>            
                                     </div>
                                   </div>
 
@@ -380,12 +380,12 @@ class PageRealms<S extends AppStateKeyed> extends Page<S> {
                                   <div class="row" style="margin-bottom: 0;">
                                   ${tenant.id && !readonly ? html`
                                       ${tenant.realm !== "master" ? html`
-                                        <or-input hidden .label="${i18next.t("delete")}" .type="${InputType.BUTTON}" @click="${() => this._deleteTenant(tenant)}"></or-input>  
+                                        <or-mwc-input hidden .label="${i18next.t("delete")}" .type="${InputType.BUTTON}" @click="${() => this._deleteTenant(tenant)}"></or-mwc-input>  
                                       ` : ``}
-                                      <or-input style="margin-left: auto;" .label="${i18next.t("save")}" .type="${InputType.BUTTON}" @click="${() => this._updateTenant(tenant)}"></or-input>   
+                                      <or-mwc-input style="margin-left: auto;" .label="${i18next.t("save")}" .type="${InputType.BUTTON}" @click="${() => this._updateTenant(tenant)}"></or-mwc-input>   
                                   ` : html`
-                                    <or-input .label="${i18next.t("cancel")}" .type="${InputType.BUTTON}" @click="${() => {this._tenants.splice(-1,1); this._tenants = [...this._tenants]}}"></or-input>            
-                                    <or-input style="margin-left: auto;" .label="${i18next.t("create")}" .type="${InputType.BUTTON}" @click="${() => this._createTenant(tenant)}"></or-input>   
+                                    <or-mwc-input .label="${i18next.t("cancel")}" .type="${InputType.BUTTON}" @click="${() => {this._tenants.splice(-1,1); this._tenants = [...this._tenants]}}"></or-mwc-input>            
+                                    <or-mwc-input style="margin-left: auto;" .label="${i18next.t("create")}" .type="${InputType.BUTTON}" @click="${() => this._createTenant(tenant)}"></or-mwc-input>   
                                   `}    
                                   </div>
                               </div>

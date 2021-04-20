@@ -22,8 +22,8 @@ import {
     WellknownValueTypes
 } from "@openremote/model";
 import manager, {AssetModelUtil, DefaultColor4, subscribe, Util} from "@openremote/core";
-import "@openremote/or-input";
-import {InputType, OrInput, OrInputChangedEvent, ValueInputProviderOptions, ValueInputProviderGenerator, getValueHolderInputTemplateProvider, ValueInputProvider, OrInputChangedEventDetail} from "@openremote/or-input";
+import "@openremote/or-mwc-components/or-mwc-input";
+import {InputType, OrInput, OrInputChangedEvent, ValueInputProviderOptions, ValueInputProviderGenerator, getValueHolderInputTemplateProvider, ValueInputProvider, OrInputChangedEventDetail} from "@openremote/or-mwc-components/or-mwc-input";
 import "@openremote/or-map";
 import { geoJsonPointInputTemplateProvider } from "@openremote/or-map";
 
@@ -54,7 +54,7 @@ declare global {
     }
 }
 
-export function getAttributeInputWrapper(content: TemplateResult, value: any, loading: boolean, disabled: boolean, helperText: string | undefined, label: string | undefined, buttonIcon?: string, sendValue?: () => void): TemplateResult {
+export function getAttributeInputWrapper(content: TemplateResult, value: any, loading: boolean, disabled: boolean, helperText: string | undefined, label: string | undefined, buttonIcon?: string, sendValue?: () => void, fullWidth?: boolean): TemplateResult {
 
     if (helperText) {
         content = html`
@@ -69,17 +69,17 @@ export function getAttributeInputWrapper(content: TemplateResult, value: any, lo
     if (buttonIcon) {
         content = html`
                 ${content}
-                <or-input id="send-btn" icon="${buttonIcon}" type="button" .disabled="${disabled || loading}" @or-input-changed="${(e: OrInputChangedEvent) => {
+                <or-mwc-input id="send-btn" icon="${buttonIcon}" type="button" .disabled="${disabled || loading}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => {
             e.stopPropagation();
             if (sendValue) {
                 sendValue();
             }
-        }}"></or-input>
+        }}"></or-mwc-input>
             `;
     }
 
     return html`
-            <div id="wrapper" class="${buttonIcon === undefined || buttonIcon ? "no-padding" : "right-padding"}">
+            <div id="wrapper" class="${(buttonIcon === undefined || buttonIcon || fullWidth) ? "no-padding" : "right-padding"}">
                 ${content}
                 <div id="scrim" class="${ifDefined(loading ? undefined : "hidden")}"><progress class="pure-material-progress-circular"></progress></div>
             </div>
@@ -115,7 +115,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
                 display: inline-block;
             }
             
-            #wrapper or-input, #wrapper or-map {
+            #wrapper or-mwc-input, #wrapper or-map {
                 width: 100%;
             }
             
@@ -345,6 +345,9 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
     @property({type: Boolean})
     public compact: boolean = false;
 
+    @property({type: Boolean})
+    public fullWidth?: boolean;
+
     @property()
     protected _attributeEvent?: AttributeEvent;
 
@@ -563,7 +566,7 @@ export class OrAttributeInput extends subscribe(manager)(translate(i18next)(LitE
             content = html`<or-translate .value="attributeUnsupported"></or-translate>`;
         }
 
-        content = getAttributeInputWrapper(content, value, loading, !!this.disabled, this._templateProvider.supportsHelperText ? undefined : helperText, this._templateProvider.supportsLabel ? undefined : this.getLabel(), this._templateProvider.supportsSendButton ? buttonIcon : undefined, () => this._updateValue());
+        content = getAttributeInputWrapper(content, value, loading, !!this.disabled, this._templateProvider.supportsHelperText ? undefined : helperText, this._templateProvider.supportsLabel ? undefined : this.getLabel(), this._templateProvider.supportsSendButton ? buttonIcon : undefined, () => this._updateValue(), this.fullWidth);
         return content;
     }
 

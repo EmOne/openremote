@@ -10,17 +10,20 @@ import {
     WellknownMetaItems
 } from "@openremote/model";
 import {AssetModelUtil, DefaultColor3, DefaultColor4, manager, Util} from "@openremote/core";
-import Chart, {ChartTooltipCallback} from "chart.js";
+import {Chart, ChartDataset, ChartOptions, ScatterDataPoint, LineController, LineElement, PointElement, LinearScale, TimeSeriesScale, Title} from "chart.js";
+import "chartjs-adapter-moment";
 import {OrChartConfig} from "@openremote/or-chart";
-import {InputType, OrInputChangedEvent} from "@openremote/or-input";
+import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import {getAssetDescriptorIconTemplate} from "@openremote/or-icon";
-import "@openremote/or-mwc-components/dist/or-mwc-dialog";
+import "@openremote/or-mwc-components/or-mwc-dialog";
 import moment from "moment";
 import {OrAssetTreeSelectionEvent} from "@openremote/or-asset-tree";
-import {OrMwcDialog} from "@openremote/or-mwc-components/dist/or-mwc-dialog";
-import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/dist/or-mwc-menu";
+import {OrMwcDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
 
 export type ContextMenuOptions = "editAttribute" | "editDelta" | "editCurrentValue";
+
+Chart.register(LineController, LineElement, PointElement, LinearScale, Title, TimeSeriesScale);
 
 // language=CSS
 const style = css`
@@ -223,7 +226,7 @@ export class OrAttributeCard extends LitElement {
 
     @query("#chart")
     private _chartElem!: HTMLCanvasElement;
-    private _chart?: Chart;
+    private _chart?: Chart<"line", ScatterDataPoint[]>;
 
     @query("#mdc-dialog")
     private _dialog!: OrMwcDialog;
@@ -267,13 +270,13 @@ export class OrAttributeCard extends LitElement {
         }
 
         if (!this._chart) {
-            this._chart = new Chart(this._chartElem, {
+            this._chart = new Chart(this._chartElem.getContext("2d")!, {
                 type: "line",
                 data: {
                     datasets: [
                         {
-                            data: this.data,
-                            lineTension: 0.1,
+                            data: this.data.filter(value => value.y != null) as ScatterDataPoint[],
+                            tension: 0.1,
                             spanGaps: true,
                             backgroundColor: "transparent",
                             borderColor: this._style.getPropertyValue("--internal-or-attribute-history-graph-line-color"),
@@ -284,37 +287,39 @@ export class OrAttributeCard extends LitElement {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    legend: {
-                        display: false
-                    },
-                    tooltips: {
-                        displayColors: false,
-                        callbacks: {
-                            title: (tooltipItems, data) => {
-                                return "";
-                            },
-                            label: (tooltipItem, data) => {
-                                return tooltipItem.yLabel; // Removes the colon before the label
-                            },
-                            footer: () => {
-                                return ""; // Hack the broken vertical alignment of body with footerFontSize: 0
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            displayColors: false,
+                            callbacks: {
+                                title: (context) => {
+                                    return "";
+                                },
+                                // label: (context) => {
+                                //     return context.parsed.y; // Removes the colon before the label
+                                // },
+                                footer: () => {
+                                    return ""; // Hack the broken vertical alignment of body with footerFontSize: 0
+                                }
                             }
-                        } as ChartTooltipCallback
+                        }
                     },
                     scales: {
-                        yAxes: [{
+                        y: {
                             display: false
-                        }],
-                        xAxes: [{
+                        },
+                        x: {
                             type: "time",
                             display: false,
-                        }]
+                        }
                     }
                 }
             });
         } else {
             if (changedProperties.has("data")) {
-                this._chart.data.datasets![0].data = this.data;
+                this._chart.data.datasets![0].data = this.data.filter(value => value.y != null) as ScatterDataPoint[];
                 this._chart.update();
                 this.delta = this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data));
             }
@@ -341,12 +346,12 @@ export class OrAttributeCard extends LitElement {
                     ["absolute", "Absolute"]
                 ];
 
-                this._dialog.dialogTitle= i18next.t("editDelta");
+                this._dialog.dialogTitle = i18next.t("editDelta");
 
                 this._dialog.dialogActions = [
                     {
                         actionName: "cancel",
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
                         action: () => {
                             // Nothing to do here
                         }
@@ -354,7 +359,7 @@ export class OrAttributeCard extends LitElement {
                     {
                         actionName: "yes",
                         default: true,
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
                         action: () => {
                             this.delta = this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data));
                         }
@@ -362,17 +367,19 @@ export class OrAttributeCard extends LitElement {
                 ];
 
                 this._dialog.dialogContent = html`
-                    <or-input id="delta-mode-picker" value="${this.deltaFormat}" @or-input-changed="${(evt: OrInputChangedEvent) => {this.deltaFormat = evt.detail.value;this.saveSettings();}}" .type="${InputType.LIST}" .options="${options}"></or-input>                
+                    <or-mwc-input id="delta-mode-picker" value="${this.deltaFormat}" @or-mwc-input-changed="${(evt: OrInputChangedEvent) => {this.deltaFormat = evt.detail.value;this.saveSettings();}}" .type="${InputType.LIST}" .options="${options}"></or-mwc-input>                
                 `;
+
+                this._dialog.dismissAction = null;
             }
             else if (dialogContent === "editCurrentValue") {
 
-                this._dialog.dialogTitle= i18next.t("editCurrentValue");
+                this._dialog.dialogTitle = i18next.t("editCurrentValue");
 
                 this._dialog.dialogActions = [
                     {
                         actionName: "cancel",
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
                         action: () => {
                             // Nothing to do here
                         }
@@ -380,7 +387,7 @@ export class OrAttributeCard extends LitElement {
                     {
                         actionName: "yes",
                         default: true,
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
                         action: () => {
                             const dialog: OrMwcDialog = this._dialog as OrMwcDialog;
                             if (dialog.shadowRoot && dialog.shadowRoot.getElementById("current-value-decimals")) {
@@ -397,17 +404,19 @@ export class OrAttributeCard extends LitElement {
                 ];
 
                 this._dialog.dialogContent = html`
-                    <or-input id="current-value-decimals" .label="${i18next.t("decimals")}" value="${this.mainValueDecimals}" .type="${InputType.TEXT}"></or-input>
+                    <or-mwc-input id="current-value-decimals" .label="${i18next.t("decimals")}" value="${this.mainValueDecimals}" .type="${InputType.TEXT}"></or-mwc-input>
                 `;
+
+                this._dialog.dismissAction = null;
             }
             else {
 
-                this._dialog.dialogTitle= i18next.t("addAttribute");
+                this._dialog.dialogTitle = i18next.t("addAttribute");
 
                 this._dialog.dialogActions = [
                     {
                         actionName: "cancel",
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
                         action: () => {
                             // Nothing to do here
                         }
@@ -415,7 +424,7 @@ export class OrAttributeCard extends LitElement {
                     {
                         actionName: "yes",
                         default: true,
-                        content: html`<or-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("add")}" data-mdc-dialog-action="yes"></or-input>`,
+                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("add")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
                         action: () => {
                             const dialog: OrMwcDialog = this.shadowRoot!.getElementById("mdc-dialog") as OrMwcDialog;
                             if (dialog.shadowRoot && dialog.shadowRoot.getElementById("attribute-picker")) {
@@ -430,14 +439,16 @@ export class OrAttributeCard extends LitElement {
                     <or-asset-tree id="chart-asset-tree"  readonly
                         .selectedIds="${this.asset ? [this.asset.id] : null}"></or-asset-tree>
                     ${this.asset && this.asset.attributes ? html`
-                        <or-input id="attribute-picker" 
+                        <or-mwc-input id="attribute-picker" 
                             style="display:flex;"
                             .label="${i18next.t("attribute")}" 
                             .type="${InputType.LIST}"
                             .options="${this._getAttributeOptions()}"
-                            .value="${this.attributeName}"></or-input>
+                            .value="${this.attributeName}"></or-mwc-input>
                     ` : ``}
                 `;
+
+                this._dialog.dismissAction = null;
             }
         }
     }
@@ -595,7 +606,7 @@ export class OrAttributeCard extends LitElement {
                 <div class="panel panel-empty">
                     <div class="panel-content-wrapper">
                         <div class="panel-content">
-                            <or-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-input>
+                            <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-mwc-input>
                         </div>
                     </div>
                 </div>
@@ -609,7 +620,7 @@ export class OrAttributeCard extends LitElement {
                     <div class="panel-content-wrapper">
                         <div class="panel-content">
                             <span>${i18next.t("couldNotRetrieveAttribute")}</span>
-                            <or-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-input>
+                            <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-mwc-input>
                         </div>
                     </div>
                 </div>
@@ -623,7 +634,7 @@ export class OrAttributeCard extends LitElement {
                     <div class="panel-title">
                         <span class="panel-title-text">${this.asset ? (this.asset.name + " - " + i18next.t(this.attributeName)) : ""}</span>
                         ${getContentWithMenuTemplate(html`
-                            <or-input icon="dots-vertical" type="button"></or-input>
+                            <or-mwc-input icon="dots-vertical" type="button"></or-mwc-input>
                         `,
                         [
                             {
@@ -658,7 +669,7 @@ export class OrAttributeCard extends LitElement {
                             
                             <div class="period-selector-wrapper">
                                 ${getContentWithMenuTemplate(
-                                    html`<or-input class="period-selector" .type="${InputType.BUTTON}" .label="${i18next.t(this.period ? this.period : "-")}"></or-input>`,
+                                    html`<or-mwc-input class="period-selector" .type="${InputType.BUTTON}" .label="${i18next.t(this.period ? this.period : "-")}"></or-mwc-input>`,
                                     [{value: "hour", text: "hour"}, {value: "day", text: "day"}, {value: "week", text: "week"}, {value: "month", text: "month"}, {value: "year", text: "year"}]
                                         .map((option) => {
                                             option.text = i18next.t(option.value);

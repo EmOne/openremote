@@ -22,10 +22,12 @@ package org.openremote.model.asset.impl;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.attribute.Attribute;
-import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.ValueType;
+import org.openremote.model.attribute.MetaItem;
+import org.openremote.model.attribute.MetaMap;
+import org.openremote.model.value.*;
 
 import javax.persistence.Entity;
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -35,7 +37,7 @@ import java.util.Optional;
 @Entity
 public class GroupAsset extends Asset<GroupAsset> {
 
-    public static final AttributeDescriptor<String> CHILD_ASSET_TYPE = new AttributeDescriptor<>("childAssetType", ValueType.TEXT);
+    public static final AttributeDescriptor<String> CHILD_ASSET_TYPE = new AttributeDescriptor<>("childAssetType", ValueType.ASSET_TYPE, new MetaItem<>(MetaItemType.READ_ONLY));
     public static final AssetDescriptor<GroupAsset> DESCRIPTOR = new AssetDescriptor<>("folder", "B3B3B3", GroupAsset.class);
 
     /**

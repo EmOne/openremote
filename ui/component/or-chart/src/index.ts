@@ -11,7 +11,7 @@ import {
 } from "lit-element";
 import i18next from "i18next";
 import {translate} from "@openremote/or-translate";
-import {Asset, Attribute, AttributeRef, DatapointInterval, WellknownMetaItems, ReadAssetEvent, AssetEvent} from "@openremote/model";
+import {Asset, Attribute, AttributeRef, DatapointInterval, WellknownMetaItems, ReadAssetEvent, AssetEvent, ValueDatapoint} from "@openremote/model";
 import manager, {
     AssetModelUtil,
     DefaultColor2,
@@ -21,17 +21,28 @@ import manager, {
     Util
 } from "@openremote/core";
 import "@openremote/or-asset-tree";
-import "@openremote/or-input";
+import "@openremote/or-mwc-components/or-mwc-input";
 import "@openremote/or-panel";
 import {MDCDialog} from '@material/dialog';
 import "@openremote/or-translate";
-import Chart, {ChartDataSets, ChartOptions} from "chart.js";
-import {InputType, OrInputChangedEvent} from "@openremote/or-input";
+import {Chart, ChartDataset, TimeUnit, ScatterDataPoint, ScatterController, LineController, LineElement, PointElement, LinearScale, TimeScale,
+    Filler,
+    Legend,
+    Title,
+    Tooltip,
+    ChartConfiguration,
+    TimeScaleOptions} from "chart.js";
+import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import moment from "moment";
 import {OrAssetTreeSelectionEvent} from "@openremote/or-asset-tree";
 import {getAssetDescriptorIconTemplate} from "@openremote/or-icon";
-import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/dist/or-mwc-menu";
-import * as ChartAnnotation from "chartjs-plugin-annotation";
+import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
+import ChartAnnotation, { AnnotationOptions } from "chartjs-plugin-annotation";
+import "chartjs-adapter-moment";
+import {GenericAxiosResponse } from "@openremote/rest";
+
+Chart.register(LineController, ScatterController, LineElement, PointElement, LinearScale, TimeScale, Title, Filler, Legend, Tooltip, ChartAnnotation);
+
 export class OrChartEvent extends CustomEvent<OrChartEventDetail> {
 
     public static readonly NAME = "or-chart-event";
@@ -50,8 +61,8 @@ export class OrChartEvent extends CustomEvent<OrChartEventDetail> {
 export interface ChartViewConfig {
     assetIds?: string[];
     attributes?: string[];
-    timestamp?: Date;
-    compareTimestamp?: Date;
+    timestamp?: number;
+    compareTimestamp?: number;
     period?: moment.unitOfTime.Base;
     deltaFormat?: string;
     decimals?: number;
@@ -264,7 +275,7 @@ const style = css`
         flex: 1 1 0;
     }
     
-    .dialog-container > or-input{
+    .dialog-container > or-mwc-input {
         background-color: var(--or-app-color2);
         border-left: 3px solid var(--or-app-color4);
     }
@@ -306,10 +317,6 @@ const style = css`
     }
 `;
 
-export interface ChartValueDatapoint<T> {
-    x?: number | string;
-    y?: T;
-}
 @customElement("or-chart")
 export class OrChart extends translate(i18next)(LitElement) {
 
@@ -361,12 +368,9 @@ export class OrChart extends translate(i18next)(LitElement) {
 
     @property()
     protected _loading: boolean = false;
-    
-    @property()
-    protected _baseData?: ChartValueDatapoint<any>[] | any = [];
 
     @property()
-    protected _data?: ChartValueDatapoint<any>[] | any = [];
+    protected _data?: ChartDataset<"line", ScatterDataPoint[]>[] = undefined;
 
     @property()
     protected _tableTemplate?: TemplateResult;
@@ -380,9 +384,11 @@ export class OrChart extends translate(i18next)(LitElement) {
     protected _dialogElem!: HTMLElement;
 
     protected _dialog!: MDCDialog;
-
     protected _style!: CSSStyleDeclaration;
-
+    protected _startOfPeriod?: number;
+    protected _endOfPeriod?: number;
+    protected _timeUnits?: TimeUnit;
+    protected _stepSize?: number;
     protected _updateTimestampTimer: number | null = null;
     
     firstUpdated() {
@@ -442,15 +448,15 @@ export class OrChart extends translate(i18next)(LitElement) {
                 <div id="controls">
                     <div class="interval-controls" style="margin-right: 6px;">
                         ${getContentWithMenuTemplate(
-            html`<or-input .type="${InputType.BUTTON}" .label="${i18next.t("timeframe")}: ${i18next.t(this.period ? this.period : "-")}"></or-input>`,
+            html`<or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("timeframe")}: ${i18next.t(this.period ? this.period : "-")}"></or-mwc-input>`,
             this._getPeriodOptions(),
             this.period,
             (value) => this.setPeriodOption(value))}
 
                         ${this.periodCompare ? html `
-                                <or-input style="margin-left:auto;" .type="${InputType.BUTTON}" .label="${i18next.t("period")}" @click="${() => this.setPeriodCompare(false)}" icon="minus"></or-input>
+                                <or-mwc-input style="margin-left:auto;" .type="${InputType.BUTTON}" .label="${i18next.t("period")}" @click="${() => this.setPeriodCompare(false)}" icon="minus"></or-mwc-input>
                         ` : html`
-                                <or-input style="margin-left:auto;" .type="${InputType.BUTTON}" .label="${i18next.t("period")}" @click="${() => this.setPeriodCompare(true)}" icon="plus"></or-input>
+                                <or-mwc-input style="margin-left:auto;" .type="${InputType.BUTTON}" .label="${i18next.t("period")}" @click="${() => this.setPeriodCompare(true)}" icon="plus"></or-mwc-input>
                         `}
                     </div>
                   
@@ -459,24 +465,24 @@ export class OrChart extends translate(i18next)(LitElement) {
                         ${this.periodCompare ? html `
                             <span class="line-label solid"></span>
                         `: ``}
-                        <or-input id="ending-date" 
+                        <or-mwc-input id="ending-date" 
                             .checkAssetWrite="${false}"
                             .type="${endDateInputType}" 
                             ?disabled="${disabled}" 
                             .value="${this.timestamp}" 
-                            @or-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-input>
+                            @or-mwc-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate())}"></or-mwc-input>
                         <or-icon class="button-icon" icon="chevron-left" @click="${() => this._updateTimestamp(this.timestamp!, false, undefined, 0)}"></or-icon>
                         <or-icon class="button-icon" icon="chevron-right" @click="${() =>this._updateTimestamp(this.timestamp!, true, undefined, 0)}"></or-icon>
                     </div>
                     ${this.periodCompare ? html `
                         <div class="period-controls">
                         <span class="line-label dashed"></span>
-                            <or-input id="ending-date" 
+                            <or-mwc-input id="ending-date" 
                                 .checkAssetWrite="${false}"
                                 .type="${endDateInputType}" 
                                 ?disabled="${disabled}" 
                                 .value="${this.compareTimestamp}" 
-                                @or-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate(), undefined, true)}"></or-input>
+                                @or-mwc-input-changed="${(evt: OrInputChangedEvent) => this._updateTimestamp(moment(evt.detail.value as string).toDate(), undefined, true)}"></or-mwc-input>
                             <or-icon class="button-icon" icon="chevron-left" @click="${() =>  this._updateTimestamp(this.compareTimestamp!, false, true, 0)}"></or-icon>
                             <or-icon class="button-icon" icon="chevron-right" @click="${() => this._updateTimestamp(this.compareTimestamp!, true, true, 0)}"></or-icon>
                         </div>
@@ -501,7 +507,7 @@ export class OrChart extends translate(i18next)(LitElement) {
                             `
                         })}
                     </div>
-                    <or-input class="button" .type="${InputType.BUTTON}" ?disabled="${disabled}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-input>
+                    <or-mwc-input class="button" .type="${InputType.BUTTON}" ?disabled="${disabled}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-mwc-input>
 
                 </div>
             </div>
@@ -517,28 +523,28 @@ export class OrChart extends translate(i18next)(LitElement) {
                     <div class="dialog-container mdc-dialog__content" id="my-dialog-content">
                         <or-asset-tree id="chart-asset-tree" readonly .selectedIds="${this.activeAsset ? [this.activeAsset.id] : undefined}"></or-asset-tree>
                             ${this.activeAsset && this.activeAsset.attributes ? html`
-                                <or-input id="chart-attribute-picker" 
+                                <or-mwc-input id="chart-attribute-picker" 
                                         style="display:flex;"
                                         .label="${i18next.t("attribute")}" 
                                         .type="${InputType.LIST}"
-                                        .options="${this._getAttributeOptions()}"></or-input>
+                                        .options="${this._getAttributeOptions()}"></or-mwc-input>
                             `:``}
                     </div>
                     <footer class="mdc-dialog__actions">
-                        <or-input class="button" 
+                        <or-mwc-input class="button" 
                                 slot="secondaryAction"
                                 .type="${InputType.BUTTON}" 
                                 label="${i18next.t("cancel")}" 
                                 class="mdc-button mdc-dialog__button" 
-                                data-mdc-dialog-action="no"></or-input>
+                                data-mdc-dialog-action="no"></or-mwc-input>
 
-                        <or-input class="button" 
+                        <or-mwc-input class="button" 
                             slot="primaryAction"
                             .type="${InputType.BUTTON}" 
                             label="${i18next.t("add")}" 
                             class="mdc-button mdc-dialog__button" 
                             data-mdc-dialog-action="yes"
-                            @click="${this.addAttribute}"></or-input>
+                            @click="${this.addAttribute}"></or-mwc-input>
 
                     </footer>
                     </div>
@@ -609,89 +615,109 @@ export class OrChart extends translate(i18next)(LitElement) {
             });
         }
 
-        let reloadData = changedProperties.has("period") || changedProperties.has("compareTimestamp") || changedProperties.has("timestamp") || changedProperties.has("assetAttributes");
+        const reloadData = changedProperties.has("period") || changedProperties.has("compareTimestamp") || changedProperties.has("timestamp") || changedProperties.has("assetAttributes");
+
         if (reloadData) {
-            this._data = [];
+            this._data = undefined;
             this._loadData();
         }
 
         if (!this._data) {
             return;
         }
+
+        const now = moment().toDate().getTime();
+
         if (!this._chart) {
-            this._chart = new Chart(this._chartElem, {
+            const options = {
                 type: "line",
                 data: {
                     datasets: this._data
                 },
-                plugins: [
-                    ChartAnnotation
-                ],
                 options: {
-                    annotation: {
-                        annotations: [
-                            {
-                                type: 'line',
-                                mode: 'vertical',
-                                scaleID: 'x-axis-0',
-                                value: moment(),
-                                borderColor: "#275582",
-                                borderWidth: 2
-                            }
-                        ]
-                    },
-                    showLines: true,
-                    maintainAspectRatio: false,
-                    // REMOVED AS DOESN'T SIZE CORRECTLY 
                     responsive: true,
-                    onResize:() => this.dispatchEvent(new OrChartEvent('resize')),
-                    legend: {
-                        display: false
-                    },
-                    tooltips: {
-                        mode: 'x',
-                        intersect: false
+                    maintainAspectRatio: false,
+                    onResize:() => this.dispatchEvent(new OrChartEvent("resize")),
+                    showLines: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: "x",
+                            intersect: false,
+                            xPadding: 10,
+                            yPadding: 10,
+                            titleMarginBottom: 10
+                        },
+                        annotation: {
+                            annotations: [
+                                {
+                                    type: "line",
+                                    xMin: now,
+                                    xMax: now,
+                                    borderColor: "#275582",
+                                    borderWidth: 2
+                                }
+                            ]
+                        },
                     },
                     hover: {
                         mode: 'x',
                         intersect: false
                     },
                     scales: {
-                        yAxes: [{
+                        y: {
                             ticks: {
                                 beginAtZero: true
                             },
-                            gridLines: {
+                            grid: {
                                 color: "#cccccc"
                             }
-                        }],
-                        xAxes: [{
+                        },
+                        x: {
                             type: "time",
+                            min: this._startOfPeriod,
+                            max: this._endOfPeriod,
                             time: {
+                                tooltipFormat: 'MMM D, YYYY, HH:mm:ss',
                                 displayFormats: {
-                                    quarter: 'MMM YYYY',
+                                    millisecond: 'HH:mm:ss.SSS',
+                                    second: 'HH:mm:ss',
                                     minute: "HH:mm",
                                     hour: "HH:mm",
                                     week: "w"
-                                }
+                                },
+                                unit: this._timeUnits,
+                                stepSize: this._stepSize
                             },
                             ticks: {
                                 autoSkip: true,
                                 maxTicksLimit: 30,
-                                fontColor: "#000",
-                                fontFamily: "'Open Sans', Helvetica, Arial, Lucida, sans-serif",
-                                fontSize: 9,
-                                fontStyle: "normal"
+                                color: "#000",
+                                font: {
+                                    family: "'Open Sans', Helvetica, Arial, Lucida, sans-serif",
+                                    size: 9,
+                                    style: "normal"
+                                }
                             },
                             gridLines: {
                                 color: "#cccccc"
                             }
-                        }]
+                        }
                     }
-                } as ChartOptions
-            });
+                }
+            } as ChartConfiguration<"line", ScatterDataPoint[]>;
+
+            this._chart = new Chart<"line", ScatterDataPoint[]>(this._chartElem.getContext("2d")!, options);
         } else {
             if (changedProperties.has("_data")) {
+                this._chart.options.scales!.x!.min = this._startOfPeriod;
+                this._chart.options!.scales!.x!.max = this._endOfPeriod;
+                (this._chart.options!.scales!.x! as TimeScaleOptions).time!.unit = this._timeUnits!;
+                (this._chart.options!.scales!.x! as TimeScaleOptions).time!.stepSize = this._stepSize!;
+                (this._chart.options!.plugins!.annotation!.annotations![0] as AnnotationOptions<"line">).xMin = now;
+                (this._chart.options!.plugins!.annotation!.annotations![0] as AnnotationOptions<"line">).xMax = now;
                 this._chart.data.datasets = this._data;
                 this._chart.update();
             }
@@ -702,14 +728,19 @@ export class OrChart extends translate(i18next)(LitElement) {
 
     }
 
-    getSettings() {
-        const configStr = window.localStorage.getItem('OrChartConfig')
-        if(!configStr || !this.panelName) return
+    async getSettings() {
+        const configStr = await manager.console.retrieveData("OrChartConfig");
+
+        if(!configStr || !this.panelName) {
+            return;
+        }
 
         const viewSelector = this.activeAssetId ? this.activeAssetId : window.location.hash;
         const config = JSON.parse(configStr) as OrChartConfig;
         const view = config.views[viewSelector][this.panelName];
-        if (!view) return;
+        if (!view) {
+            return;
+        }
         const query = {
             ids: view.assetIds
         }
@@ -724,18 +755,21 @@ export class OrChart extends translate(i18next)(LitElement) {
             this.assets = view.assetIds.map((assetId: string)  => assets.find(x => x.id === assetId)!);
             this.assetAttributes = view.attributes.map((attr: string, index: number) => assets[index] && assets[index].attributes ? assets[index].attributes![attr] : undefined).filter(attr => !!attr) as Attribute<any>[];
             this.period = view.period;
-            if(typeof view.periodCompare != 'undefined') this.periodCompare = view.periodCompare;
-            
+            this.timestamp = view.timestamp ? new Date(view.timestamp) : new Date();
+            this.compareTimestamp = view.compareTimestamp ? new Date(view.compareTimestamp) : new Date();
+            this.periodCompare = !!view.periodCompare;
         });
     }
 
-    saveSettings() {
+    async saveSettings() {
+        if(!this.panelName) {
+            return;
+        }
         const viewSelector = this.activeAssetId ? this.activeAssetId : window.location.hash;
         const assets: Asset[] = this.assets ? this.assets.filter(asset => !!asset.id) : [];
         const assetIds = assets.map(asset => asset.id!);
         const attributes = this.assetAttributes ? this.assetAttributes.map(attr => attr.name!) : [];
-        const configStr = window.localStorage.getItem('OrChartConfig')
-        if(!this.panelName) return
+        const configStr = await manager.console.retrieveData("OrChartConfig");
 
         let config:OrChartConfig;
         if (configStr) {
@@ -756,16 +790,11 @@ export class OrChart extends translate(i18next)(LitElement) {
             assetIds: assetIds,
             attributes: attributes,
             period: this.period,
-            periodCompare: this.periodCompare
+            periodCompare: this.periodCompare,
+            timestamp: this.timestamp ? this.timestamp.getTime() : undefined,
+            compareTimestamp: this.compareTimestamp ? this.compareTimestamp.getTime() : undefined
         };
-        const message = {
-            provider: "STORAGE",
-            action: "STORE",
-            key: "OrChartConfig",
-            value: JSON.stringify(config)
-
-        }
-        manager.console._doSendProviderMessage(message)
+        manager.console.storeData("OrChartConfig", JSON.stringify(config));
     }
     
     _openDialog() {
@@ -837,7 +866,7 @@ export class OrChart extends translate(i18next)(LitElement) {
             elm.value = '';
         }
 
-        let attributes = Object.values(this.activeAsset.attributes);
+        const attributes = Object.values(this.activeAsset.attributes);
         if (attributes && attributes.length > 0) {
             return attributes
                 .filter((attribute) => attribute.meta && (attribute.meta.hasOwnProperty(WellknownMetaItems.STOREDATAPOINTS) ? attribute.meta[WellknownMetaItems.STOREDATAPOINTS] : attribute.meta.hasOwnProperty(WellknownMetaItems.AGENTLINK)))
@@ -877,100 +906,92 @@ export class OrChart extends translate(i18next)(LitElement) {
 
     setPeriodCompare(periodCompare:boolean) {
         this.periodCompare = periodCompare;
-        this._loadData();
         this.saveSettings();
+
+        if (periodCompare) {
+            this._data = undefined;
+            this._loadData();
+        } else {
+            this._data = this._data ? this._data.map((dataset) => (dataset as any).isComparisonDataset ? undefined : dataset).filter((dataset) => !!dataset) as ChartDataset<"line", ScatterDataPoint[]>[] : undefined;
+        }
     }
 
     protected async _loadData() {
-        if(!this.assetAttributes || !this.assets || this.assets.length === 0) {
+        if(this._loading || this._data || !this.assetAttributes || !this.assets || this.assets.length === 0 || this.assetAttributes.length !== this.assets.length || !this.period || !this.timestamp) {
             return;
         }
 
-        const datasetBases = this.assetAttributes.map(attribute => {
-            const bgColor = this.getAttrColor(attribute);
-            const dataset: ChartDataSets = {
-                borderColor: bgColor,
-                pointRadius: 2,
-                backgroundColor: bgColor,
-                fill: false
-            };
-            return dataset;
-        });
+        this._loading = true;
 
-        let data = this.assetAttributes.map(async (attribute, index) => {
-            const valuepoints = await this._loadAttributeData(this.assets[index], attribute, this.timestamp);
-            const dataset = {...datasetBases[index],
-                data: valuepoints
-            };
-            if(this.assets[index]) {
-                const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assets[index]!.type, attribute.name, attribute);
-                const label = Util.getAttributeLabel(attribute, descriptors[0], this.assets[index]!.type, false);
-                dataset["label"] = this.assets[index]!.name + " " + label;
-            }
-            return dataset;
-        });
+        let interval: DatapointInterval = DatapointInterval.HOUR;
+        let stepSize = 1;
 
-
-        Promise.all(data).then((completed => {
-            this._baseData = [...completed];
-        }));
-
-        const predictedData = this.assetAttributes.map(async (attribute, index) => {
-            const valuepoints = await this._loadPredictedAttributeData(this.assets[index], attribute, this.timestamp);
-            const dataset = {...datasetBases[index],
-                data: valuepoints,
-                borderDash: [2, 4]
-            };
-
-            if(this.assets[index]) {
-                const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assets[index]!.type, attribute.name, attribute);
-                const label = Util.getAttributeLabel(attribute, descriptors[0], this.assets[index]!.type, false);
-                dataset["label"] = this.assets[index]!.name + " " + label + " " + i18next.t("predicted");
-            }
-            return dataset;
-        });
-        
-        data = data.concat(predictedData);
-
-        if(this.periodCompare) {
-            const cData = this.assetAttributes.map(async (attribute, index) => {
-                const valuepoints = await this._loadAttributeData(this.assets[index], attribute, this.compareTimestamp);
-                const dataset = {...datasetBases[index],
-                    data: valuepoints,
-                    borderDash: [10, 10]
-                };
-
-                if(this.assets[index]) {
-                    const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assets[index]!.type, attribute.name, attribute);
-                    const label = Util.getAttributeLabel(attribute, descriptors[0], this.assets[index]!.type, false);
-                    dataset["label"] = this.assets[index]!.name + " " + label + " " + i18next.t("compare");
-                }
-
-                return dataset;
-            });
-            
-            let cPredictedData = this.assetAttributes.map(async (attribute, index) => {
-                const valuepoints = await this._loadPredictedAttributeData(this.assets[index], attribute, this.compareTimestamp);
-                const dataset = {...datasetBases[index],
-                    data: valuepoints,
-                    borderDash: [2, 4]
-                };
-                if(this.assets[index]) {
-                    const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.assets[index]!.type, attribute.name, attribute);
-                    const label = Util.getAttributeLabel(attribute, descriptors[0], this.assets[index]!.type, false);
-                    dataset["label"] = this.assets[index]!.name + " " + label + " " + i18next.t("compare") + " " + i18next.t("predicted");
-                }
-                return dataset;
-            });
-
-            data = data.concat(cPredictedData);
-          
-            data = data.concat(cData);
+        switch (this.period) {
+            case "hour":
+                interval = DatapointInterval.MINUTE;
+                stepSize = 5;
+                break;
+            case "day":
+                interval = DatapointInterval.HOUR;
+                stepSize = 1;
+                break;
+            case "week":
+                interval = DatapointInterval.HOUR;
+                stepSize = 6;
+                break;
+            case "month":
+                interval = DatapointInterval.DAY;
+                stepSize = 1;
+                break;
+            case "year":
+                interval = DatapointInterval.MONTH;
+                stepSize = 1;
+                break;
         }
-        
-        Promise.all(data).then((completed=> {
-            this._data = completed;
-        }))
+
+        const lowerCaseInterval = interval.toLowerCase();
+        this._startOfPeriod = moment(this.timestamp).startOf(this.period).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+        this._endOfPeriod = moment(this.timestamp).endOf(this.period).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+        this._timeUnits =  lowerCaseInterval as TimeUnit;
+        this._stepSize = stepSize;
+        const now = moment().toDate().getTime();
+        let predictedFromTimestamp = now < this._startOfPeriod ? this._startOfPeriod : now;
+
+        const data: ChartDataset<"line", ScatterDataPoint[]>[] = [];
+        const promises = this.assetAttributes.map(async (attribute, index) => {
+
+            const asset = this.assets[index];
+            const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(asset.type, attribute.name, attribute);
+            const label = Util.getAttributeLabel(attribute, descriptors[0], asset.type, false);
+
+            let dataset = await this._loadAttributeData(asset, attribute, interval, this._startOfPeriod!, this._endOfPeriod!, false, asset.name + " " + label);
+            data.push(dataset);
+
+            dataset =  await this._loadAttributeData(this.assets[index], attribute, interval, predictedFromTimestamp, this._endOfPeriod!, true, asset.name + " " + label + " " + i18next.t("predicted"));
+            data.push(dataset);
+
+            if (this.periodCompare) {
+                const startOfPeriod = moment(this.compareTimestamp).startOf(this.period!).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+                const endOfPeriod = moment(this.compareTimestamp).endOf(this.period!).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+                const offset =  this._startOfPeriod! - startOfPeriod;
+
+                dataset = await this._loadAttributeData(this.assets[index], attribute, interval, startOfPeriod, endOfPeriod, false,  asset.name + " " + label + " " + i18next.t("compare"));
+                dataset.data.forEach((dp) => dp.x += offset);
+                dataset.borderDash = [10, 10];
+                (dataset as any).isComparisonDataset = true;
+                data.push(dataset);
+
+                predictedFromTimestamp = now < startOfPeriod ? startOfPeriod : now;
+                dataset = await this._loadAttributeData(this.assets[index], attribute, interval, startOfPeriod, endOfPeriod, true,  asset.name + " " + label + " " + i18next.t("compare") + " " + i18next.t("predicted"));
+                dataset.data.forEach((dp) => dp.x += offset);
+                dataset.borderDash = [6, 8];
+                (dataset as any).isComparisonDataset = true;
+                data.push(dataset);
+            }
+        });
+
+        await Promise.all(promises);
+        this._data = data;
     }
 
     protected _timestampLabel(timestamp: Date | number | undefined) {
@@ -1000,129 +1021,54 @@ export class OrChart extends translate(i18next)(LitElement) {
         return newMoment.format();
     }
     
-    protected async _loadAttributeData(asset: Asset, attribute:Attribute<any>, timestamp: Date | undefined) {
-        if (!attribute) {
-            return [];
-        }
+    protected async _loadAttributeData(asset: Asset, attribute: Attribute<any>, interval: DatapointInterval, from: number, to: number, predicted: boolean, label: string | undefined): Promise<ChartDataset<"line", ScatterDataPoint[]>> {
 
-        this._loading = true;
+        const bgColor = this.getAttrColor(attribute);
 
-        if (!this.period || !timestamp) {
-            this._loading = false;
-            return [];
-        }
-
-        const startOfPeriod = moment(timestamp).startOf(this.period).toDate().getTime();
-        const endOfPeriod = moment(timestamp).endOf(this.period).toDate().getTime();
+        const dataset: ChartDataset<"line", ScatterDataPoint[]> = {
+            label: label,
+            borderColor: bgColor,
+            pointRadius: 2,
+            backgroundColor: bgColor,
+            fill: false,
+            data: [],
+            borderDash: predicted ? [2, 4] : undefined
+        };
 
         if (asset.id && attribute.name) {
-            const response = await manager.rest.api.AssetDatapointResource.getDatapoints(
-                asset.id,
-                attribute.name,
-                {
-                    interval: this._getInterval(),
-                    fromTimestamp: startOfPeriod,
-                    toTimestamp: endOfPeriod
-                }
-            );
+            const queryParams = {
+                interval: interval,
+                fromTimestamp: from,
+                toTimestamp: to
+            };
 
-            const data = response.data;
-          
+            let response: GenericAxiosResponse<ValueDatapoint<any>[]>;
+
+            if (!predicted) {
+                response = await manager.rest.api.AssetDatapointResource.getDatapoints(
+                    asset.id,
+                    attribute.name,
+                    queryParams
+                );
+            } else {
+                response = await manager.rest.api.AssetPredictedDatapointResource.getPredictedDatapoints(
+                    asset.id,
+                    attribute.name,
+                    queryParams
+                );
+            }
+
             this._loading = false;
 
             if (response.status === 200) {
-                data.map((datapoint: any) => {
-                    if (datapoint['x']) {
-                        datapoint['x'] = this._timestampLabel(datapoint['x'])
-                    }
-
-                    if (typeof datapoint['y'] !== 'undefined') {
-                        datapoint['y'] = Math.round(datapoint['y'] * 100) / 100
-                    } else {
-                        delete datapoint['y']
-                    }
-                });
-                return data;
+                dataset.data = response.data.filter(value => value.y !== null && value.y !== undefined) as ScatterDataPoint[];
             }
         }
+
+        return dataset;
     }
 
-    protected async _loadPredictedAttributeData(asset: Asset, attribute:Attribute<any>, timestamp: Date | undefined) {
-        if (!attribute) {
-            return [];
-        }
-
-        this._loading = true;
-
-        if (!this.period || !timestamp) {
-            this._loading = false;
-            return [];
-        }
-    
-        const now = moment().toDate().valueOf();
-        const startOfPeriod = moment(timestamp).startOf(this.period).toDate().valueOf();
-        const endOfPeriod = moment(timestamp).endOf(this.period).toDate().valueOf();
-        const fromTimestamp = now < startOfPeriod ? startOfPeriod : now;
-
-        if(asset && asset.id && attribute.name && endOfPeriod){
-            const response = await manager.rest.api.AssetPredictedDatapointResource.getPredictedDatapoints(
-                asset.id,
-                attribute.name,
-                {
-                    interval: this._getInterval(),
-                    fromTimestamp: fromTimestamp,
-                    toTimestamp: endOfPeriod
-                }
-            );
-
-            this._loading = false;
-            const data = response.data;
-            if (response.status === 200) {
-                data.sort((a, b) => {
-                    if(a.x && b.x) {
-                        return (a.x - b.x);
-                    } else {
-                        return 0;
-                    }
-                });
-                data.map((datapoint: any) => {
-                    if (datapoint['x']) {
-                        datapoint['x'] = this._timestampLabel(datapoint['x'])
-                    }
-                    if (typeof datapoint['y'] !== 'undefined') {
-                        datapoint['y'] = Math.round(datapoint['y'] * 100) / 100
-                    } else {
-                        delete datapoint['y'];
-                    }
-                });
-                return data;
-            }
-        }
-    }
-
-    protected _getInterval() {
-        let interval: DatapointInterval = DatapointInterval.HOUR;
-        switch (this.period) {
-            case "hour":
-                interval = DatapointInterval.MINUTE;
-                break;
-            case "day":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "week":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "month":
-                interval = DatapointInterval.DAY;
-                break;
-            case "year":
-                interval = DatapointInterval.MONTH;
-                break;
-        }
-        return interval;
-    }
-
-    protected _updateTimestamp(timestamp: Date, forward?: boolean, compare=false, timeout=1500) {
+    protected _updateTimestamp(timestamp: Date, forward?: boolean, compare= false, timeout= 1500) {
 
         if (this._updateTimestampTimer) {
             window.clearTimeout(this._updateTimestampTimer);
@@ -1134,8 +1080,9 @@ export class OrChart extends translate(i18next)(LitElement) {
                 if (forward !== undefined) {
                     newMoment.add(forward ? 1 : -1, this.period);
                 }
-                if(compare) {
+                if (compare) {
                     this.compareTimestamp = newMoment.toDate()
+                    this.saveSettings();
                 } else {
                     this.timestamp = newMoment.toDate()
                 }

@@ -261,7 +261,7 @@ public class ClientEventService implements ProtocolClientEventService {
                                 .stop()
                         .endChoice()
                     .otherwise()
-                        .process(exchange -> LOG.fine("Unsupported message body: " + exchange.getIn().getBody()))
+                        .process(exchange -> LOG.info("Unsupported message body: " + exchange.getIn().getBody()))
                     .end();
             }
         });
@@ -335,10 +335,10 @@ public class ClientEventService implements ProtocolClientEventService {
 
         // Check if exists already
         ClientRepresentation clientRepresentation = keycloakIdentityProvider.getClient(clientCredentials.getRealm(), clientCredentials.getClientId());
+        boolean isNew = clientRepresentation == null;
 
         if (clientRepresentation == null) {
             clientRepresentation = new ClientRepresentation();
-            clientRepresentation.setId(UUID.nameUUIDFromBytes(clientCredentials.getClientId().getBytes()).toString());
             clientRepresentation.setStandardFlowEnabled(false);
             clientRepresentation.setImplicitFlowEnabled(false);
             clientRepresentation.setDirectAccessGrantsEnabled(false);
@@ -349,11 +349,15 @@ public class ClientEventService implements ProtocolClientEventService {
 
         clientRepresentation.setSecret(clientCredentials.getSecret());
         LOG.info("Creating/updating client event service client credentials: " + clientCredentials);
-        keycloakIdentityProvider.createClient(clientCredentials.getRealm(), clientRepresentation);
+        if (isNew) {
+            keycloakIdentityProvider.createClient(clientCredentials.getRealm(), clientRepresentation);
+        } else {
+            keycloakIdentityProvider.updateClient(clientCredentials.getRealm(), clientRepresentation);
+        }
 
         User serviceUser = keycloakIdentityProvider.getClientServiceUser(clientCredentials.getRealm(), clientCredentials.getClientId());
         if (clientCredentials.getRoles() != null && clientCredentials.getRoles().length > 0) {
-            keycloakIdentityProvider.updateUserRoles(clientCredentials.getRealm(), serviceUser.getId(), KEYCLOAK_CLIENT_ID, Arrays.stream(clientCredentials.getRoles()).map(ClientRole::getValue).toArray(String[]::new));
+            keycloakIdentityProvider.updateUserRoles(clientCredentials.getRealm(), serviceUser.getId(), clientCredentials.getClientId(), Arrays.stream(clientCredentials.getRoles()).filter(Objects::nonNull).map(ClientRole::getValue).toArray(String[]::new));
         }
     }
 
@@ -398,7 +402,7 @@ public class ClientEventService implements ProtocolClientEventService {
         if (messageBrokerService != null && messageBrokerService.getProducerTemplate() != null) {
             // Don't log that we are publishing a syslog event,
             if (!(event instanceof SyslogEvent)) {
-                LOG.fine("Publishing: " + event);
+                LOG.finer("Publishing: " + event);
             }
             messageBrokerService.getProducerTemplate()
                 .sendBodyAndHeader(CLIENT_EVENT_QUEUE, event, HEADER_ACCESS_RESTRICTED, accessRestricted);
@@ -407,7 +411,7 @@ public class ClientEventService implements ProtocolClientEventService {
 
     public void sendToSession(String sessionKey, Object data) {
         if (messageBrokerService != null && messageBrokerService.getProducerTemplate() != null) {
-            LOG.fine("Sending to session '" + sessionKey + "': " + data);
+            LOG.finer("Sending to session '" + sessionKey + "': " + data);
             SessionInfo sessionInfo = sessionKeyInfoMap.get(sessionKey);
             if (sessionInfo == null) {
                 LOG.info("Cannot send to requested session it doesn't exist or is disconnected");
@@ -446,7 +450,7 @@ public class ClientEventService implements ProtocolClientEventService {
             interceptor.accept(exchange);
             boolean stop = exchange.getProperty(Exchange.ROUTE_STOP, false, Boolean.class);
             if (stop) {
-                LOG.fine("Client event interceptor marked exchange as `stop routing`");
+                LOG.finer("Client event interceptor marked exchange as `stop routing`");
             }
             return stop;
         }));
