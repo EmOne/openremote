@@ -28,15 +28,11 @@ import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.LogicGroup;
 import org.openremote.model.query.filter.*;
 import org.openremote.model.rules.AssetState;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.MetaHolder;
 import org.openremote.model.value.NameValueHolder;
-import org.openremote.model.value.Values;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -86,7 +82,7 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
         if (query.types != null && query.types.length > 0) {
             if (Arrays.stream(query.types).noneMatch(type ->
                         type.isAssignableFrom(
-                            AssetModelUtil.getAssetDescriptor(assetState.getAssetType())
+                            ValueUtil.getAssetDescriptor(assetState.getAssetType())
                                 .orElse(ThingAsset.DESCRIPTOR).getType()))
                     ) {
                 return false;
@@ -101,8 +97,8 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
             }
         }
 
-        if (query.tenant != null) {
-            if (!AssetQueryPredicate.asPredicate(query.tenant).test(assetState)) {
+        if (query.realm != null) {
+            if (!AssetQueryPredicate.asPredicate(query.realm).test(assetState)) {
                 return false;
             }
         }
@@ -124,19 +120,16 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
 
     public static Predicate<AssetState<?>> asPredicate(ParentPredicate predicate) {
         return assetState ->
-            (predicate.id == null || predicate.id.equals(assetState.getParentId()))
-                && (predicate.type == null || predicate.type.getSimpleName().equals(assetState.getParentType()))
-                && (predicate.name == null || predicate.name.equals(assetState.getParentName()))
-                && (!predicate.noParent || assetState.getParentId() == null);
+            Objects.equals(predicate.id, assetState.getParentId());
     }
 
     public static Predicate<String[]> asPredicate(PathPredicate predicate) {
         return givenPath -> Arrays.equals(predicate.path, givenPath);
     }
 
-    public static Predicate<AssetState<?>> asPredicate(TenantPredicate predicate) {
+    public static Predicate<AssetState<?>> asPredicate(RealmPredicate predicate) {
         return assetState ->
-            predicate == null || (predicate.realm != null && predicate.realm.equals(assetState.getRealm()));
+            predicate == null || (predicate.name != null && predicate.name.equals(assetState.getRealm()));
     }
 
     public static Predicate<NameValueHolder<?>> asPredicate(Supplier<Long> currentMillisSupplier, NameValuePredicate predicate) {
@@ -160,11 +153,11 @@ public class AssetQueryPredicate implements Predicate<AssetState<?>> {
                 }
                 Object rawValue = nameValueHolder.getValue().get();
 
-                if (!Values.isArray(rawValue.getClass()) && !Values.isObject(rawValue.getClass())) {
+                if (!ValueUtil.isArray(rawValue.getClass()) && !ValueUtil.isObject(rawValue.getClass())) {
                     return null;
                 }
 
-                JsonNode jsonNode = Values.convert(nameValueHolder.getValue(), JsonNode.class);
+                JsonNode jsonNode = ValueUtil.convert(nameValueHolder.getValue(), JsonNode.class);
                 for (Object path : predicate.path.getPaths()) {
                     if (path == null) {
                         return null;

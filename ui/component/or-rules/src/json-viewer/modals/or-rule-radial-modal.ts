@@ -1,4 +1,5 @@
-import { customElement, html, LitElement, property} from "lit-element";
+import { html, LitElement } from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {
     AssetDescriptor,
     AttributePredicate,
@@ -15,9 +16,9 @@ import {OrRulesJsonRuleChangedEvent} from "../or-rule-json-viewer";
 import {translate} from "@openremote/or-translate";
 
 import {DialogAction, OrMwcDialog, OrMwcDialogOpenedEvent} from "@openremote/or-mwc-components/or-mwc-dialog";
-import {OrMap, OrMapClickedEvent} from '@openremote/or-map';
-import '@openremote/or-map/dist/markers/or-map-marker';
-import {LngLatLike} from "mapbox-gl";
+import {OrMap, OrMapClickedEvent} from "@openremote/or-map";
+import "@openremote/or-map";
+import {LngLatLike} from "maplibre-gl";
 
 @customElement("or-rule-radial-modal")
 export class OrRuleRadialModal extends translate(i18next)(LitElement) {
@@ -88,7 +89,7 @@ export class OrRuleRadialModal extends translate(i18next)(LitElement) {
         const dialog: OrMwcDialog = this.shadowRoot!.getElementById("radial-modal") as OrMwcDialog;
 
         if (dialog) {
-            dialog.dialogContent = html`
+            dialog.content = html`
                 <div style="display:grid">
                     <or-map class="or-map" type="VECTOR" style="border: 1px solid #d5d5d5; height: 400px; min-width: 300px; margin-bottom: 20px;">
                         <or-map-marker active color="#FF0000" icon="information" lat="${value.lat}" lng="${value.lng}" radius="${value.radius}"></or-map-marker>
@@ -150,8 +151,8 @@ export class OrRuleRadialModal extends translate(i18next)(LitElement) {
         this.renderDialogHTML(value);
         
         return html`
-            <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("area")}" @click="${radialPickerModalOpen}"></or-mwc-input>
-            <or-mwc-dialog id="radial-modal" dialogTitle="area" .dialogActions="${radiusPickerModalActions}"></or-mwc-dialog>
+            <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("area")}" @or-mwc-input-changed="${radialPickerModalOpen}"></or-mwc-input>
+            <or-mwc-dialog id="radial-modal" heading="area" .actions="${radiusPickerModalActions}"></or-mwc-dialog>
         `
     }
 }

@@ -1,4 +1,5 @@
-import {css, customElement, html, LitElement, property, PropertyValues, TemplateResult} from "lit-element";
+import {css, html, LitElement, PropertyValues, TemplateResult} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {
     getAssetInfos,
     getAssetTypeFromQuery,
@@ -23,7 +24,7 @@ import {
 import {Util} from "@openremote/core";
 import "./or-rule-when";
 import "./or-rule-then-otherwise";
-import "@openremote/or-panel";
+import "@openremote/or-components/or-panel";
 import i18next from "i18next";
 import {translate} from "@openremote/or-translate";
 
@@ -152,7 +153,7 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
             } else {
                 this._rule = {
                     recurrence: {
-                        mins: 0 //always
+                        mins: 0 // always
                     }
                 };
             }
@@ -261,7 +262,7 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
     }
 
     protected _onJsonRuleChanged() {
-        let valid = this.validate();
+        const valid = this.validate();
         this.dispatchEvent(new OrRulesRuleChangedEvent(valid));
     }
 
@@ -272,15 +273,19 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
 
         if (group.items) {
             for (const condition of group.items) {
-                if (!condition.assets && !condition.timer) {
+                if (!condition.assets && !condition.cron && !condition.sun) {
+                    return false;
+                }
+
+                if(condition.cron && !Util.cronStringToISOString(condition.cron, true)) {
+                    return false;
+                }
+
+                if(condition.sun && (!condition.sun.position || !condition.sun.location)) {
                     return false;
                 }
 
                 if (condition.assets && !this._validateAssetQuery(condition.assets, true, false)) {
-                    return false;
-                }
-
-                if (condition.timer && !Util.isTimeDuration(condition.timer)) {
                     return false;
                 }
             }
@@ -343,7 +348,7 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
         if (!target) {
             return true;
         }
-        
+
         if (target.assets) {
             return this._validateAssetQuery(target.assets, false, false);
         }
@@ -351,7 +356,7 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
         if (target.matchedAssets) {
             return this._validateAssetQuery(target.matchedAssets, false, true);
         }
-        
+
         if (target.conditionAssets && getTypeAndTagsFromGroup(rule.when!).findIndex((typeAndTag) => target.conditionAssets === typeAndTag[1]) < 0) {
             return false;
         }
@@ -405,7 +410,6 @@ export class OrRuleJsonViewer extends translate(i18next)(LitElement) implements 
             case "array":
                 return (valuePredicate.index && !valuePredicate.value) || valuePredicate.value || valuePredicate.lengthEquals || valuePredicate.lengthLessThan || valuePredicate.lengthGreaterThan;
             case "value-empty":
-            case "value-not-empty":
                 return true;
             default:
                 return false;

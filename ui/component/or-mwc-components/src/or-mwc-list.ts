@@ -1,16 +1,14 @@
 import {
     css,
-    customElement,
     html,
     LitElement,
-    property,
     PropertyValues,
-    query,
     TemplateResult,
     unsafeCSS
-} from "lit-element";
-import {styleMap} from "lit-html/directives/style-map";
-import {ifDefined} from "lit-html/directives/if-defined";
+} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
+import {styleMap} from "lit/directives/style-map.js";
+import {ifDefined} from "lit/directives/if-defined.js";
 import {MDCList, MDCListActionEvent} from "@material/list";
 import { DefaultColor8, DefaultColor4, Util } from "@openremote/core";
 import "@openremote/or-translate";
@@ -26,7 +24,7 @@ export interface ListItem {
     text?: string;
     translate?: boolean;
     secondaryText?: string;
-    value: string;
+    value: any;
     data?: any;
     styleMap?: {[style: string]: string};
 }
@@ -95,7 +93,7 @@ export function getListTemplate(type: ListType, content: TemplateResult, isTwoLi
     `;
 }
 
-export function getItemTemplate(item: ListItem | null, index: number, selectedValues: string | string[] | undefined, type: ListType, translate?: boolean, itemClickCallback?: (e: MouseEvent, item: ListItem) => void): TemplateResult {
+export function getItemTemplate(item: ListItem | null, index: number, selectedValues: any[], type: ListType, translate?: boolean, itemClickCallback?: (e: MouseEvent, item: ListItem) => void): TemplateResult {
 
     if (item === null) {
         // Divider
@@ -105,7 +103,7 @@ export function getItemTemplate(item: ListItem | null, index: number, selectedVa
     const listItem = item as ListItem;
     const multiSelect = type === ListType.MULTI_CHECKBOX || type === ListType.MULTI_TICK;
     const value = listItem.value;
-    const isSelected = type !== ListType.PLAIN && (selectedValues === value || (Array.isArray(selectedValues) && selectedValues.length > 0 && ((multiSelect && selectedValues.some((v) => v === value)) || (!multiSelect && selectedValues[0] === value))));
+    const isSelected = type !== ListType.PLAIN && selectedValues.length > 0 && selectedValues.some((v) => v === value);
     const text = listItem.text !== undefined ? listItem.text : listItem.value;
     const secondaryText = listItem.secondaryText;
     let role: string | undefined = "menuitem";
@@ -118,9 +116,9 @@ export function getItemTemplate(item: ListItem | null, index: number, selectedVa
     let icon = listItem.icon;
     let selectedClassName = "mdc-list-item--selected";
     translate = translate || item.translate;
-
+    
     if (multiSelect && type === ListType.MULTI_TICK) {
-        icon = isSelected ? "check" : undefined;
+        icon = isSelected ? "checkbox-marked" : "checkbox-blank-outline";
     }
 
     if (type === ListType.MULTI_TICK || icon) {
@@ -177,7 +175,7 @@ export function getItemTemplate(item: ListItem | null, index: number, selectedVa
             break;
         case ListType.MULTI_TICK:
             ariaChecked = isSelected ? "true" : "false";
-            selectedClassName = "mdc-menu-item--selected";
+            selectedClassName = "mdc-list-item--selected";
             break;
     }
 
@@ -193,13 +191,13 @@ export function getItemTemplate(item: ListItem | null, index: number, selectedVa
             if (type === ListType.RADIO) {
                 textTemplate = html`<label class="mdc-list-item__text" for="radio-item-${index+1}">${translate && !!text ? i18next.t(text) : text}</label>`;
             } else {
-                textTemplate = html`<span class="mdc-list-item__text">${translate && !!text ? i18next.t(text) : text}</span>`;
+                textTemplate = html`<span class="mdc-list-item__text" title="${translate && !!text ? i18next.t(text) : text}">${translate && !!text ? i18next.t(text) : text}</span>`;
             }
         }
     }
 
     return html`
-        <li @click="${(e: MouseEvent) => itemClickCallback && itemClickCallback(e, item)}" style="${listItem.styleMap ? styleMap(listItem.styleMap) : ""}" class="mdc-list-item ${isSelected ? selectedClassName : ""}" role="${ifDefined(role)}" tabindex="${ifDefined(tabIndex)}" aria-checked="${ifDefined(ariaChecked)}" aria-selected="${ifDefined(ariaSelected)}" data-value="${value}">
+        <li @click="${(e: MouseEvent) => { itemClickCallback && itemClickCallback(e, item)}}" style="${listItem.styleMap ? styleMap(listItem.styleMap) : ""}" class="mdc-list-item ${isSelected ? selectedClassName : ""}" role="${ifDefined(role)}" tabindex="${ifDefined(tabIndex)}" aria-checked="${ifDefined(ariaChecked)}" aria-selected="${ifDefined(ariaSelected)}" data-value="${value}">
             <span class="mdc-list-item__ripple"></span>
             ${leftTemplate}
             ${textTemplate}
@@ -282,7 +280,7 @@ export class OrMwcList extends LitElement {
     }
 
     protected render() {
-        const content = !this.listItems ? html`` : html`${this.listItems.map((listItem, index) => getItemTemplate(listItem, index, this.values, this.type))}`;
+        const content = !this.listItems ? html`` : html`${this.listItems.map((listItem, index) => getItemTemplate(listItem, index, (Array.isArray(this.values) ? this.values : this.values ? [this.values] : []), this.type))}`;
         const isTwoLine = this.listItems && this.listItems.some((item) => item && !!item.secondaryText);
         return getListTemplate(this.type, content, isTwoLine, undefined, (ev) => this._onSelected(ev));
     }

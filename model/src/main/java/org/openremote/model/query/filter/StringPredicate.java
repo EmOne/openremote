@@ -19,17 +19,21 @@
  */
 package org.openremote.model.query.filter;
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
 import org.openremote.model.query.AssetQuery;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.NameHolder;
-import org.openremote.model.value.Values;
 
-import java.io.Serializable;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class StringPredicate implements ValuePredicate {
+/**
+ * Predicate for string values; will match based on configured options.
+ */
+@JsonSchemaDescription("Predicate for string values; will match based on configured options.")
+public class StringPredicate extends ValuePredicate {
 
     public static final String name = "string";
     public AssetQuery.Match match = AssetQuery.Match.EXACT;
@@ -62,7 +66,7 @@ public class StringPredicate implements ValuePredicate {
     public Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier) {
         return obj -> {
 
-            String string = Values.getValueCoerced(obj, String.class).orElse(null);
+            String string = ValueUtil.getValueCoerced(obj, String.class).orElse(null);
 
             if (string == null && value == null)
                 return !negate;

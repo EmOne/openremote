@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src"
   },
   "include": [
@@ -10,6 +9,7 @@
   ],
   "references": [
     { "path": "../model" },
-    { "path": "../rest" }
+    { "path": "../rest" },
+    { "path": "../or-icon" }
   ]
 }

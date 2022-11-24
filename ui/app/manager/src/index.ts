@@ -1,33 +1,28 @@
 // Declare require method which we'll use for importing webpack resources (using ES6 imports will confuse typescript parser)
-declare var CONFIG_URL_PREFIX: string;
-
+import {pageProvisioningProvider} from "./pages/page-provisioning";
 import {combineReducers, configureStore} from "@reduxjs/toolkit";
 import "@openremote/or-app";
+import {AppConfig, appReducer, HeaderConfig, HeaderItem, OrApp, PageProvider, RealmAppConfig} from "@openremote/or-app";
 import {
-    OrApp,
-    AppConfig,
-    appReducer,
-    PageProvider,
-    RealmAppConfig,
-    HeaderConfig,
-    HeaderItem} from "@openremote/or-app";
-import {
+    headerItemAccount,
+    headerItemAssets,
+    headerItemExport,
     headerItemGatewayConnection,
+    headerItemInsights,
     headerItemLanguage,
     headerItemLogout,
     headerItemLogs,
     headerItemMap,
-    headerItemAssets,
-    headerItemRules,
-    headerItemAccount,
-    headerItemUsers,
-    headerItemRoles,
+    headerItemProvisioning,
     headerItemRealms,
-    headerItemInsights} from "./headers";
+    headerItemRoles,
+    headerItemRules,
+    headerItemUsers
+} from "./headers";
 import "./pages/page-map";
-import {pageMapReducer, pageMapProvider, PageMapConfig} from "./pages/page-map";
+import {PageMapConfig, pageMapProvider, pageMapReducer} from "./pages/page-map";
 import "./pages/page-assets";
-import {PageAssetsConfig, pageAssetsProvider} from "./pages/page-assets";
+import {PageAssetsConfig, pageAssetsProvider, pageAssetsReducer} from "./pages/page-assets";
 import "./pages/page-gateway";
 import {pageGatewayProvider} from "./pages/page-gateway";
 import "./pages/page-insights";
@@ -44,16 +39,24 @@ import "./pages/page-roles";
 import {pageRolesProvider} from "./pages/page-roles";
 import "./pages/page-realms";
 import {pageRealmsProvider} from "./pages/page-realms";
-import { ManagerConfig } from "@openremote/core";
+import {pageExportProvider} from "./pages/page-export";
+import {ManagerConfig} from "@openremote/core";
+
+declare var CONFIG_URL_PREFIX: string;
 
 const rootReducer = combineReducers({
     app: appReducer,
-    map: pageMapReducer
+    map: pageMapReducer,
+    assets: pageAssetsReducer
 });
 
 type RootState = ReturnType<typeof rootReducer>;
 
-type HeaderName = "map" | "assets" | "rules" | "insights" | "gateway" | "logs" | "account" | "users" | "roles" | "realms" | "logout" | "language";
+export const store = configureStore({
+    reducer: rootReducer
+});
+
+type HeaderName = "map" | "assets" | "rules" | "insights" | "gateway" | "logs" | "account" | "users" | "roles" | "realms" | "logout" | "language" | "export";
 
 export interface ManagerRealmConfig {
     appTitle?: string;
@@ -77,10 +80,6 @@ export interface ManagerAppConfig {
     manager?: ManagerConfig;
 }
 
-export const store = configureStore({
-    reducer: rootReducer
-});
-
 const orApp = new OrApp(store);
 
 export const DefaultPagesConfig: PageProvider<any>[] = [
@@ -93,7 +92,9 @@ export const DefaultPagesConfig: PageProvider<any>[] = [
     pageAccountProvider(store),
     pageRolesProvider(store),
     pageUsersProvider(store),
-    pageRealmsProvider(store)
+    pageRealmsProvider(store),
+    pageExportProvider(store),
+    pageProvisioningProvider(store)
 ];
 
 export const DefaultHeaderMainMenu: {[name: string]: HeaderItem} = {
@@ -111,6 +112,8 @@ export const DefaultHeaderSecondaryMenu: {[name: string]: HeaderItem} = {
     users: headerItemUsers(orApp),
     roles: headerItemRoles(orApp),
     realms: headerItemRealms(orApp),
+    export: headerItemExport(orApp),
+    provisioning: headerItemProvisioning(orApp),
     logout: headerItemLogout(orApp)
 };
 
@@ -168,46 +171,40 @@ fetch(configURL).then(async (result) => {
 
     orApp.appConfigProvider = (manager) => {
 
-        if (manager.isSuperUser()) {
-            return DefaultAppConfig;
-        }
-
         // Build pages
         let pages: PageProvider<any>[] = [...DefaultPagesConfig];
 
-        if (appConfig.pages) {
+        if (!manager.isSuperUser() && appConfig.pages) {
 
             // Replace any supplied page configs
-            if (appConfig.pages) {
-                pages = pages.map(pageProvider => {
-                    const config = appConfig.pages[pageProvider.name];
+            pages = pages.map(pageProvider => {
+                const config = appConfig.pages[pageProvider.name];
 
-                    switch (pageProvider.name) {
-                        case "map": {
-                            pageProvider = config ? pageMapProvider(store, config as PageMapConfig) : pageProvider;
-                            break;
-                        }
-                        case "assets": {
-                            pageProvider = config ? pageAssetsProvider(store, config as PageAssetsConfig) : pageProvider;
-                            break;
-                        }
-                        case "rules": {
-                            pageProvider = config ? pageRulesProvider(store, config as PageRulesConfig) : pageProvider;
-                            break;
-                        }
-                        case "insights": {
-                            pageProvider = config ? pageInsightsProvider(store, config as PageInsightsConfig) : pageProvider;
-                            break;
-                        }
-                        case "logs": {
-                            pageProvider = config ? pageLogsProvider(store, config as PageLogsConfig) : pageProvider;
-                            break;
-                        }
+                switch (pageProvider.name) {
+                    case "map": {
+                        pageProvider = config ? pageMapProvider(store, config as PageMapConfig) : pageProvider;
+                        break;
                     }
+                    case "assets": {
+                        pageProvider = config ? pageAssetsProvider(store, config as PageAssetsConfig) : pageProvider;
+                        break;
+                    }
+                    case "rules": {
+                        pageProvider = config ? pageRulesProvider(store, config as PageRulesConfig) : pageProvider;
+                        break;
+                    }
+                    case "insights": {
+                        pageProvider = config ? pageInsightsProvider(store, config as PageInsightsConfig) : pageProvider;
+                        break;
+                    }
+                    case "logs": {
+                        pageProvider = config ? pageLogsProvider(store, config as PageLogsConfig) : pageProvider;
+                        break;
+                    }
+                }
 
-                    return pageProvider;
-                });
-            }
+                return pageProvider;
+            });
         }
 
         const orAppConfig: AppConfig<RootState> = {
@@ -228,6 +225,7 @@ fetch(configURL).then(async (result) => {
             Object.entries(appConfig.realms).forEach(([name, realmConfig]) => {
 
                 const normalisedConfig = {...defaultRealm,...realmConfig};
+
                 let headers = DefaultHeaderConfig;
 
                 if (normalisedConfig.headers) {
@@ -245,9 +243,16 @@ fetch(configURL).then(async (result) => {
                     });
                 }
 
-                orAppConfig.realms[name] = {...defaultRealm, header: headers,...(realmConfig as RealmAppConfig)};
+                orAppConfig.realms[name] = { ...defaultRealm, header: headers, ...(realmConfig as RealmAppConfig) };
             });
         }
+
+        // Check local storage for set language, otherwise use language set in config
+        manager.console.retrieveData("LANGUAGE").then((value: string | undefined) => {
+            manager.language = (value ? value : orAppConfig.realms[manager.displayRealm].language);
+        }).catch(() => {
+            manager.language = orAppConfig.realms[manager.displayRealm].language;
+        })
 
         // Add config prefix if defined (used in dev)
         if (CONFIG_URL_PREFIX) {

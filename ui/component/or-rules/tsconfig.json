@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src"
   },
   "include": [
@@ -12,9 +11,10 @@
     { "path": "../core" },
     { "path": "../or-translate" },
     { "path": "../or-icon" },
-    { "path": "../or-panel" },
+    { "path": "../or-components" },
     { "path": "../or-mwc-components" },
     { "path": "../or-attribute-input" },
+    { "path": "../or-attribute-picker" },
     { "path": "../or-asset-tree" }
   ]
 }

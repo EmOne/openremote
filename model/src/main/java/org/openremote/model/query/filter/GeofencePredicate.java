@@ -21,7 +21,7 @@ package org.openremote.model.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public abstract class GeofencePredicate implements ValuePredicate {
+public abstract class GeofencePredicate extends ValuePredicate {
 
     public boolean negated;
 
@@ -29,7 +29,7 @@ public abstract class GeofencePredicate implements ValuePredicate {
     public abstract double[] getCentrePoint();
 
     public GeofencePredicate negate() {
-        negated = true;
+        negated = !negated;
         return this;
     }
 }

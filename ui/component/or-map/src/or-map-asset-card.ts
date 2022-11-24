@@ -1,13 +1,12 @@
 import {
-    CSSResult,
-    CSSResultArray,
-    customElement,
+    CSSResultGroup,
     html,
     LitElement,
-    property,
     PropertyValues,
     TemplateResult
-} from "lit-element";
+} from "lit";
+import {customElement, property} from "lit/decorators.js";
+import { classMap } from 'lit-html/directives/class-map.js';
 import {
     Asset,
     AssetEvent,
@@ -15,17 +14,21 @@ import {
     AttributeEvent,
     SharedEvent,
     WellknownAttributes,
-    WellknownMetaItems
+    WellknownMetaItems,
+    AssetModelUtil
 } from "@openremote/model";
-import manager, {AssetModelUtil, subscribe, Util} from "@openremote/core";
+import manager, {subscribe, Util} from "@openremote/core";
 import "@openremote/or-icon";
 import {mapAssetCardStyle} from "./style";
 import { InputType } from "@openremote/or-mwc-components/or-mwc-input";
 import { i18next } from "@openremote/or-translate";
+import { getMarkerIconAndColorFromAssetType } from "./util";
+import {getMarkerConfigAttributeName, MapMarkerAssetConfig} from "./markers/or-map-marker-asset";
 
 export interface MapAssetCardTypeConfig {
     include?: string[];
     exclude?: string[];
+    hideViewAsset?: boolean;
 }
 
 export interface MapAssetCardConfig {
@@ -73,10 +76,13 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
     @property({type: Object})
     public config?: MapAssetCardConfig;
 
+    @property({type: Object})
+    public markerconfig?: MapMarkerAssetConfig;
+
     @property({type: Boolean, attribute: true})
     public useAssetColor: boolean = true;
 
-    static get styles(): CSSResultArray | CSSResult {
+    static get styles(): CSSResultGroup {
         return mapAssetCardStyle;
     }
 
@@ -148,6 +154,8 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
             && (!attr.meta || !attr.meta.hasOwnProperty(WellknownMetaItems.SHOWONDASHBOARD) || !!Util.getMetaValue(WellknownMetaItems.SHOWONDASHBOARD, attr)))
             .sort(Util.sortByString((listItem) => listItem.name!));
 
+        const highlightedAttr = getMarkerConfigAttributeName(this.markerconfig, this.asset.type);
+
         return html`
             <div id="card-container" style="${styleStr}">
                 <div id="header">
@@ -157,16 +165,22 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
                 <div id="attribute-list">
                     <ul>
                         ${attrs.map((attr) => {
-                             const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.asset!.type, attr.name, attr);
-                             const label = Util.getAttributeLabel(attr, descriptors[0], this.asset!.type, true);
-                             const value = Util.getAttributeValueAsString(attr, descriptors[0], this.asset!.type, false, "-");
-                             return html`<li><span class="attribute-name">${label}</span><span class="attribute-value">${value}</span></li>`; 
+                            if (!this.asset || !this.asset.type) { return }
+                            const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.asset.type, attr.name, attr);
+                            if (descriptors && descriptors.length) { 
+                                const label = Util.getAttributeLabel(attr, descriptors[0], this.asset.type, true);
+                                const value = Util.getAttributeValueAsString(attr, descriptors[0], this.asset.type, false, "-");
+                                const classes = {highlighted: highlightedAttr === attr.name};
+                                return html`<li class="${classMap(classes)}"><span class="attribute-name">${label}</span><span class="attribute-value">${value}</span></li>`;
+                            }
                         })}
                     </ul>
                 </div>
-                <div id="footer">
-                    <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("viewAsset")}" @click="${(e: MouseEvent) => {e.preventDefault(); this._loadAsset(this.asset!.id!);}}"></or-mwc-input>          
-                </div>
+                ${cardConfig && cardConfig.hideViewAsset ? html`` : html`
+                    <div id="footer">
+                        <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("viewAsset")}" @or-mwc-input-changed="${(e: MouseEvent) => {e.preventDefault(); this._loadAsset(this.asset!.id!);}}"></or-mwc-input>
+                    </div>
+                `}
             </div>
         `;
     }
@@ -178,14 +192,19 @@ export class OrMapAssetCard extends subscribe(manager)(LitElement) {
     protected getIcon(): string | undefined {
         if (this.asset) {
             const descriptor = AssetModelUtil.getAssetDescriptor(this.asset.type);
-            return descriptor ? descriptor.icon : undefined;
+            const icon = getMarkerIconAndColorFromAssetType(descriptor)?.icon;
+            return icon ? icon : undefined;
         }
     }
 
     protected getColor(): string | undefined {
         if (this.asset) {
             const descriptor = AssetModelUtil.getAssetDescriptor(this.asset.type);
-            return descriptor ? descriptor.colour : undefined;
+            const color = getMarkerIconAndColorFromAssetType(descriptor)?.color;
+            if (color) {
+                // check if range
+                return (typeof color === 'string') ? color : color![0].colour;
+            }
         }
     }
 }

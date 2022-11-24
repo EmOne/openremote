@@ -22,7 +22,6 @@ package org.openremote.manager.rules;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.jeasy.rules.api.Action;
 import org.jeasy.rules.api.Condition;
@@ -31,13 +30,14 @@ import org.jeasy.rules.api.Rules;
 import org.jeasy.rules.core.RuleBuilder;
 import org.kohsuke.groovy.sandbox.GroovyValueFilter;
 import org.kohsuke.groovy.sandbox.SandboxTransformer;
+import org.openjdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.rules.*;
 import org.openremote.model.rules.flow.NodeCollection;
 import org.openremote.model.util.Pair;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import javax.script.*;
 import java.util.ArrayList;
@@ -317,7 +317,7 @@ public class RulesetDeployment {
                 "var NumberPredicate = Java.type(\"org.openremote.model.query.filter.NumberPredicate\");\n" +
                 "var ParentPredicate = Java.type(\"org.openremote.model.query.filter.ParentPredicate\");\n" +
                 "var PathPredicate = Java.type(\"org.openremote.model.query.filter.PathPredicate\");\n" +
-                "var TenantPredicate = Java.type(\"org.openremote.model.query.filter.TenantPredicate\");\n" +
+                "var RealmPredicate = Java.type(\"org.openremote.model.query.filter.RealmPredicate\");\n" +
                 "var AttributePredicate = Java.type(\"org.openremote.model.query.filter.AttributePredicate\");\n" +
                 "var AttributeExecuteStatus = Java.type(\"org.openremote.model.attribute.AttributeExecuteStatus\");\n" +
                 "var EXACT = Match.EXACT;\n" +
@@ -438,6 +438,15 @@ public class RulesetDeployment {
             binding.setVariable("notifications", notificationFacade);
             binding.setVariable("historicDatapoints", historicDatapointsFacade);
             binding.setVariable("predictedDatapoints", predictedDatapointsFacade);
+
+            if(ruleset instanceof RealmRuleset) {
+                binding.setVariable("realm", ((RealmRuleset) ruleset).getRealm());
+            }
+
+            if (ruleset instanceof AssetRuleset) {
+                binding.setVariable("assetId", ((AssetRuleset) ruleset).getAssetId());
+            }
+
             script.setBinding(binding);
             script.run();
             for (Rule rule : rulesBuilder.build()) {
@@ -456,15 +465,15 @@ public class RulesetDeployment {
     protected boolean compileRulesFlow(Ruleset ruleset, Assets assetsFacade, Users usersFacade, Notifications notificationsFacade, HistoricDatapoints historicDatapointsFacade, PredictedDatapoints predictedDatapointsFacade) {
         try {
             flowRulesBuilder = new FlowRulesBuilder(timerService, assetStorageService, assetsFacade, usersFacade, notificationsFacade, historicDatapointsFacade, predictedDatapointsFacade);
-            NodeCollection nodeCollection = Values.JSON.readValue(ruleset.getRules(), NodeCollection.class);
+            NodeCollection nodeCollection = ValueUtil.JSON.readValue(ruleset.getRules(), NodeCollection.class);
             flowRulesBuilder.add(nodeCollection);
             for (Rule rule : flowRulesBuilder.build()) {
-                RulesEngine.LOG.info("Registering rule: " + rule.getName());
+                RulesEngine.LOG.info("Compiling flow rule: " + rule.getName());
                 rules.register(rule);
             }
             return true;
         } catch (Exception e) {
-            RulesEngine.LOG.log(Level.SEVERE, "Error evaluating ruleset: " + ruleset, e);
+            RulesEngine.LOG.log(Level.SEVERE, "Error evaluating flow rule ruleset: " + ruleset, e);
             setError(e);
             return false;
         }

@@ -21,15 +21,13 @@ package org.openremote.manager.simulator;
 
 import org.apache.camel.builder.RouteBuilder;
 import org.openremote.agent.protocol.simulator.SimulatorProtocol;
-import org.openremote.manager.agent.AgentService;
-import org.openremote.model.Container;
-import org.openremote.model.ContainerService;
 import org.openremote.container.message.MessageBrokerService;
-import org.openremote.container.security.AuthContext;
+import org.openremote.manager.agent.AgentService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.security.ManagerIdentityService;
-import org.openremote.model.Constants;
+import org.openremote.model.Container;
+import org.openremote.model.ContainerService;
 import org.openremote.model.asset.agent.Protocol;
 import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.simulator.RequestSimulatorState;
@@ -42,7 +40,7 @@ import java.util.stream.Collectors;
 
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.manager.event.ClientEventService.CLIENT_EVENT_TOPIC;
-import static org.openremote.agent.protocol.ProtocolClientEventService.getSessionKey;
+import static org.openremote.manager.event.ClientEventService.getSessionKey;
 
 /**
  * Connects the client/UI to the {@link SimulatorProtocol}.
@@ -68,16 +66,31 @@ public class SimulatorService extends RouteBuilder implements ContainerService {
         assetStorageService = container.getService(AssetStorageService.class);
         clientEventService = container.getService(ClientEventService.class);
 
-        clientEventService.addSubscriptionAuthorizer((auth, subscription) -> {
+        clientEventService.addSubscriptionAuthorizer((realm, auth, subscription) -> {
             if (!subscription.isEventType(SimulatorState.class))
                 return false;
+
+            if (auth == null) {
+                return false;
+            }
 
             // Superuser can get all
             if (auth.isSuperUser())
                 return true;
 
-            // TODO Should realm admins be able to work with simulators in their tenant?
+            // TODO Should realm admins be able to work with simulators in their realm?
 
+            return false;
+        });
+
+        clientEventService.addEventAuthorizer((realm, auth, event) -> {
+            if (event instanceof RequestSimulatorState) {
+
+                // Only super users can use this
+                return auth.isSuperUser();
+
+                // TODO Should realm admins be able to work with simulators in their realm?
+            }
             return false;
         });
 
@@ -104,13 +117,8 @@ public class SimulatorService extends RouteBuilder implements ContainerService {
                 LOG.finer("Handling from client: " + event);
 
                 String sessionKey = getSessionKey(exchange);
-                AuthContext authContext = exchange.getIn().getHeader(Constants.AUTH_CONTEXT, AuthContext.class);
 
-                // Superuser can get all
-                if (!authContext.isSuperUser())
-                    return;
-
-                // TODO Should realm admins be able to work with simulators in their tenant?
+                // TODO Should realm admins be able to work with simulators in their realm?
                 publishSimulatorState(sessionKey, event.getAgentId());
             });
     }

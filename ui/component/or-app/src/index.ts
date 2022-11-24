@@ -1,16 +1,13 @@
 import {
     css,
-    customElement,
     html,
     LitElement,
-    property,
     PropertyValues,
-    query,
     TemplateResult,
     unsafeCSS
-} from "lit-element";
-import {unsafeHTML} from "lit-html/directives/unsafe-html";
-import {AppConfig, RealmAppConfig, router} from "./types";
+} from "lit";
+import {customElement, property, query, state} from "lit/decorators.js";
+import {AppConfig, Page, RealmAppConfig, router} from "./types";
 import "@openremote/or-translate";
 import "@openremote/or-mwc-components/or-mwc-menu";
 import "@openremote/or-mwc-components/or-mwc-snackbar";
@@ -18,19 +15,21 @@ import "./or-header";
 import "@openremote/or-icon";
 import {updateMetadata} from "pwa-helpers/metadata";
 import i18next from "i18next";
-import manager, {Auth, DefaultColor2, DefaultColor3, ManagerConfig, Util, BasicLoginResult, OREvent, normaliseConfig, Manager} from "@openremote/core";
-import {DEFAULT_LANGUAGES, HeaderConfig, HeaderItem, Languages} from "./or-header";
-import {DialogConfig, OrMwcDialog, showErrorDialog, showDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import manager, {Auth, DefaultColor2, DefaultColor3, DefaultColor4, ManagerConfig, Util, BasicLoginResult, normaliseConfig, Manager} from "@openremote/core";
+import {DEFAULT_LANGUAGES, HeaderConfig} from "./or-header";
+import {OrMwcDialog, showErrorDialog, showDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
 import {OrMwcSnackbar} from "@openremote/or-mwc-components/or-mwc-snackbar";
-import {AnyAction, EnhancedStore, Unsubscribe} from "@reduxjs/toolkit";
-import {ThunkMiddleware} from "redux-thunk";
-import {AppStateKeyed, updatePage} from "./app";
+import {AnyAction, Store, Unsubscribe} from "@reduxjs/toolkit";
+import {AppStateKeyed, updatePage, updateRealm} from "./app";
 import { InputType, OrInputChangedEvent } from "@openremote/or-mwc-components/or-mwc-input";
+import { ORError } from "@openremote/core";
+import { Realm } from "@openremote/model";
 
-const DefaultLogo = require("../images/logo.png");
-const DefaultMobileLogo = require("../images/logo-mobile.png");
+const DefaultLogo = require("../images/logo.svg");
+const DefaultMobileLogo = require("../images/logo-mobile.svg");
 const DefaultFavIcon = require("../images/favicon.ico");
 
+export {AnyAction};
 export * from "./app";
 export * from "./or-header";
 export * from "./types";
@@ -63,7 +62,7 @@ const DEFAULT_MANAGER_CONFIG: ManagerConfig = {
     keycloakUrl: KEYCLOAK_URL,
     auth: Auth.KEYCLOAK,
     autoLogin: true,
-    realm: getRealmQueryParameter(),
+    realm: undefined,
     consoleAutoEnable: true,
     loadTranslations: ["or"]
 };
@@ -82,16 +81,23 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
     @query("main")
     protected _mainElem!: HTMLElement;
 
-    @property()
+    @state()
     protected _initialised = false;
 
-    @property()
+    @state()
     protected _page?: string;
 
-    @property()
+    @state()
     protected _config!: RealmAppConfig;
 
-    protected _store: EnhancedStore<S, AnyAction, ReadonlyArray<ThunkMiddleware<S>>>;
+    @state()
+    protected _realm?: string;
+
+    @state()
+    protected _activeMenu?: string;
+
+    protected _realms!: Realm[];
+    protected _store: Store<S, AnyAction>;
     protected _storeUnsubscribe!: Unsubscribe;
 
     // language=CSS
@@ -99,8 +105,8 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
         return css`
             :host {
                 --or-app-color2: ${unsafeCSS(DefaultColor2)};
-                --or-app-color3: #4C4C4C;
-                --or-app-color4: #4D9D2A;
+                --or-app-color3: ${unsafeCSS(DefaultColor3)};
+                --or-app-color4: ${unsafeCSS(DefaultColor4)};
                 --or-console-primary-color: #4D9D2A;
                 color: ${unsafeCSS(DefaultColor3)};
                 fill: ${unsafeCSS(DefaultColor3)};
@@ -143,7 +149,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
         `;
     }
 
-    constructor(store: EnhancedStore<S, AnyAction, ReadonlyArray<ThunkMiddleware<S>>>) {
+    constructor(store: Store<S, AnyAction>) {
         super();
         this._store = store;
 
@@ -152,10 +158,14 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
         OrMwcSnackbar.DialogHostElement = this;
     }
 
+    public getState(): S {
+        return this._store.getState();
+    }
+
     connectedCallback() {
         super.connectedCallback();
-        this._storeUnsubscribe = this._store.subscribe(() => this.stateChanged(this._store.getState()));
-        this.stateChanged(this._store.getState());
+        this._storeUnsubscribe = this._store.subscribe(() => this.stateChanged(this.getState()));
+        this.stateChanged(this.getState());
     }
 
     disconnectedCallback() {
@@ -163,37 +173,40 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
         super.disconnectedCallback();
     }
 
-    protected _onManagerEvent = (event: OREvent) => {
-        switch (event) {
-            case OREvent.DISPLAY_REALM_CHANGED:
-                const config = this._getConfig(manager.displayRealm);
-
-                if (!config) {
-                    console.error("No default AppConfig or realm specific config for requested realm: " + manager.displayRealm);
-                    return;
-                } else {
-                    this._config = config;
-                }
-                break;
-        }
-    };
-
     protected firstUpdated(_changedProperties: Map<PropertyKey, unknown>): void {
         super.firstUpdated(_changedProperties);
 
-        const managerConfig = this.managerConfig ? {...DEFAULT_MANAGER_CONFIG,...this.managerConfig} : DEFAULT_MANAGER_CONFIG;
+        const managerConfig: ManagerConfig = this.managerConfig ? {...DEFAULT_MANAGER_CONFIG,...this.managerConfig} : DEFAULT_MANAGER_CONFIG;
+        if (!managerConfig.realm) {
+            // Use realm query parameter if no specific realm provided
+            managerConfig.realm = getRealmQueryParameter();
+        }
+        managerConfig.skipFallbackToBasicAuth = true; // We do this so we can load styling config before displaying basic login
         managerConfig.basicLoginProvider = (u, p) => this.doBasicLogin(u, p);
-        manager.addListener(this._onManagerEvent);
 
         console.info("Initialising the manager");
 
-        manager.init(managerConfig).then((success) => {
+        manager.init(managerConfig).then(async (success) => {
+            if (!success && manager.error === ORError.AUTH_FAILED && (!managerConfig.auth || managerConfig.auth === Auth.KEYCLOAK)) {
+                this.doAppConfigInit();
+
+                // Fallback to basic auth now styling is loaded
+                managerConfig.auth = Auth.BASIC;
+                success = await manager.init(managerConfig);
+            }
+
             if (success) {
-                this.appConfig = this.appConfig || (this.appConfigProvider ? this.appConfigProvider(manager) : undefined);
+                this.doAppConfigInit();
 
                 if (!this.appConfig) {
                     showErrorDialog("appError.noConfig", document.body);
                     console.error("No AppConfig supplied");
+                    return;
+                }
+
+                if (!this._config) {
+                    showErrorDialog("appError.noConfig", document.body);
+                    console.error("No default AppConfig or realm specific config provided so cannot render");
                     return;
                 }
 
@@ -209,87 +222,57 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                     return;
                 }
 
-                this._initialised = true;
-                const realm = getRealmQueryParameter();
-                const config = this._getConfig(realm);
+                // Load available realm info
+                const response = await manager.rest.api.RealmResource.getAccessible();
+                this._realms = response.data;
+                let realm: string | null | undefined = undefined;
 
-                if (!config) {
-                    console.error("No default AppConfig or realm specific config for requested realm: " + realm);
-                    return;
-                } else {
-                    this._config = config;
+                // Set current display realm if super user
+                if (manager.isSuperUser()) {
+                    // Look in session storage
+                    realm = window.sessionStorage.getItem("realm");
+                    if (realm && !this._realms.some(r => r.name === realm)) {
+                        realm = undefined;
+                    }
                 }
 
+                this._store.dispatch(updateRealm(realm || manager.getRealm() || "master"));
+
+                this._initialised = true;
+
+                // Create route listener to set header active item (this must be done before any routes added)
+                const headerUpdater = (activeMenu: string | undefined) => {
+                    this._activeMenu = activeMenu;
+                };
+                router.hooks({
+                    before(done, match) {
+                        headerUpdater(match ? match.url.split('/')[0] : undefined);
+                        done();
+                    }
+                });
+
+                // Configure routes
                 this.appConfig.pages.forEach((pageProvider, index) => {
                     if (pageProvider.routes) {
                         pageProvider.routes.forEach((route) => {
                             router.on(
-                                route, (params, query) => {
-                                    this._store.dispatch(updatePage({page: pageProvider.name, params: params}));
+                                route, (match) => {
+                                    this._store.dispatch(updatePage({page: pageProvider.name, params: match!.data}));
                                 }
                             );
                         });
                     }
                 });
-
                 if (this.appConfig.pages.length > 0) {
-                    router.on("*", (params, query) => {
+                    router.notFound(() => {
                         this._store.dispatch(updatePage(this.appConfig!.pages[0].name));
                     });
                 }
-               
                 router.resolve();
             } else {
                 showErrorDialog(manager.isError ? "managerError." + manager.error : "");
             }
         });
-    }
-
-    protected doBasicLogin(username: string | undefined, password: string | undefined): PromiseLike<BasicLoginResult> {
-        const deferred = new Util.Deferred<BasicLoginResult>();
-
-        let u = username;
-        let p = password;
-
-        // language=CSS
-        const styles = html`
-            #login-logo {
-                width: 24px;
-                height: 24px;
-            }
-            
-            #login_wrapper > or-mwc-input {
-                margin: 10px 0;
-                width: 100%;
-            }
-        `;
-
-        const dialog = showDialog({
-            styles: html`<style>${styles}</style>`,
-            title: html`<img id="login-logo" src="${this._config.logoMobile || this._config.logo}" /></or-icon><or-translate value="login"></or-translate>`,
-            content: html`
-                <div id="login_wrapper">
-                    <or-mwc-input .label="${i18next.t("user")}" .type="${InputType.TEXT}" min="1" required .value="${username}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => u = e.detail.value}"></or-mwc-input>            
-                    <or-mwc-input .label="${i18next.t("password")}" .type="${InputType.PASSWORD}" min="1" required .value="${password}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => p = e.detail.value}"></or-mwc-input>           
-                </div>
-            `,
-            actions: [
-                {
-                    actionName: "submit",
-                    default: true,
-                    action: () => {
-                        deferred.resolve({
-                            cancel: false,
-                            username: u!,
-                            password: p!
-                        });
-                    },
-                    content: html`<or-mwc-input .type=${InputType.BUTTON} .label="${i18next.t("submit")}" raised></or-mwc-input>`
-                }
-            ]
-        }, document.body); // Attach to document as or-app isn't visible until initialised
-
-        return deferred.promise;
     }
 
     protected updated(changedProps: PropertyValues) {
@@ -300,9 +283,6 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
         }
 
         if (changedProps.has("_page")) {
-            const appTitle = this._config.appTitle || "";
-            let pageTitle = (i18next.isInitialized ? i18next.t(appTitle) : appTitle);
-
             if (this._mainElem) {
                 if (this._mainElem.firstElementChild) {
                     this._mainElem.firstElementChild.remove();
@@ -312,19 +292,25 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
                     if (pageProvider) {
                         const pageElem = pageProvider.pageCreator();
                         this._mainElem.appendChild(pageElem);
-                        pageTitle += (i18next.isInitialized ? " - " + i18next.t(pageElem.name) : " - " + pageElem.name);
                     }
                 }
             }
 
-            updateMetadata({
-                title: pageTitle,
-                description: pageTitle
-            });
+            this.updateWindowTitle();
         }
     }
 
     protected shouldUpdate(changedProps: PropertyValues): boolean {
+        if (changedProps.has("_realm")) {
+            this._config = this._getConfig();
+            if (this._realm) {
+                manager.displayRealm = this._realm;
+                window.sessionStorage.setItem("realm", this._realm!);
+            } else {
+                window.sessionStorage.removeItem("realm");
+            }
+        }
+
         if (changedProps.has("_config") && this._config) {
 
             if (!this._config.logo) {
@@ -346,6 +332,7 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
             link.href = favIcon;
         }
 
+        this.updateWindowTitle();
         return super.shouldUpdate(changedProps);
     }
 
@@ -362,10 +349,10 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
             consoleStyles = html`<style>:host {--or-console-primary-color:${primary};--or-console-secondary-color:${secondary};}</style>`;
         }
         return html`
-            ${this._config.styles ? typeof(this._config.styles) === "string" ? html`<style>${this._config.styles}</style>` : unsafeHTML(this._config.styles.strings) : ``}
+            ${this._config.styles ? typeof(this._config.styles) === "string" ? html`<style>${this._config.styles}</style>` : this._config.styles.strings : ``}
             ${consoleStyles}
             ${this._config.header ? html`
-                <or-header .logo="${this._config.logo}" .logoMobile="${this._config.logoMobile}" .config="${this._config.header}"></or-header>
+                <or-header .activeMenu="${this._activeMenu}" .store="${this._store}" .realm="${this._realm}" .realms="${this._realms}" .logo="${this._config.logo}" .logoMobile="${this._config.logoMobile}" .config="${this._config.header}"></or-header>
             ` : ``}
             
             <!-- Main content -->
@@ -373,6 +360,11 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
             
             <slot></slot>
         `;
+    }
+
+    public stateChanged(state: AppStateKeyed) {
+        this._realm = state.app.realm;
+        this._page = state.app!.page;
     }
 
     public logout() {
@@ -384,41 +376,104 @@ export class OrApp<S extends AppStateKeyed> extends LitElement {
     }
 
     public showLanguageModal() {
-        showDialog(this._getLanguageModalConfig(DEFAULT_LANGUAGES));
+        showDialog(new OrMwcDialog()
+            .setHeading("language")
+            .setDismissAction(null)
+            .setStyles(html`<style>.selected { color: ${unsafeCSS(DefaultColor4)} }</style>`)
+            .setActions(Object.entries(this.appConfig!.languages || DEFAULT_LANGUAGES).map(([key, value]) => {
+                return {
+                    content: html`<span class="${(key === manager.language) ? 'selected' : ''}">${i18next.t(value)}</span>`,
+                    actionName: key,
+                    action: () => {
+                        manager.language = key;
+                    }
+                }})));
     }
 
-    public stateChanged(state: S) {
-        this._page = state.app!.page;
+    protected doAppConfigInit() {
+        this.appConfig = this.appConfig || (this.appConfigProvider ? this.appConfigProvider(manager) : undefined);
+
+        if (!this.appConfig) {
+            return;
+        }
+
+        if (!this._config) {
+            this._config = this._getConfig();
+        }
     }
 
-    protected _getConfig(realm: string | undefined): RealmAppConfig {
-        realm = realm || "default";
+    protected doBasicLogin(username: string | undefined, password: string | undefined): PromiseLike<BasicLoginResult> {
+        const deferred = new Util.Deferred<BasicLoginResult>();
+
+        let u = username;
+        let p = password;
+
+        // language=CSS
+        const styles = html`
+            #login-logo {
+                width: 24px;
+                height: 24px;
+            }
+            
+            #login_wrapper > or-mwc-input {
+                margin: 10px 0;
+                width: 100%;
+            }
+        `;
+
+        const dialog = showDialog(new OrMwcDialog()
+            .setStyles(html`<style>${styles}</style>`)
+            .setHeading(html`<img id="login-logo" src="${this._config.logoMobile || this._config.logo}" /></or-icon><or-translate value="login"></or-translate>`)
+            .setContent(html`
+                <div id="login_wrapper">
+                    <or-mwc-input .label="${i18next.t("user")}" .type="${InputType.TEXT}" min="1" required .value="${username}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => u = e.detail.value}"></or-mwc-input>            
+                    <or-mwc-input .label="${i18next.t("password")}" .type="${InputType.PASSWORD}" min="1" required .value="${password}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => p = e.detail.value}"></or-mwc-input>           
+                </div>
+            `)
+            .setActions([
+                {
+                    actionName: "submit",
+                    default: true,
+                    action: () => {
+                        deferred.resolve({
+                            cancel: false,
+                            username: u!,
+                            password: p!
+                        });
+                    },
+                    content: html`<or-mwc-input .type=${InputType.BUTTON} .label="${i18next.t("submit")}" raised></or-mwc-input>`
+                }
+            ]), document.body); // Attach to document as or-app isn't visible until initialised
+
+        return deferred.promise;
+    }
+
+    protected updateWindowTitle() {
+        if (!this._initialised) {
+            return;
+        }
+
+        const appTitle = this._config.appTitle || "";
+        let pageTitle = (i18next.isInitialized ? i18next.t(appTitle) : appTitle);
+        const pageElem = (this._mainElem ? this._mainElem.firstElementChild : undefined) as Page<any>;
+        if (pageElem) {
+            pageTitle += (i18next.isInitialized ? " - " + i18next.t(pageElem.name) : " - " + pageElem.name);
+        }
+
+        updateMetadata({
+            title: pageTitle,
+            description: pageTitle
+        });
+    }
+
+    protected _getConfig(): RealmAppConfig {
         const defaultConfig = this.appConfig!.realms ? this.appConfig!.realms.default : {};
-        let realmConfig = this.appConfig!.realms ? this.appConfig!.realms![realm] : undefined;
+        let realmConfig = this.appConfig!.realms ? this.appConfig!.realms![this._realm || ""] : undefined;
         realmConfig = Util.mergeObjects(defaultConfig, realmConfig, false);
 
         if (this.appConfig && this.appConfig.superUserHeader && manager.isSuperUser()) {
             realmConfig.header = this.appConfig.superUserHeader;
         }
         return realmConfig;
-    }
-
-    protected _getLanguageModalConfig(languages: Languages): DialogConfig {
-        const title = "language";
-        const actions = Object.entries(languages).map(([key, value]) => {
-            return {
-                content: i18next.t(value),
-                actionName: key,
-                action: () => {
-                    manager.language = key;
-                }
-            };
-        });
-
-        return {
-            title: title,
-            actions: actions,
-            dismissAction: null
-        };
     }
 }

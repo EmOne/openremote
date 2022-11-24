@@ -1,4 +1,4 @@
-import {css, unsafeCSS} from "lit-element";
+import {css, unsafeCSS} from "lit";
 import { DefaultColor1, DefaultColor2, DefaultColor3, DefaultColor4, DefaultColor5, DefaultHeaderHeight, DefaultBoxShadow} from "@openremote/core";
 
 export const markerColorVar = "--internal-or-map-marker-color";
@@ -61,8 +61,11 @@ export const style = css`
         top: 0;
         bottom: 0;
     }
-
-    .leaflet-marker-icon, .mapboxgl-marker {
+    .mapboxgl-ctrl-geocoder,
+    .maplibregl-ctrl-geocoder--input {
+        width: calc(100% - 20px)
+    }
+    .leaflet-marker-icon, .maplibregl-marker, .mapboxgl-marker {
         pointer-events: none !important;
     }
 
@@ -203,6 +206,9 @@ export const mapAssetCardStyle = css`
             li {
                 display: flex;
                 line-height: 30px;
+            }
+            li.highlighted {
+                font-weight: bold;
             }
             
             .attribute-name {

@@ -21,20 +21,20 @@ package org.openremote.test.protocol.websocket
 
 import io.netty.channel.ChannelHandler
 import org.apache.http.client.utils.URIBuilder
-import org.openremote.agent.protocol.io.AbstractNettyIoClient
-import org.openremote.agent.protocol.websocket.WebsocketIoClient
+import org.openremote.agent.protocol.io.AbstractNettyIOClient
+import org.openremote.agent.protocol.websocket.WebsocketIOClient
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.setup.SetupService
-import org.openremote.test.setup.ManagerTestSetup
+import org.openremote.setup.integration.ManagerTestSetup
 import org.openremote.model.asset.AssetFilter
 import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.attribute.AttributeEvent
 import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.event.TriggeredEventSubscription
 import org.openremote.model.event.shared.EventSubscription
-import org.openremote.model.value.Values
+import org.openremote.model.util.ValueUtil
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -42,13 +42,13 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.TimeUnit
 
 import static org.openremote.container.util.MapAccess.getString
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.Constants.MASTER_REALM_ADMIN_USER
 
 /**
- * This tests the {@link WebsocketIoClient} by connecting to the manager web socket API which means it also tests
+ * This tests the {@link WebsocketIOClient} by connecting to the manager web socket API which means it also tests
  * the API itself
  */
 class WebsocketClientTest extends Specification implements ManagerContainerTrait {
@@ -56,7 +56,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
     protected static <T> T messageFromString(String message, String prefix, Class<T> clazz) {
         try {
             message = message.substring(prefix.length())
-            return Values.JSON.readValue(message, clazz)
+            return ValueUtil.JSON.readValue(message, clazz)
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to parse message")
         }
@@ -64,7 +64,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
 
     protected static String messageToString(String prefix, Object message) {
         try {
-            String str = Values.asJSON(message).orElse(null)
+            String str = ValueUtil.asJSON(message).orElse(null)
             return prefix + str;
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to serialise message");
@@ -74,7 +74,7 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
     def "Check client"() {
 
         given: "expected conditions"
-        def conditions = new PollingConditions(timeout: 10, delay: 0.2)
+        def conditions = new PollingConditions(timeout: 20, delay: 0.2)
 
         and: "the container is started"
         def container = startContainer(defaultConfig(), defaultServices())
@@ -84,17 +84,17 @@ class WebsocketClientTest extends Specification implements ManagerContainerTrait
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
 
         and: "a simple Websocket client"
-        def client = new WebsocketIoClient<String>(
-                new URIBuilder("ws://127.0.0.1:$serverPort/websocket/events?Auth-Realm=master").build(),
+        def client = new WebsocketIOClient<String>(
+                new URIBuilder("ws://127.0.0.1:$serverPort/websocket/events?Realm=master").build(),
                 null,
                 new OAuthPasswordGrant("http://127.0.0.1:$serverPort/auth/realms/master/protocol/openid-connect/token",
                     KEYCLOAK_CLIENT_ID,
                     null,
                     null,
                     MASTER_REALM_ADMIN_USER,
-                    getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)))
+                    getString(container.getConfig(), OR_ADMIN_PASSWORD, OR_ADMIN_PASSWORD_DEFAULT)))
         client.setEncoderDecoderProvider({
-            [new AbstractNettyIoClient.MessageToMessageDecoder<String>(String.class, client)].toArray(new ChannelHandler[0])
+            [new AbstractNettyIOClient.MessageToMessageDecoder<String>(String.class, client)].toArray(new ChannelHandler[0])
         })
 
         and: "we add callback consumers to the client"

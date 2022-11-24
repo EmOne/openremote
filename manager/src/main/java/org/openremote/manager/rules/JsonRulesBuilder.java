@@ -22,11 +22,12 @@ package org.openremote.manager.rules;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.openremote.container.persistence.PersistenceEvent;
+import org.openremote.model.PersistenceEvent;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.AttributeRef;
+import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.notification.EmailNotificationMessage;
 import org.openremote.model.notification.Notification;
 import org.openremote.model.notification.PushNotificationMessage;
@@ -34,16 +35,23 @@ import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.LogicGroup;
 import org.openremote.model.query.UserQuery;
 import org.openremote.model.query.filter.AttributePredicate;
+import org.openremote.model.query.filter.UserAssetPredicate;
 import org.openremote.model.rules.*;
 import org.openremote.model.rules.json.*;
+import org.openremote.model.util.EnumUtil;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.util.TimeUtil;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
+import org.openremote.model.value.MetaItemType;
 import org.quartz.CronExpression;
+import org.shredzone.commons.suncalc.SunTimes;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -53,7 +61,7 @@ import java.util.stream.Stream;
 
 import static org.openremote.manager.rules.AssetQueryPredicate.groupIsEmpty;
 import static org.openremote.model.query.filter.LocationAttributePredicate.getLocationPredicates;
-import static org.openremote.model.value.Values.distinctByKey;
+import static org.openremote.model.util.ValueUtil.distinctByKey;
 
 public class JsonRulesBuilder extends RulesBuilder {
 
@@ -86,6 +94,7 @@ public class JsonRulesBuilder extends RulesBuilder {
         Predicate<Long> timePredicate;
         RuleConditionEvaluationResult lastEvaluationResult;
 
+        @SuppressWarnings("ConstantConditions")
         public RuleConditionState(RuleCondition ruleCondition, boolean trackUnmatched, TimerService timerService) throws Exception {
             this.timerService = timerService;
             this.ruleCondition = ruleCondition;
@@ -95,40 +104,85 @@ public class JsonRulesBuilder extends RulesBuilder {
                 previouslyUnmatchedAssetStates = new HashSet<>();
             }
 
-            if (!TextUtil.isNullOrEmpty(ruleCondition.timer)) {
-
+            if (!TextUtil.isNullOrEmpty(ruleCondition.duration)) {
                 try {
-                    if (TimeUtil.isTimeDuration(ruleCondition.timer)) {
+                    final long duration = TimeUtil.parseTimeDuration(ruleCondition.duration);
+                    AtomicLong nextExecuteMillis = new AtomicLong(timerService.getCurrentTimeMillis());
 
-                        final long duration = TimeUtil.parseTimeDuration(ruleCondition.timer);
-                        AtomicLong nextExecuteMillis = new AtomicLong(timerService.getCurrentTimeMillis());
-
-                        timePredicate = (time) -> {
-                            long nextExecute = nextExecuteMillis.get();
-                            if (time >= nextExecute) {
-                                nextExecuteMillis.set(nextExecute + duration);
-                                return true;
-                            }
-                            return false;
-                        };
-                    }
-
-                    if (CronExpression.isValidExpression(ruleCondition.timer)) {
-
-                        CronExpression timerExpression = new CronExpression(ruleCondition.timer);
-                        AtomicLong nextExecuteMillis = new AtomicLong(timerExpression.getNextValidTimeAfter(new Date(timerService.getCurrentTimeMillis())).getTime());
-
-                        timePredicate = (time) -> {
-                            long nextExecute = nextExecuteMillis.get();
-                            if (time >= nextExecute) {
-                                nextExecuteMillis.set(timerExpression.getNextInvalidTimeAfter(timerExpression.getNextInvalidTimeAfter(new Date(nextExecute))).getTime());
-                                return true;
-                            }
-                            return false;
-                        };
-                    }
+                    timePredicate = (time) -> {
+                        long nextExecute = nextExecuteMillis.get();
+                        if (time >= nextExecute) {
+                            nextExecuteMillis.set(nextExecute + duration);
+                            return true;
+                        }
+                        return false;
+                    };
                 } catch (Exception e) {
-                    log(Level.SEVERE, "Failed to parse rule condition timer expression: " + ruleCondition.timer, e);
+                    log(Level.SEVERE, "Failed to parse rule condition duration expression: " + ruleCondition.duration, e);
+                    throw e;
+                }
+            } else if (!TextUtil.isNullOrEmpty(ruleCondition.cron)) {
+                try {
+                    CronExpression timerExpression = new CronExpression(ruleCondition.cron);
+                    timerExpression.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    AtomicLong nextExecuteMillis = new AtomicLong(timerExpression.getNextValidTimeAfter(new Date(timerService.getCurrentTimeMillis())).getTime());
+
+                    timePredicate = (time) -> {
+                        long nextExecute = nextExecuteMillis.get();
+                        if (time >= nextExecute) {
+                            nextExecuteMillis.set(timerExpression.getNextValidTimeAfter(timerExpression.getNextInvalidTimeAfter(new Date(nextExecute))).getTime());
+                            return true;
+                        }
+                        return false;
+                    };
+                } catch (Exception e) {
+                    log(Level.SEVERE, "Failed to parse rule condition cron expression: " + ruleCondition.cron, e);
+                    throw e;
+                }
+            } else if (ruleCondition.sun != null) {
+                SunTimes.Parameters sunCalculator = getSunCalculator(ruleCondition.sun, timerService);
+                long offsetMillis = ruleCondition.sun.getOffsetMins() != null ? ruleCondition.sun.getOffsetMins() * 60000 : 0;
+
+                // Calculate the next occurrence
+                AtomicReference<SunTimes> sunTimes = new AtomicReference<>(sunCalculator.execute());
+                ZonedDateTime occurrence;
+                if(ruleCondition.sun.getPosition() == SunPositionTrigger.Position.SUNRISE || ruleCondition.sun.getPosition().toString().startsWith(SunPositionTrigger.MORNING_TWILIGHT_PREFIX)) {
+                    occurrence = sunTimes.get().getRise();
+                } else {
+                    occurrence = sunTimes.get().getSet();
+                }
+
+                if (occurrence == null) {
+                    Exception e = new IllegalStateException("Rule condition requested sun position never occurs at the specified location: " + ruleCondition.sun);
+                    log(Level.SEVERE, e.getMessage(), e);
+                    throw e;
+                }
+                try {
+                    AtomicLong nextExecuteMillis = new AtomicLong(occurrence.toInstant().toEpochMilli() + offsetMillis);
+
+                    timePredicate = (time) -> {
+                        long nextExecute = nextExecuteMillis.get();
+                        if (time >= nextExecute) {
+                            // Advance the calculator beyond now or next occurrence (whichever is later)
+                            long calcMillis = Math.max(sunTimes.get().getSet().toEpochSecond()*1000, time);
+                            sunTimes.set(sunCalculator.on(new Date(calcMillis)).execute());
+                            ZonedDateTime nextOccurrence = ruleCondition.sun.getPosition() == SunPositionTrigger.Position.SUNSET ? sunTimes.get().getSet() : sunTimes.get().getRise();
+
+                            log(Level.INFO, "Rule condition sun position has triggered at: " + timerService.getCurrentTimeMillis());
+
+                            if (nextOccurrence == null) {
+                                log(Level.WARNING, "Rule condition requested sun position never occurs at the specified location: " + ruleCondition.sun);
+                            } else {
+                                long nextMillis = nextOccurrence.toInstant().toEpochMilli() + offsetMillis;
+                                log(Level.FINE, "Rule condition sun position next trigger time = " + nextMillis);
+                                nextExecuteMillis.set(nextMillis);
+                            }
+                            return true;
+                        }
+                        return false;
+                    };
+                } catch (Exception e) {
+                    log(Level.SEVERE, "Failed to parse rule condition duration expression: " + ruleCondition.duration, e);
                     throw e;
                 }
             } else if (ruleCondition.assets != null) {
@@ -263,7 +317,19 @@ public class JsonRulesBuilder extends RulesBuilder {
             // Remove previous matches where the asset state no longer matches
             previouslyMatchedAssetStates.removeIf(previousAssetState -> {
 
-                boolean noLongerMatches = !matchedAssetStates.contains(previousAssetState);
+                Optional<AssetState<?>> matched = matchedAssetStates.stream()
+                    .filter(matchedAssetState -> Objects.equals(previousAssetState, matchedAssetState))
+                    .findFirst();
+
+                boolean noLongerMatches = !matched.isPresent();
+
+                if (!noLongerMatches) {
+                    noLongerMatches = matched.map(matchedAssetState -> {
+                        // If reset immediate meta item is set then remove previous state if timestamp is greater
+                        boolean resetImmediately = matchedAssetState.getMeta().getValue(MetaItemType.RULE_RESET_IMMEDIATE).orElse(false);
+                        return resetImmediately && matchedAssetState.getTimestamp() > previousAssetState.getTimestamp();
+                    }).orElse(false);
+                }
 
                 if (noLongerMatches) {
                     log(Level.FINER, "Rule trigger previously matched asset state no longer matches so resetting: " + previousAssetState);
@@ -401,7 +467,7 @@ public class JsonRulesBuilder extends RulesBuilder {
         }
 
         public boolean thenMatched() {
-            return thenMatchedAssetIds != null && !thenMatchedAssetIds.isEmpty();
+            return (thenMatchedAssetIds != null && !thenMatchedAssetIds.isEmpty()) || !otherwiseMatched();
         }
 
         public boolean otherwiseMatched() {
@@ -432,7 +498,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 thenMatchedAssetIds.addAll(ruleConditionGroup.getItems().stream()
                     .map(ruleCondition -> conditionStateMap.get(ruleCondition.tag))
                     .filter(ruleConditionState -> ruleConditionState.lastEvaluationResult != null && ruleConditionState.lastEvaluationResult.matches)
-                    .map(RuleConditionState::getMatchedAssetIds)//Get all unmatched assetIds
+                    .map(RuleConditionState::getMatchedAssetIds)//Get all matched assetIds
                     .flatMap(Collection::stream)
                     .collect(Collectors.toSet()));
 
@@ -474,6 +540,7 @@ public class JsonRulesBuilder extends RulesBuilder {
     public static final String PLACEHOLDER_RULESET_ID = "%RULESET_ID%";
     public static final String PLACEHOLDER_RULESET_NAME = "%RULESET_NAME%";
     public static final String PLACEHOLDER_TRIGGER_ASSETS = "%TRIGGER_ASSETS%";
+    final static String TIMER_TEMPORAL_FACT_NAME_PREFIX = "TimerTemporalFact-";
     final static String LOG_PREFIX = "JSON Rules: ";
     final protected AssetStorageService assetStorageService;
     final protected TimerService timerService;
@@ -486,6 +553,7 @@ public class JsonRulesBuilder extends RulesBuilder {
     final protected BiConsumer<Runnable, Long> scheduledActionConsumer;
     final protected Map<String, RuleState> ruleStateMap = new HashMap<>();
     final protected JsonRule[] jsonRules;
+    final protected Ruleset jsonRuleset;
 
     public JsonRulesBuilder(Ruleset ruleset, TimerService timerService,
                             AssetStorageService assetStorageService, ScheduledExecutorService executorService,
@@ -502,11 +570,12 @@ public class JsonRulesBuilder extends RulesBuilder {
         this.predictedDatapointsFacade = predictedDatapoints;
         this.scheduledActionConsumer = scheduledActionConsumer;
 
+        jsonRuleset = ruleset;
         String rulesStr = ruleset.getRules();
         rulesStr = rulesStr.replace(PLACEHOLDER_RULESET_ID, Long.toString(ruleset.getId()));
         rulesStr = rulesStr.replace(PLACEHOLDER_RULESET_NAME, ruleset.getName());
 
-        JsonRulesetDefinition jsonRulesetDefinition = Values.parse(rulesStr, JsonRulesetDefinition.class).orElse(null);
+        JsonRulesetDefinition jsonRulesetDefinition = ValueUtil.parse(rulesStr, JsonRulesetDefinition.class).orElse(null);
 
         if (jsonRulesetDefinition == null || jsonRulesetDefinition.rules == null || jsonRulesetDefinition.rules.length == 0) {
             throw new IllegalArgumentException("No rules within ruleset so nothing to start: " + ruleset);
@@ -522,14 +591,28 @@ public class JsonRulesBuilder extends RulesBuilder {
     public void stop(RulesFacts facts) {
         Arrays.stream(jsonRules).forEach(jsonRule ->
             executeRuleActions(jsonRule, jsonRule.onStop, "onStop", false, facts, null, assetsFacade, usersFacade, notificationsFacade, predictedDatapointsFacade, this.scheduledActionConsumer));
+
+        // Remove temporal fact for timer rule evaluation
+        String tempFactName = TIMER_TEMPORAL_FACT_NAME_PREFIX + jsonRuleset.getId();
+        facts.remove(tempFactName);
     }
 
     public void start(RulesFacts facts) {
-        Arrays.stream(jsonRules).forEach(jsonRule ->
-            executeRuleActions(jsonRule, jsonRule.onStart, "onStart", false, facts, null, assetsFacade, usersFacade, notificationsFacade, predictedDatapointsFacade, this.scheduledActionConsumer));
+        AtomicBoolean hasTimeTrigger = new AtomicBoolean(false);
+
+        Arrays.stream(jsonRules).forEach(jsonRule -> {
+            hasTimeTrigger.set(hasTimeTrigger.get() || LogicGroup.getItemsRecursive(jsonRule.when).stream().anyMatch(RuleCondition::hasTimeTrigger));
+            executeRuleActions(jsonRule, jsonRule.onStart, "onStart", false, facts, null, assetsFacade, usersFacade, notificationsFacade, predictedDatapointsFacade, this.scheduledActionConsumer);
+        });
 
         // Initialise asset states
         onAssetStatesChanged(facts, null);
+
+        // Insert a temporal fact if we have a time trigger (this will cause the engine to fire periodically)
+        if (hasTimeTrigger.get()) {
+            String tempFactName = TIMER_TEMPORAL_FACT_NAME_PREFIX + jsonRuleset.getId();
+            facts.putTemporary(tempFactName, Long.MAX_VALUE - timerService.getCurrentTimeMillis() - 5000, ""); // current time + expiration shouldn't overflow
+        }
     }
 
     public void onAssetStatesChanged(RulesFacts facts, RulesEngine.AssetStateChangeEvent event) {
@@ -556,19 +639,7 @@ public class JsonRulesBuilder extends RulesBuilder {
         add().name(rule.name)
                 .description(rule.description)
                 .priority(rule.priority)
-                .when(facts -> {
-                    Object result;
-                    try {
-                        result = condition.evaluate(facts);
-                    } catch (Exception ex) {
-                        throw new RuntimeException("Error evaluating condition of rule '" + rule.name + "': " + ex.getMessage(), ex);
-                    }
-                    if (result instanceof Boolean) {
-                        return result;
-                    } else {
-                        throw new IllegalArgumentException("Error evaluating condition of rule '" + rule.name + "': result is not boolean but " + result);
-                    }
-                })
+                .when(condition::evaluate)
                 .then(action);
 
         return this;
@@ -712,8 +783,7 @@ public class JsonRulesBuilder extends RulesBuilder {
 
     protected static RuleActionExecution buildRuleActionExecution(JsonRule rule, RuleAction ruleAction, String actionsName, int index, boolean useUnmatched, RulesFacts facts, RuleState ruleState, Assets assetsFacade, Users usersFacade, Notifications notificationsFacade, PredictedDatapoints predictedDatapointsFacade) {
 
-        if (ruleAction instanceof RuleActionNotification) {
-            RuleActionNotification notificationAction = (RuleActionNotification) ruleAction;
+        if (ruleAction instanceof RuleActionNotification notificationAction) {
 
             if (notificationAction.notification != null) {
 
@@ -739,7 +809,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                     if (!TextUtil.isNullOrEmpty(body)) {
                         if (body.contains(PLACEHOLDER_TRIGGER_ASSETS)) {
                             // Need to clone the notification
-                            notification = Values.clone(notification);
+                            notification = ValueUtil.clone(notification);
                             String triggeredAssetInfo = buildTriggeredAssetInfo(useUnmatched, ruleState, isHtml);
                             body = body.replace(PLACEHOLDER_TRIGGER_ASSETS, triggeredAssetInfo);
 
@@ -766,6 +836,8 @@ public class JsonRulesBuilder extends RulesBuilder {
                         && ruleAction.target.assets == null
                         && ruleAction.target.matchedAssets == null) {
                         targetType = Notification.TargetType.USER;
+                    } else if (ruleAction.target.linkedUsers != null && ruleAction.target.linkedUsers) {
+                        targetType = Notification.TargetType.USER;
                     } else if (ruleAction.target.custom != null
                         && ruleAction.target.conditionAssets == null
                         && ruleAction.target.assets == null
@@ -789,13 +861,11 @@ public class JsonRulesBuilder extends RulesBuilder {
             }
         }
 
-        if (ruleAction instanceof RuleActionWriteAttribute) {
+        if (ruleAction instanceof RuleActionWriteAttribute attributeAction) {
 
             if (targetIsNotAssets(ruleAction.target)) {
                 return null;
             }
-
-            RuleActionWriteAttribute attributeAction = (RuleActionWriteAttribute) ruleAction;
 
             if (TextUtil.isNullOrEmpty(attributeAction.attributeName)) {
                 log(Level.WARNING, "Attribute name is missing for rule action: " + rule.name + " '" + actionsName + "' action index " + index);
@@ -805,7 +875,7 @@ public class JsonRulesBuilder extends RulesBuilder {
             Collection<String> ids = getRuleActionTargetIds(ruleAction.target, useUnmatched, ruleState, assetsFacade, usersFacade, facts);
 
             if (ids == null || ids.isEmpty()) {
-                log(Level.FINEST, "No targets for write attribute rule action so skipping: " + rule.name + " '" + actionsName + "' action index " + index);
+                log(Level.INFO, "No targets for write attribute rule action so skipping: " + rule.name + " '" + actionsName + "' action index " + index);
                 return null;
             }
 
@@ -823,14 +893,12 @@ public class JsonRulesBuilder extends RulesBuilder {
             log(Level.FINEST, "Invalid delay for wait rule action so skipping: " + rule.name + " '" + actionsName + "' action index " + index);
         }
 
-        if (ruleAction instanceof RuleActionUpdateAttribute) {
+        if (ruleAction instanceof RuleActionUpdateAttribute attributeUpdateAction) {
 
             if (targetIsNotAssets(ruleAction.target)) {
                 log(Level.FINEST, "Invalid target update attribute rule action so skipping: " + rule.name + " '" + actionsName + "' action index " + index);
                 return null;
             }
-
-            RuleActionUpdateAttribute attributeUpdateAction = (RuleActionUpdateAttribute) ruleAction;
 
             if (TextUtil.isNullOrEmpty(attributeUpdateAction.attributeName)) {
                 log(Level.WARNING, "Attribute name is missing for rule action: " + rule.name + " '" + actionsName + "' action index " + index);
@@ -840,7 +908,7 @@ public class JsonRulesBuilder extends RulesBuilder {
             List<String> matchingAssetIds;
 
             if (ruleAction.target == null || ruleAction.target.assets == null) {
-                if (ruleAction.target != null && ruleAction.target.users != null) {
+                if (targetIsNotAssets(ruleAction.target)) {
                     throw new IllegalStateException("Cannot use action type '" + RuleActionUpdateAttribute.class.getSimpleName() + "' with user target");
                 }
                 matchingAssetIds = new ArrayList<>(getRuleActionTargetIds(ruleAction.target, useUnmatched, ruleState, assetsFacade, usersFacade, facts));
@@ -853,7 +921,7 @@ public class JsonRulesBuilder extends RulesBuilder {
             }
 
             if (matchingAssetIds.isEmpty()) {
-                log(Level.WARNING, "No assets matched to apply update attribute action to");
+                log(Level.INFO, "No targets for update attribute rule action so skipping: " + rule.name + " '" + actionsName + "' action index " + index);
                 return null;
             }
 
@@ -881,42 +949,42 @@ public class JsonRulesBuilder extends RulesBuilder {
                 matchingAssetStates.forEach(assetState -> {
                     Object value = assetState.getValue().orElse(null);
                     Class<?> valueType = assetState.getType().getType();
-                    boolean isArray = Values.isArray(valueType);
+                    boolean isArray = ValueUtil.isArray(valueType);
 
-                    if (!isArray && !Values.isObject(valueType)) {
+                    if (!isArray && !ValueUtil.isObject(valueType)) {
                         log(Level.WARNING, "Rule action target asset cannot determine value type or incompatible value type for attribute: " + assetState);
                     } else {
 
                         // Convert value to JSON Node to easily manipulate it
-                        value = isArray ? Values.convert(value, ArrayNode.class) : Values.convert(value, ObjectNode.class);
+                        value = isArray ? ValueUtil.convert(value, ArrayNode.class) : ValueUtil.convert(value, ObjectNode.class);
 
                         switch (attributeUpdateAction.updateAction) {
                             case ADD:
                                 if (isArray) {
-                                    value = value == null ? Values.JSON.createArrayNode() : value;
-                                    ((ArrayNode)value).add(Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                    value = value == null ? ValueUtil.JSON.createArrayNode() : value;
+                                    ((ArrayNode)value).add(ValueUtil.convert(attributeUpdateAction.value, JsonNode.class));
                                 } else {
-                                    value = value == null ? Values.JSON.createObjectNode() : value;
-                                    ((ObjectNode) value).set(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                    value = value == null ? ValueUtil.JSON.createObjectNode() : value;
+                                    ((ObjectNode) value).set(attributeUpdateAction.key, ValueUtil.convert(attributeUpdateAction.value, JsonNode.class));
                                 }
                                 break;
                             case ADD_OR_REPLACE:
                             case REPLACE:
                                 if (isArray) {
-                                    value = value == null ? Values.JSON.createArrayNode() : value;
+                                    value = value == null ? ValueUtil.JSON.createArrayNode() : value;
                                     ArrayNode arrayValue = (ArrayNode) value;
 
                                     if (attributeUpdateAction.index != null && arrayValue.size() >= attributeUpdateAction.index) {
-                                        arrayValue.set(attributeUpdateAction.index, Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                        arrayValue.set(attributeUpdateAction.index, ValueUtil.convert(attributeUpdateAction.value, JsonNode.class));
                                     } else {
-                                        arrayValue.add(Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                        arrayValue.add(ValueUtil.convert(attributeUpdateAction.value, JsonNode.class));
                                     }
                                 } else {
-                                    value = value == null ? Values.JSON.createObjectNode() : value;
+                                    value = value == null ? ValueUtil.JSON.createObjectNode() : value;
                                     if (!TextUtil.isNullOrEmpty(attributeUpdateAction.key)) {
-                                        ((ObjectNode) value).set(attributeUpdateAction.key, Values.convert(attributeUpdateAction.value, JsonNode.class));
+                                        ((ObjectNode) value).set(attributeUpdateAction.key, ValueUtil.convert(attributeUpdateAction.value, JsonNode.class));
                                     } else {
-                                        log(Level.WARNING, "JSON Rule: Rule action missing required 'key': " + Values.asJSON(attributeUpdateAction));
+                                        log(Level.WARNING, "JSON Rule: Rule action missing required 'key': " + ValueUtil.asJSON(attributeUpdateAction));
                                     }
                                 }
                                 break;
@@ -931,9 +999,9 @@ public class JsonRulesBuilder extends RulesBuilder {
                                 break;
                             case CLEAR:
                                 if (isArray) {
-                                    value = Values.JSON.createArrayNode();
+                                    value = ValueUtil.JSON.createArrayNode();
                                 } else {
-                                    value = Values.JSON.createObjectNode();
+                                    value = ValueUtil.JSON.createObjectNode();
                                 }
                                 break;
                         }
@@ -981,7 +1049,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("</td><td>");
                 sb.append(assetState.getName());
                 sb.append("</td><td>");
-                sb.append(assetState.getValue().flatMap(Values::asJSON).orElse(""));
+                sb.append(assetState.getValue().flatMap(ValueUtil::asJSON).orElse(""));
                 sb.append("</td></tr>");
             }));
             sb.append("</table>");
@@ -994,7 +1062,7 @@ public class JsonRulesBuilder extends RulesBuilder {
                 sb.append("\t\t");
                 sb.append(assetState.getName());
                 sb.append("\t\t");
-                sb.append(assetState.getValue().map(v -> Values.convert(v, String.class)).orElse(""));
+                sb.append(assetState.getValue().map(v -> ValueUtil.convert(v, String.class)).orElse(""));
             }));
         }
 
@@ -1015,17 +1083,22 @@ public class JsonRulesBuilder extends RulesBuilder {
                 return triggerState != null ? triggerState.getUnmatchedAssetIds() : Collections.emptyList();
             }
 
-            if (conditionStateMap != null && target.matchedAssets != null) {
+            if (conditionStateMap != null && (target.matchedAssets != null || (target.linkedUsers != null && target.linkedUsers))) {
                 List<String> compareAssetIds = conditionStateMap.values().stream()
                     .flatMap(triggerState ->
-                        useUnmatched ? triggerState.getUnmatchedAssetIds().stream() : triggerState.getMatchedAssetIds().stream())
-                    .collect(Collectors.toList());
+                        useUnmatched ? triggerState.getUnmatchedAssetIds().stream() : triggerState.getMatchedAssetIds().stream()).toList();
 
-                return facts.matchAssetState(target.matchedAssets)
-                    .map(AssetState::getId)
-                    .distinct()
-                    .filter(compareAssetIds::contains)
-                    .collect(Collectors.toList());
+                if (target.matchedAssets != null) {
+                    return facts.matchAssetState(target.matchedAssets)
+                        .map(AssetState::getId)
+                        .distinct()
+                        .filter(compareAssetIds::contains)
+                        .collect(Collectors.toList());
+                }
+
+                // Find linked users
+                return compareAssetIds.stream().flatMap(assetId ->
+                    usersFacade.getResults(new UserQuery().asset(new UserAssetPredicate(assetId)))).collect(Collectors.toList());
             }
 
             if (target.assets != null) {
@@ -1057,7 +1130,7 @@ public class JsonRulesBuilder extends RulesBuilder {
     }
 
     protected static boolean targetIsNotAssets(RuleActionTarget target) {
-        return target != null && target.users != null;
+        return target != null && (target.users != null || (target.linkedUsers != null && target.linkedUsers));
     }
 
     protected static void log(Level level, String message) {
@@ -1066,5 +1139,42 @@ public class JsonRulesBuilder extends RulesBuilder {
 
     protected static void log(Level level, String message, Throwable t) {
         RulesEngine.RULES_LOG.log(level, LOG_PREFIX + message, t);
+    }
+
+    protected static SunTimes.Parameters getSunCalculator(SunPositionTrigger sunPositionTrigger, TimerService timerService) throws IllegalStateException {
+        SunPositionTrigger.Position  position = sunPositionTrigger.getPosition();
+        GeoJSONPoint location = sunPositionTrigger.getLocation();
+
+        if (position == null) {
+            IllegalStateException e = new IllegalStateException("Rule condition sun requires a position value");
+            log(Level.SEVERE, e.getMessage(), e);
+            throw e;
+        }
+        if (location == null) {
+            IllegalStateException e = new IllegalStateException("Rule condition sun requires a location value");
+            log(Level.SEVERE, e.getMessage(), e);
+            throw e;
+        }
+
+        SunTimes.Twilight twilight = null;
+        if (position.name().startsWith(SunPositionTrigger.TWILIGHT_PREFIX)) {
+            String lookupValue = position.name().replace(SunPositionTrigger.MORNING_TWILIGHT_PREFIX, "").replace(SunPositionTrigger.EVENING_TWILIGHT_PREFIX, "").replace(SunPositionTrigger.TWILIGHT_PREFIX, "");
+            twilight = EnumUtil.enumFromString(SunTimes.Twilight.class, lookupValue).orElseThrow(() -> {
+                IllegalStateException e = new IllegalStateException("Rule condition un-supported twilight position value '" + lookupValue + "'");
+                log(Level.SEVERE, e.getMessage(), e);
+                return e;
+            });
+        }
+
+        SunTimes.Parameters sunCalculator = SunTimes.compute()
+                .on(timerService.getNow())
+                .utc()
+                .at(location.getX(), location.getY());
+
+        if (twilight != null) {
+            sunCalculator.twilight(twilight);
+        }
+
+        return sunCalculator;
     }
 }

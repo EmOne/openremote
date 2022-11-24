@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src"
   },
   "include": [
@@ -13,15 +12,13 @@
     { "path": "../rest" },
     { "path": "../model" },
     { "path": "../or-chart" },
-    { "path": "../or-panel" },
-    { "path": "../or-table" },
+    { "path": "../or-components" },
     { "path": "../or-translate" },
     { "path": "../or-icon" },
     { "path": "../or-map" },
-    { "path": "../or-survey" },
-    { "path": "../or-survey-results" },
     { "path": "../or-attribute-input" },
     { "path": "../or-attribute-history" },
-    { "path": "../or-mwc-components" }
+    { "path": "../or-mwc-components" },
+    { "path": "../or-json-forms" }
   ]
 }

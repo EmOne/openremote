@@ -1,7 +1,7 @@
-import {css, customElement, html, property} from "lit-element";
-import {AppStateKeyed} from "@openremote/or-app/dist/app";
-import {Page, PageProvider} from "@openremote/or-app/dist/types";
-import {EnhancedStore} from "@reduxjs/toolkit";
+import {css, html} from "lit";
+import {customElement, property} from "lit/decorators.js";
+import {Page, PageProvider, AppStateKeyed} from "@openremote/or-app";
+import {Store} from "@reduxjs/toolkit";
 import manager from "@openremote/core";
 
 export interface ConsoleProvider {
@@ -22,7 +22,7 @@ export interface OnboardingConfig {
     redirect: string;
 }
 
-export function pageMobileOnboardingProvider<S extends AppStateKeyed>(store: EnhancedStore<S>, config?: OnboardingConfig): PageProvider<S> {
+export function pageMobileOnboardingProvider(store: Store<AppStateKeyed>, config?: OnboardingConfig): PageProvider<AppStateKeyed> {
     return {
         name: "onboarding",
         routes: [
@@ -37,7 +37,7 @@ export function pageMobileOnboardingProvider<S extends AppStateKeyed>(store: Enh
 }
 
 @customElement("page-mobile-onboarding")
-class PageMobileOnboarding<S extends AppStateKeyed> extends Page<S> {
+export class PageMobileOnboarding extends Page<AppStateKeyed> {
 
     static get styles() {
         // language=CSS
@@ -92,7 +92,7 @@ class PageMobileOnboarding<S extends AppStateKeyed> extends Page<S> {
         return "mobile-onboarding";
     }
 
-    constructor(store: EnhancedStore<S>) {
+    constructor(store: Store<AppStateKeyed>) {
         super(store);
     }
 
@@ -105,7 +105,7 @@ class PageMobileOnboarding<S extends AppStateKeyed> extends Page<S> {
         }
     }
 
-    public stateChanged(state: S) {
+    public stateChanged(state: AppStateKeyed) {
     }
 
     @property()

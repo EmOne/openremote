@@ -1,14 +1,15 @@
-import {css, customElement, html, property, PropertyValues, TemplateResult, unsafeCSS} from "lit-element";
+import {css, html, PropertyValues, TemplateResult, unsafeCSS} from "lit";
+import {customElement, property, state} from "lit/decorators.js";
 import i18next from "i18next";
-import "@openremote/or-panel";
-import {ConnectionStatus, GatewayConnection, GatewayConnectionStatusEvent} from "@openremote/model";
+import "@openremote/or-components/or-panel";
+import {ClientRole, ConnectionStatus, GatewayConnection, GatewayConnectionStatusEvent} from "@openremote/model";
 import manager, {DefaultColor1, OREvent} from "@openremote/core";
 import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import {Page, PageProvider} from "@openremote/or-app";
 import {AppStateKeyed} from "@openremote/or-app";
-import {EnhancedStore} from "@reduxjs/toolkit";
+import {Store} from "@reduxjs/toolkit";
 
-export function pageGatewayProvider<S extends AppStateKeyed>(store: EnhancedStore<S>): PageProvider<S> {
+export function pageGatewayProvider(store: Store<AppStateKeyed>): PageProvider<AppStateKeyed> {
     return {
         name: "gateway",
         routes: [
@@ -21,7 +22,7 @@ export function pageGatewayProvider<S extends AppStateKeyed>(store: EnhancedStor
 }
 
 @customElement("page-gateway")
-class PageGateway<S extends AppStateKeyed> extends Page<S>  {
+export class PageGateway extends Page<AppStateKeyed>  {
 
     static get styles() {
         // language=CSS
@@ -110,16 +111,16 @@ class PageGateway<S extends AppStateKeyed> extends Page<S>  {
         `;
     }
 
-    @property()
-    public realm?: string;
+    @state()
+    protected realm?: string;
 
-    @property()
+    @state()
     protected _loading = true;
 
-    @property()
+    @state()
     protected _connection?: GatewayConnection;
 
-    @property()
+    @state()
     protected _connectionStatus?: ConnectionStatus;
 
     @property()
@@ -128,33 +129,23 @@ class PageGateway<S extends AppStateKeyed> extends Page<S>  {
     protected _readonly = false;
     protected _eventSubscriptionId?: string;
 
-    protected _onManagerEvent = (event: OREvent) => {
-        switch (event) {
-            case OREvent.DISPLAY_REALM_CHANGED:
-                this.realm = manager.displayRealm;
-                break;
-        }
-    };
-
     get name(): string {
         return "gatewayConnection";
     }
 
-    constructor(store: EnhancedStore<S>) {
+    constructor(store: Store<AppStateKeyed>) {
         super(store);
     }
 
     connectedCallback() {
         super.connectedCallback();
-        this._readonly = !manager.hasRole("write:admin");
-        manager.addListener(this._onManagerEvent)
+        this._readonly = !manager.hasRole(ClientRole.WRITE_ADMIN);
         this._subscribeEvents();
     }
 
     disconnectedCallback(): void {
         super.disconnectedCallback();
         this._unsubscribeEvents();
-        manager.removeListener(this._onManagerEvent);
     }
 
     public shouldUpdate(_changedProperties: PropertyValues): boolean {
@@ -205,7 +196,8 @@ class PageGateway<S extends AppStateKeyed> extends Page<S>  {
         `;
     }
 
-    public stateChanged(state: S) {
+    public stateChanged(state: AppStateKeyed) {
+        this.realm = state.app.realm;
     }
 
     protected async _subscribeEvents() {

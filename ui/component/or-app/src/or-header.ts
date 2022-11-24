@@ -1,21 +1,22 @@
-import {css, customElement, html, LitElement, property, PropertyValues, query, TemplateResult, unsafeCSS} from "lit-element";
-import {until} from "lit-html/directives/until";
+import {css, html, LitElement, PropertyValues, TemplateResult, unsafeCSS} from "lit";
+import {customElement, property, query, state} from "lit/decorators.js";
 import manager, {
-    Util,
     DefaultBoxShadowBottom,
     DefaultColor1,
     DefaultColor2,
     DefaultColor3,
     DefaultColor4,
     DefaultColor5,
-    DefaultHeaderHeight
+    DefaultHeaderHeight,
+    Util
 } from "@openremote/core";
 import "@openremote/or-mwc-components/or-mwc-dialog";
 import "@openremote/or-icon";
 import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
 import {ListItem} from "@openremote/or-mwc-components/or-mwc-list";
-import {Tenant} from "@openremote/model";
-import {router} from "./index";
+import {Realm} from "@openremote/model";
+import {AppStateKeyed, router, updateRealm} from "./index";
+import {AnyAction, Store} from "@reduxjs/toolkit";
 
 export interface HeaderConfig {
     mainMenu: HeaderItem[];
@@ -39,9 +40,12 @@ export interface Languages {
 
 export const DEFAULT_LANGUAGES: Languages = {
     en: "english",
+    cn: "chinese",
     nl: "dutch",
     fr: "french",
     de: "german",
+    it: "italian",
+    pt: "portuguese",
     es: "spanish"
 };
 
@@ -72,13 +76,14 @@ function hasRequiredRole(option: HeaderItem): boolean {
     return Object.entries(option.roles).some(([client, roles]) => roles.some((r: string) => manager.hasRole(r, client)));
 }
 
+
 function getCurrentMenuItemRef(defaultRef?: string): string | undefined {
- 	const menu = window.location.hash.split("/")[0].substr(2);
+    const menu = window.location.hash.substr(2).split("/")[0];
 	return menu || defaultRef;
 }
 
 @customElement("or-header")
-class OrHeader extends LitElement {
+export class OrHeader extends LitElement {
 
     // language=CSS
     static get styles() {
@@ -98,7 +103,7 @@ class OrHeader extends LitElement {
                 --internal-or-header-drawer-separator-color: var(--or-header-drawer-separator-color, var(--or-app-color5, ${unsafeCSS(DefaultColor5)}));
                 
                 display: block;
-                z-index: 99999;
+                z-index: 4;
             }
               
             #toolbar-top {
@@ -172,7 +177,17 @@ class OrHeader extends LitElement {
             }
             
             #menu-btn-mobile {
+                display: flex;
                 margin-left: auto;
+                --or-icon-height: calc(var(--internal-or-header-item-size) - 8px);
+                --or-icon-width: calc(var(--internal-or-header-item-size) - 8px);
+            }
+
+            #menu-btn-mobile #realm-picker > span{
+                max-width: 70px;
+                text-overflow: ellipsis;
+                overflow: hidden;
+                white-space: nowrap;
             }
     
             #menu-btn-desktop {
@@ -185,7 +200,7 @@ class OrHeader extends LitElement {
                 display: none;
             }
     
-            #mobile-bottom {
+            .mobile-bottom-border {
                 border-top: 1px solid var(--internal-or-header-drawer-separator-color);
                 margin-top: 16px;
                 padding-top: 8px;
@@ -256,9 +271,9 @@ class OrHeader extends LitElement {
                 margin-right: 2px;
             }
           
-            /* Wide layout: when the viewport width is bigger than 780px, layout
+            /* Wide layout: when the viewport width is bigger than 768px, layout
             changes to a wide layout. */
-            @media (min-width: 780px) {
+            @media (min-width: 768px) {
                 #menu-btn-desktop {
                     display: block;
                 }          
@@ -298,14 +313,6 @@ class OrHeader extends LitElement {
                     display: none;
                 }
                 
-                #drawer {
-                    display: none;
-                }
-                
-                #desktop-right {
-                    display: flex;
-                }
-                
                 #desktop-left ::slotted(*) {
                     display: inline-block;
                 }
@@ -326,6 +333,15 @@ class OrHeader extends LitElement {
     `;
     }
 
+    @property({type: Array})
+    public realms!: Realm[];
+
+    @property({type: String})
+    public realm!: string;
+
+    @property({type: Object})
+    public store!: Store<AppStateKeyed, AnyAction>;
+
     @property({type: String})
     public logo?: string;
 
@@ -338,38 +354,14 @@ class OrHeader extends LitElement {
     @query("div[id=mobile-bottom]")
     protected _mobileBottomDiv!: HTMLDivElement;
 
-    protected _tenants?: Tenant[];
+    @property()
+    public activeMenu: string | undefined;
 
-    @property({type: Boolean})
+    @state()
     private _drawerOpened = false;
 
-    @property({ type: String })
-    private activeMenu: string | undefined;
-
-    public connectedCallback(): void {
-        super.connectedCallback();
-        window.addEventListener("hashchange", this._hashCallback, false);
-        const realm = window.sessionStorage.getItem('realm');
-        if (realm) manager.displayRealm = realm;
-    }
-
-    public disconnectedCallback(): void {
-        super.disconnectedCallback();
-        window.removeEventListener("hashchange", this._hashCallback);
-    }
-
-    public _onHashChanged(e: Event) {
-        const menu = getCurrentMenuItemRef(this.config && this.config.mainMenu?.length > 0 ? this.config.mainMenu[0].href : undefined);
-        this.activeMenu = menu;
-    }
-
     public _onRealmSelect(realm: string) {
-        manager.displayRealm = realm;
-        window.sessionStorage.setItem('realm', realm);
-        this.requestUpdate();
-    }
-    protected _hashCallback = (e: Event) => {
-        this._onHashChanged(e);
+        this.store.dispatch(updateRealm(realm));
     }
 
     protected shouldUpdate(changedProperties: PropertyValues): boolean {
@@ -381,8 +373,12 @@ class OrHeader extends LitElement {
 
     protected render() {
 
-        const mainItems = this.config ? this.config.mainMenu : undefined;
-        const secondaryItems = this.config ? this.config.secondaryMenu : undefined;
+        if (!this.config) {
+            return html``;
+        }
+
+        const mainItems = this.config.mainMenu;
+        const secondaryItems = this.config.secondaryMenu;
 
         return html`
            <!-- Header -->
@@ -407,9 +403,10 @@ class OrHeader extends LitElement {
                         `,
                         getHeaderMenuItems(secondaryItems),
                         undefined,
-                        (values: string | string[]) => this._onSecondaryMenuSelect(values as string)) : ``}
+                        (value) => this._onSecondaryMenuSelect(value as string)) : ``}
                     </div>
                     <div id="menu-btn-mobile">
+                        ${this._getRealmMenu((value: string) => this._onRealmSelect(value))}
                         <button id="menu-btn" class="menu-btn" title="Menu" @click="${this._toggleDrawer}"><or-icon icon="${this._drawerOpened ? "close" : "menu"}"></or-icon></button>
                     </div>
                 </div>
@@ -427,56 +424,49 @@ class OrHeader extends LitElement {
                     </div>
                     
                     ${secondaryItems ? html`
-                        <div id="mobile-bottom">
-                                ${secondaryItems.filter((option) => !option.hideMobile && hasRequiredRole(option)).map((headerItem) => {
-                                    return html`
-                                        <a class="menu-item" @click="${(e: MouseEvent) => this._onHeaderItemSelect(headerItem)}" ?selected="${this.activeMenu === headerItem.href}"><or-icon icon="${headerItem.icon}"></or-icon><or-translate value="${headerItem.text}"></or-translate></a>
-                                    `;
-                                })}
+                        <div id="mobile-bottom" class="${mainItems.length > 0 ? 'mobile-bottom-border' : ''}">
+                            ${secondaryItems.filter((option) => !option.hideMobile && hasRequiredRole(option)).map((headerItem) => {
+                                return html`
+                                    <a class="menu-item" @click="${(e: MouseEvent) => this._onHeaderItemSelect(headerItem)}" ?selected="${this.activeMenu === headerItem.href}"><or-icon icon="${headerItem.icon}"></or-icon><or-translate value="${headerItem.text}"></or-translate></a>
+                                `;
+                            })}
                         </div>` : ``}
                 </div>
             </div>
         `;
     }
 
-    protected _getRealmMenu(callback: (language: string) => void): TemplateResult {
-        if (!manager.isSuperUser()) {
-            return html``;
-        }
+    protected _getRealmMenu(callback: (realm: string) => void): TemplateResult {
 
-        const picker = this._getTenants().then((tenants) => {
+        const currentRealm = this.realms.find((t) => t.name === this.realm);
 
-            const menuItems = tenants.map((r) => {
+        let realmTemplate = html`
+            <div id="realm-picker">
+                ${this.realms.length > 1 ? html`
+                    <span>${currentRealm ? currentRealm.displayName : ""}</span>
+                    <or-icon icon="chevron-down"></or-icon>
+                ` : ``}
+            </div>
+        `;
+
+        if (manager.isSuperUser()) {
+            const menuItems = this.realms.map((r) => {
                 return {
                     text: r.displayName!,
-                    value: r.realm!
+                    value: r.name!
                 } as ListItem;
             });
 
-            return html`
-            ${getContentWithMenuTemplate(
-                html`
-                    <div id="realm-picker">
-                        <span>${tenants.find((t) => t.realm ===  manager.displayRealm)?.displayName}</span>
-                        <or-icon icon="chevron-down"></or-icon>
-                    </div>
-                `,
-                menuItems,
-                manager.displayRealm,
-                (values: string | string[]) => callback(values as string))}
-        `;
-        });
-
-        return html`${until(picker, html``)}`;
-    }
-
-    protected async _getTenants() {
-        if (!this._tenants) {
-            const response = await manager.rest.api.TenantResource.getAll();
-            this._tenants = response.data.filter(t => t.enabled);
+            realmTemplate = html`
+                ${getContentWithMenuTemplate(
+                        realmTemplate,
+                        menuItems,
+                        currentRealm ? currentRealm.name : undefined,
+                        (value) => callback(value as string))}
+            `;
         }
 
-        return this._tenants;
+        return realmTemplate;
     }
 
     protected _onSecondaryMenuSelect(value: string) {
@@ -490,7 +480,11 @@ class OrHeader extends LitElement {
         if (headerItem.action) {
             headerItem.action();
         } else if (headerItem.href) {
-            router.navigate(headerItem.href, !!headerItem.absolute);
+            if (headerItem.absolute) {
+                window.location.href = headerItem.href;
+            } else {
+                router.navigate(headerItem.href);
+            }
         }
     }
 

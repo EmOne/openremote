@@ -19,8 +19,15 @@
  */
 package org.openremote.model.asset;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.openremote.model.Constants;
 import org.openremote.model.attribute.AttributeRef;
+import org.openremote.model.attribute.AttributeState;
+import org.openremote.model.attribute.AttributeWriteResult;
 import org.openremote.model.http.RequestParams;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.util.TsIgnore;
@@ -28,7 +35,10 @@ import org.openremote.model.value.MetaItemType;
 
 import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Response;
 import java.util.List;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -46,19 +56,19 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
  * <li>
  * A <em>restricted</em> user is linked to a subset of assets within its authenticated realm and
  * may have roles that allow read and/or write access to some asset details (see
- * {@link org.openremote.model.asset.UserAsset}).
+ * {@link UserAssetLink}).
  * </li> </ul>
  * <p>
  * The only operations, always limited to linked assets, a restricted user is able to perform are:
  * <ul>
  * <li>{@link #getCurrentUserAssets}</li>
  * <li>{@link #queryAssets}</li>
- * <li>{@link #queryPublicAssets}</li>
  * <li>{@link #get}</li>
  * <li>{@link #update}</li>
  * <li>{@link #writeAttributeValue}</li>
  * </ul>
  */
+@Tag(name = "Asset")
 @Path("asset")
 public interface AssetResource {
 
@@ -103,13 +113,13 @@ public interface AssetResource {
     @Path("user/link")
     @Produces(APPLICATION_JSON)
     @RolesAllowed({Constants.READ_ASSETS_ROLE})
-    UserAsset[] getUserAssetLinks(@BeanParam RequestParams requestParams,
-                                  @QueryParam("realm") String realm,
-                                  @QueryParam("userId") String userId,
-                                  @QueryParam("assetId") String assetId);
+    UserAssetLink[] getUserAssetLinks(@BeanParam RequestParams requestParams,
+                                      @QueryParam("realm") String realm,
+                                      @QueryParam("userId") String userId,
+                                      @QueryParam("assetId") String assetId);
 
     /**
-     * Create a link between asset and user.
+     * Create all of the specified links; they must all be for the same realm and user.
      * <p>
      * If the authenticated user is the superuser, asset/user links in any realm can be created. Otherwise assets
      * must be in the same realm as the authenticated user. A 403 status is returned if a regular user tries to create
@@ -120,7 +130,7 @@ public interface AssetResource {
     @Path("user/link")
     @Consumes(APPLICATION_JSON)
     @RolesAllowed({Constants.WRITE_ASSETS_ROLE})
-    void createUserAsset(@BeanParam RequestParams requestParams, UserAsset userAsset);
+    void createUserAssetLinks(@BeanParam RequestParams requestParams, List<UserAssetLink> userAssets);
 
     /**
      * Delete a link between asset and user.
@@ -133,12 +143,34 @@ public interface AssetResource {
      * 400 status is returned if the user or asset or realm doesn't exist.
      */
     @DELETE
-    @Path("link/{realm}/{userId}/{assetId}")
+    @Path("user/link/{realm}/{userId}/{assetId}")
     @RolesAllowed({Constants.WRITE_ASSETS_ROLE})
-    void deleteUserAsset(@BeanParam RequestParams requestParams,
-                         @PathParam("realm") String realm,
-                         @PathParam("userId") String userId,
-                         @PathParam("assetId") String assetId);
+    void deleteUserAssetLink(@BeanParam RequestParams requestParams,
+                             @PathParam("realm") String realm,
+                             @PathParam("userId") String userId,
+                             @PathParam("assetId") String assetId);
+
+    /**
+     * Delete all of the specified links; they must all be for the same realm and user.
+     * <p>
+     * If the authenticated user is the superuser, asset/user links from any realm can be deleted. Otherwise assets
+     * must be in the same realm as the authenticated user. A 403 status is returned if a regular user tries to delete
+     * an asset/user link in a realm different than its authenticated realm, or if the user is restricted. A
+     * 400 status is returned if the user or asset or realm doesn't exist.
+     */
+    @POST
+    @Path("user/link/delete")
+    @Consumes(APPLICATION_JSON)
+    @RolesAllowed({Constants.WRITE_ASSETS_ROLE})
+    void deleteUserAssetLinks(@BeanParam RequestParams requestParams, List<UserAssetLink> userAssets);
+
+    @DELETE
+    @Path("user/link/{realm}/{userId}")
+    @Consumes(APPLICATION_JSON)
+    @RolesAllowed({Constants.WRITE_ASSETS_ROLE})
+    void deleteAllUserAssetLinks(@BeanParam RequestParams requestParams,
+                                 @PathParam("realm") String realm,
+                                 @PathParam("userId") String userId);
 
     /**
      * Retrieve the asset. Regular users can only access assets in their authenticated realm, the superuser can access
@@ -169,7 +201,7 @@ public interface AssetResource {
      * asset's parent doesn't exist. A 400 status is returned if a restricted user attempts to write private meta items
      * of any attributes. If a restricted user tries to write asset properties or dynamic attributes or
      * meta items of dynamic attributes which are not writable by a restricted user, such data is ignored. For more
-     * details on limitations of restricted users, see {@link UserAsset}.
+     * details on limitations of restricted users, see {@link UserAssetLink}.
      */
     @PUT
     @Path("{assetId}")
@@ -196,7 +228,18 @@ public interface AssetResource {
     @PUT
     @Path("{assetId}/attribute/{attributeName}")
     @Consumes(APPLICATION_JSON)
-    void writeAttributeValue(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @PathParam("attributeName") String attributeName, String valueStr);
+    @Produces(APPLICATION_JSON)
+    @Operation(description = "Write to a single attribute", responses = {
+        @ApiResponse(
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = AttributeWriteResult.class)))})
+    Response writeAttributeValue(@BeanParam RequestParams requestParams, @PathParam("assetId") String assetId, @PathParam("attributeName") String attributeName, Object value);
+
+    @PUT
+    @Consumes(APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @Path("attributes")
+    AttributeWriteResult[] writeAttributeValues(@BeanParam RequestParams requestParams, AttributeState[] attributeStates);
 
     /**
      * Creates an asset. The identifier value of the asset can be provided, it should be a globally unique string value,
@@ -235,27 +278,22 @@ public interface AssetResource {
     @Path("query")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-    @RolesAllowed({Constants.READ_ASSETS_ROLE})
     Asset<?>[] queryAssets(@BeanParam RequestParams requestParams, AssetQuery query);
 
     /**
-     * Retrieve public assets using an {@link AssetQuery}.
-     * <p>
-     * Allows un-authenticated 'public' users to query public assets for a realm.
+     * Change parent for a set of asset
      */
-    @POST
-    @Path("public/query")
+    @PUT
+    @Path("{parentAssetId}/child")
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-    Asset<?>[] queryPublicAssets(@BeanParam RequestParams requestParams, AssetQuery query);
+    void updateParent(@BeanParam RequestParams requestParams, @PathParam("parentAssetId") @NotNull(message = "Parent reference required") String parentId, @QueryParam("assetIds") @Size(min = 1, message = "At least one child to update parent reference") List<String> assetIds);
 
     /**
-     * Retrieve public assets using an {@link AssetQuery} as a JSON serialized query parameter.
-     * <p>
-     * Allows un-authenticated 'public' users to query public assets for a realm.
+     * Remove parent reference from each asset referenced in the query parameter assetIds
      */
-    @GET
-    @Path("public/query")
+    @DELETE
+    @Path("/parent")
     @Produces(APPLICATION_JSON)
-    Asset<?>[] getPublicAssets(@BeanParam RequestParams requestParams, @QueryParam("q") String q);
+    void updateNoneParent(@BeanParam RequestParams requestParams, @QueryParam("assetIds") @Size(min = 1, message = "At least one child to update parent reference") List<String> assetIds);
 }

@@ -19,6 +19,7 @@
  */
 package org.openremote.model.auth;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -27,7 +28,7 @@ import org.openremote.model.util.TextUtil;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import java.io.Serializable;
-import java.util.Collections;
+import java.util.*;
 
 import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 
@@ -45,6 +46,7 @@ public abstract class OAuthGrant implements Serializable {
     public static final String VALUE_KEY_SCOPE = "scope";
     protected String tokenEndpointUri;
     protected boolean basicAuthHeader;
+    protected Map<String, List<String>> additionalValueMap = null;
     @JsonProperty(VALUE_KEY_GRANT_TYPE)
     protected String grantType;
     @JsonProperty(VALUE_KEY_CLIENT_ID)
@@ -75,11 +77,24 @@ public abstract class OAuthGrant implements Serializable {
         if(!TextUtil.isNullOrEmpty(scope)) {
             valueMap.put(VALUE_KEY_SCOPE, Collections.singletonList(scope));
         }
+        if(additionalValueMap != null)
+            valueMap.putAll(additionalValueMap);
         return valueMap;
+    }
+
+    public void addFormParameter(String key, String value) {
+        if(additionalValueMap == null)
+            additionalValueMap = new HashMap<>();
+        additionalValueMap.put(key, Collections.singletonList(value));
     }
 
     public String getTokenEndpointUri() {
         return tokenEndpointUri;
+    }
+
+    public OAuthGrant setTokenEndpointUri(String tokenEndpointUri) {
+        this.tokenEndpointUri = tokenEndpointUri;
+        return this;
     }
 
     public String getGrantType() {
@@ -105,5 +120,30 @@ public abstract class OAuthGrant implements Serializable {
     public OAuthGrant setBasicAuthHeader(boolean basicAuthHeader) {
         this.basicAuthHeader = basicAuthHeader;
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        OAuthGrant grant = (OAuthGrant) o;
+        return basicAuthHeader == grant.basicAuthHeader && Objects.equals(tokenEndpointUri, grant.tokenEndpointUri) && Objects.equals(grantType, grant.grantType) && Objects.equals(clientId, grant.clientId) && Objects.equals(clientSecret, grant.clientSecret) && Objects.equals(scope, grant.scope);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(tokenEndpointUri, basicAuthHeader, grantType, clientId, clientSecret, scope);
+    }
+
+    @Override
+    public String toString() {
+        return OAuthGrant.class.getSimpleName() + "{" +
+            "tokenEndpointUri='" + tokenEndpointUri + '\'' +
+            ", basicAuthHeader=" + basicAuthHeader +
+            ", grantType='" + grantType + '\'' +
+            ", clientId='" + clientId + '\'' +
+            ", clientSecret='" + clientSecret + '\'' +
+            ", scope='" + scope + '\'' +
+            '}';
     }
 }

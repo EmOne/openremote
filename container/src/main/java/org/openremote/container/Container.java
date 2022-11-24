@@ -25,7 +25,7 @@ import org.openremote.container.concurrent.ContainerThreads;
 import org.openremote.container.util.LogUtil;
 import org.openremote.model.ContainerService;
 import org.openremote.model.util.TextUtil;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,7 +45,7 @@ import static org.openremote.container.util.MapAccess.getInteger;
  * manage the life cycle of these services.
  * <p>
  * Access environment configuration through {@link #getConfig()} and the helper methods
- * in {@link org.openremote.container.util.MapAccess}. Consider using {@link org.openremote.model.Container#DEV_MODE}
+ * in {@link org.openremote.container.util.MapAccess}. Consider using {@link org.openremote.model.Container#OR_DEV_MODE}
  * to distinguish between development and production environments.
  */
 public class Container implements org.openremote.model.Container {
@@ -74,8 +74,8 @@ public class Container implements org.openremote.model.Container {
 
     public static final Logger LOG;
     public static ScheduledExecutorService EXECUTOR_SERVICE;
-    public static final String SCHEDULED_TASKS_THREADS_MAX = "SCHEDULED_TASKS_THREADS_MAX";
-    public static final int SCHEDULED_TASKS_THREADS_MAX_DEFAULT = Math.max(Runtime.getRuntime().availableProcessors(), 2);
+    public static final String OR_SCHEDULED_TASKS_THREADS_MAX = "OR_SCHEDULED_TASKS_THREADS_MAX";
+    public static final int OR_SCHEDULED_TASKS_THREADS_MAX_DEFAULT = Math.max(Runtime.getRuntime().availableProcessors(), 2);
 
     static {
         LogUtil.configureLogging();
@@ -113,16 +113,16 @@ public class Container implements org.openremote.model.Container {
             }
         }
 
-        this.devMode = getBoolean(this.config, DEV_MODE, DEV_MODE_DEFAULT);
+        this.devMode = getBoolean(this.config, OR_DEV_MODE, OR_DEV_MODE_DEFAULT);
 
         if (this.devMode) {
-            Values.JSON.enable(SerializationFeature.INDENT_OUTPUT);
+            ValueUtil.JSON.enable(SerializationFeature.INDENT_OUTPUT);
         }
 
         int scheduledTasksThreadsMax = getInteger(
             getConfig(),
-            SCHEDULED_TASKS_THREADS_MAX,
-            SCHEDULED_TASKS_THREADS_MAX_DEFAULT);
+            OR_SCHEDULED_TASKS_THREADS_MAX,
+            OR_SCHEDULED_TASKS_THREADS_MAX_DEFAULT);
 
         EXECUTOR_SERVICE = new NoShutdownScheduledExecutorService("Scheduled task", scheduledTasksThreadsMax);
 

@@ -22,7 +22,7 @@ package org.openremote.manager.agent;
 import org.apache.camel.builder.RouteBuilder;
 import org.openremote.agent.protocol.ProtocolAssetService;
 import org.openremote.container.message.MessageBrokerService;
-import org.openremote.container.persistence.PersistenceEvent;
+import org.openremote.model.PersistenceEvent;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingException;
 import org.openremote.manager.asset.AssetProcessingService;
@@ -68,8 +68,8 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static org.openremote.container.concurrent.GlobalLock.withLock;
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
-import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_TOPIC;
-import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
+import static org.openremote.container.persistence.PersistenceService.PERSISTENCE_TOPIC;
+import static org.openremote.container.persistence.PersistenceService.isPersistenceEventForEntityType;
 import static org.openremote.manager.asset.AssetProcessingService.ASSET_QUEUE;
 import static org.openremote.manager.gateway.GatewayService.isNotForGateway;
 import static org.openremote.model.asset.agent.Protocol.ACTUATOR_TOPIC;
@@ -124,12 +124,13 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             return;
         }
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
             new AgentResourceImpl(
                 container.getService(TimerService.class),
                 container.getService(ManagerIdentityService.class),
                 assetStorageService,
-                this)
+                this,
+                container.getExecutorService())
         );
 
         initDone = true;
@@ -144,14 +145,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         Collection<Agent<?, ?, ?>> agents = getAgents().values();
         LOG.fine("Found agent count = " + agents.size());
 
-        agents.stream().filter(agent -> {
-            boolean isDisabled = agent.isDisabled().orElse(false);
-            if (isDisabled) {
-                LOG.fine("Agent is disabled so not starting: " + agent);
-                sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
-            }
-            return !isDisabled;
-        }).forEach(this::startAgent);
+        agents.stream().forEach(this::doAgentInit);
     }
 
     @Override
@@ -262,16 +256,8 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
         switch (persistenceEvent.getCause()) {
             case CREATE:
-
                 agent = addReplaceAgent(agent);
-
-                if (agent.isDisabled().orElse(false)) {
-                    LOG.info("Agent is disabled so not starting: " + agent);
-                    assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
-                } else {
-                    startAgent(agent);
-                }
-
+                doAgentInit(agent);
                 break;
             case UPDATE:
                 onAgentUpdated(agent);
@@ -300,13 +286,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             return null;
         }
 
-        if (agent.isDisabled().orElse(false)) {
-            LOG.info("Agent is disabled so not starting: " + agent);
-            assetProcessingService.sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
-        } else {
-            startAgent(agent);
-        }
-
+        doAgentInit(agent);
         return agent;
     }
 
@@ -402,10 +382,22 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         }
     }
 
+    protected void doAgentInit(Agent<?,?,?> agent) {
+        boolean isDisabled = agent.isDisabled().orElse(false);
+        if (isDisabled) {
+            LOG.fine("Agent is disabled so not starting: " + agent);
+            sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.DISABLED));
+        } else {
+            this.startAgent(agent);
+        }
+    }
+
     protected void startAgent(Agent<?,?,?> agent) {
         withLock(getClass().getSimpleName() + "::startAgent", () -> {
+            Protocol<?> protocol = null;
+
             try {
-                Protocol<?> protocol = agent.getProtocolInstance();
+                protocol = agent.getProtocolInstance();
                 protocolInstanceMap.put(agent.getId(), protocol);
 
                 LOG.fine("Starting protocol instance: " + protocol);
@@ -438,6 +430,12 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
 
             } catch (Exception e) {
+                if (protocol != null) {
+                    try {
+                        protocol.stop(container);
+                    } catch (Exception ignored) {
+                    }
+                }
                 protocolInstanceMap.remove(agent.getId());
                 LOG.log(Level.SEVERE, "Failed to start protocol instance for agent: " + agent, e);
                 sendAttributeEvent(new AttributeEvent(agent.getId(), Agent.STATUS.getName(), ConnectionStatus.ERROR));
@@ -480,7 +478,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 return;
             }
 
-            LOG.info("Linking asset '" + assetId + "' attributes linked to protocol: assetId=" + assetId + ", attributes=" + attributes.size() +  ", protocol=" + protocol);
+            LOG.fine("Linking asset '" + assetId + "' attributes linked to protocol: assetId=" + assetId + ", attributes=" + attributes.size() +  ", protocol=" + protocol);
 
             attributes.forEach(attribute -> {
                 AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
@@ -504,7 +502,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 return;
             }
 
-            LOG.info("Unlinking asset '" + assetId + "' attributes linked to protocol: assetId=" + assetId + ", attributes=" + attributes.size() +  ", protocol=" + protocol);
+            LOG.fine("Unlinking asset '" + assetId + "' attributes linked to protocol: assetId=" + assetId + ", attributes=" + attributes.size() +  ", protocol=" + protocol);
 
             attributes.forEach(attribute -> {
                 try {
@@ -568,12 +566,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                 .map(agentLink -> {
                     LOG.finer("Attribute write for agent linked attribute: agent=" + agentLink.getId() + ", asset=" + asset.getId() + ", attribute=" + attribute.getName());
 
-                    messageBrokerService.getProducerTemplate().sendBodyAndHeader(
-                        ACTUATOR_TOPIC,
-                        attributeEvent,
-                        Protocol.ACTUATOR_TOPIC_TARGET_PROTOCOL,
-                        getProtocolInstance(agentLink.getId())
-                    );
+                    messageBrokerService.getFluentProducerTemplate()
+                        .withBody(attributeEvent)
+                        .withHeader(Protocol.ACTUATOR_TOPIC_TARGET_PROTOCOL, getProtocolInstance(agentLink.getId()))
+                        .to(ACTUATOR_TOPIC)
+                        .asyncSend();
                     return true; // Processing complete, skip other processors
                 }).orElse(false) // This is a regular attribute so allow the processing to continue
         );
@@ -602,7 +599,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             .filter(agentAttribute -> agentAttribute.key != null)
             .collect(Collectors.groupingBy(
                 agentAttribute -> agentAttribute.key,
-                mapping(agentAttribute -> agentAttribute.value, toList())
+                    Collectors.collectingAndThen(Collectors.toList(), agentAttribute -> agentAttribute.stream().map(item->item.value).collect(toList())) //TODO had to change to this because compiler has issues with inferring types, need to check for a better solution
             ));
     }
 
@@ -614,10 +611,10 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
 
         // Fully load agent asset if path and parent info not loaded
         if (agent.getPath() == null || (agent.getPath().length > 1 && agent.getParentId() == null)) {
-            LOG.info("Agent is not fully loaded so retrieving the agent from the DB: " + agent.getId());
+            LOG.fine("Agent is not fully loaded so retrieving the agent from the DB: " + agent.getId());
             final Agent<?, ?, ?> loadedAgent = assetStorageService.find(agent.getId(), true, Agent.class);
             if (loadedAgent == null) {
-                LOG.info("Agent not found in the DB, maybe it has been removed: " + agent.getId());
+                LOG.fine("Agent not found in the DB, maybe it has been removed: " + agent.getId());
                 return null;
             }
             agent = loadedAgent;
@@ -667,7 +664,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     @Override
     public void subscribeChildAssetChange(String agentId, Consumer<PersistenceEvent<Asset<?>>> assetChangeConsumer) {
         if (!getAgents().containsKey(agentId)) {
-            LOG.info("Attempt to subscribe to child asset changes with an invalid agent ID: " +agentId);
+            LOG.fine("Attempt to subscribe to child asset changes with an invalid agent ID: " +agentId);
             return;
         }
 
@@ -717,11 +714,11 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
             }
 
             try {
-                ProtocolInstanceDiscovery instanceDiscovery = instanceDiscoveryProviderClass.newInstance();
+                ProtocolInstanceDiscovery instanceDiscovery = instanceDiscoveryProviderClass.getDeclaredConstructor().newInstance();
                 Future<Void> discoveryFuture = instanceDiscovery.startInstanceDiscovery(onDiscovered);
                 discoveryFuture.get();
             } catch (InterruptedException e) {
-                LOG.info("Protocol instance discovery was cancelled");
+                LOG.fine("Protocol instance discovery was cancelled");
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Failed to do protocol instance discovery: Provider = " + instanceDiscoveryProviderClass, e);
             } finally {
@@ -737,7 +734,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         Protocol<?> protocol = getProtocolInstance(agent.getId());
 
         if (protocol == null) {
-            throw new UnsupportedOperationException("Agent protocol is disabled or is being deleted");
+            throw new UnsupportedOperationException("Agent is either invalid, disabled or mis-configured: " + agent);
         }
 
         if (!(protocol instanceof ProtocolAssetDiscovery)) {
@@ -760,7 +757,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                     Future<Void> discoveryFuture = assetDiscovery.startAssetDiscovery(onDiscovered);
                     discoveryFuture.get();
                 } catch (InterruptedException e) {
-                    LOG.info("Protocol asset discovery was cancelled");
+                    LOG.fine("Protocol asset discovery was cancelled");
                 } catch (Exception e) {
                     LOG.log(Level.WARNING, "Failed to do protocol asset discovery: Agent = " + agent, e);
                 } finally {
@@ -780,7 +777,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
         Protocol<?> protocol = getProtocolInstance(agent.getId());
 
         if (protocol == null) {
-            throw new UnsupportedOperationException("Agent protocol is disabled or is being deleted");
+            throw new UnsupportedOperationException("Agent is either invalid, disabled or mis-configured: " + agent);
         }
 
         if (!(protocol instanceof ProtocolAssetImport)) {
@@ -802,7 +799,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
                     Future<Void> discoveryFuture = assetImport.startAssetImport(fileData, onDiscovered);
                     discoveryFuture.get();
                 } catch (InterruptedException e) {
-                    LOG.info("Protocol asset import was cancelled");
+                    LOG.fine("Protocol asset import was cancelled");
                 } catch (Exception e) {
                     LOG.log(Level.WARNING, "Failed to do protocol asset import: Agent = " + agent, e);
                 } finally {
@@ -820,7 +817,7 @@ public class AgentService extends RouteBuilder implements ContainerService, Asse
     protected void okToContinueWithImportOrDiscovery(String agentId) {
         if (agentDiscoveryImportFutureMap.containsKey(agentId)) {
             String msg = "Protocol asset discovery or import already running for requested agent: " + agentId;
-            LOG.info(msg);
+            LOG.fine(msg);
             throw new IllegalStateException(msg);
         }
     }

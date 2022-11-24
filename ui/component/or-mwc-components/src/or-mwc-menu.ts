@@ -1,14 +1,12 @@
 import {
     css,
-    customElement,
     html,
     LitElement,
-    property,
     PropertyValues,
-    query,
     TemplateResult,
     unsafeCSS
-} from "lit-element";
+} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
 import {MDCMenu} from "@material/menu";
 import {DefaultColor4, DefaultColor8} from "@openremote/core";
 
@@ -20,11 +18,11 @@ import {getItemTemplate, getListTemplate, ListItem, ListType, MDCListActionEvent
 // @ts-ignore
 const menuStyle = require("@material/menu/dist/mdc.menu.css");
 
-export class OrMwcMenuChangedEvent extends CustomEvent<string | string[]> {
+export class OrMwcMenuChangedEvent extends CustomEvent<any[] | any> {
 
     public static readonly NAME = "or-mwc-menu-changed";
 
-    constructor(values: string | string[]) {
+    constructor(values: any[] | any) {
         super(OrMwcMenuChangedEvent.NAME, {
             detail: values,
             bubbles: true,
@@ -52,7 +50,7 @@ declare global {
     }
 }
 
-export function getContentWithMenuTemplate(content: TemplateResult, menuItems: (ListItem | ListItem[] | null)[], selectedValues: string[] | string | undefined, valueChangedCallback: (values: string[] | string) => void, closedCallback?: () => void, multiSelect = false, translateValues = true): TemplateResult {
+export function getContentWithMenuTemplate(content: TemplateResult, menuItems: (ListItem | ListItem[] | null)[], selectedValues: string[] | string | undefined, valueChangedCallback: (values: string[] | string) => void, closedCallback?: () => void, multiSelect = false, translateValues = true, midHeight = false): TemplateResult {
 
     const openMenu = (evt: Event) => {
         if (!menuItems) {
@@ -65,7 +63,7 @@ export function getContentWithMenuTemplate(content: TemplateResult, menuItems: (
     return html`
         <span>
             <span @click="${openMenu}">${content}</span>
-            ${menuItems ? html`<or-mwc-menu ?multiselect="${multiSelect}" @or-mwc-menu-closed="${() => {if (closedCallback) { closedCallback(); }} }" @or-mwc-menu-changed="${(evt: OrMwcMenuChangedEvent) => {if (valueChangedCallback) { valueChangedCallback(evt.detail); }} }" .translateValues="${translateValues}" .values="${selectedValues}" .menuItems="${menuItems}" id="menu"></or-mwc-menu>` : ``}
+            ${menuItems ? html`<or-mwc-menu ?multiselect="${multiSelect}" @or-mwc-menu-closed="${() => {if (closedCallback) { closedCallback(); }} }" @or-mwc-menu-changed="${(evt: OrMwcMenuChangedEvent) => {if (valueChangedCallback) { valueChangedCallback(evt.detail); }} }" .translateValues="${translateValues}" .values="${selectedValues}" .menuItems="${menuItems}" .midHeight="${midHeight}" id="menu"></or-mwc-menu>` : ``}
         </span>
     `;
 }
@@ -91,6 +89,9 @@ const style = css`
         color: rgba(0, 0, 0, 0.87);
     }
      
+    .mdc-menu-surface-mid-height {
+        max-height: calc(50vh - 32px) !important;
+    }
 `;
 
 @customElement("or-mwc-menu")
@@ -109,7 +110,7 @@ export class OrMwcMenu extends LitElement {
     public menuItems?: (ListItem | ListItem[] | null)[];
 
     @property({type: Array})
-    public values?: string[] | string;
+    public values?: any[] | any;
 
     @property({type: Boolean, attribute: true})
     public multiSelect?: boolean;
@@ -119,6 +120,9 @@ export class OrMwcMenu extends LitElement {
 
     @property({type: Boolean, attribute: true})
     public translateValues?: boolean;
+
+    @property({type: Boolean, attribute: false})
+    public midHeight?: boolean;
 
     @query("#wrapper")
     protected _wrapperElem!: HTMLElement;
@@ -151,7 +155,7 @@ export class OrMwcMenu extends LitElement {
 
         return html`
             <div id="wrapper" class="mdc-menu-surface--anchor">
-                <div class="mdc-menu mdc-menu-surface" id="menu" @MDCMenuSurface:closed="${this._onMenuClosed}">
+                <div class="mdc-menu mdc-menu-surface ${this.midHeight ? "mdc-menu-surface-mid-height" : ""}" id="menu" @MDCMenuSurface:closed="${this._onMenuClosed}">
                     ${getListTemplate(ListType.MULTI_TICK, content, isTwoLine, "menu")}
                 </div>
             </div>
@@ -175,7 +179,7 @@ export class OrMwcMenu extends LitElement {
                 `;
             }
 
-            return getItemTemplate(item, index, this.values, type, translate, (e, item) => this._itemClicked(e, item));
+            return getItemTemplate(item, index, (Array.isArray(this.values) ? this.values : this.values ? [this.values] : []), type, translate, (e, item) => this._itemClicked(e, item));
         })}`;
     }
 
@@ -218,7 +222,7 @@ export class OrMwcMenu extends LitElement {
             if (!Array.isArray(this.values)) {
                 this.values = this.values ? [this.values] : [];
             }
-            const index = this.values.findIndex((v) => v === value);
+            const index = this.values.findIndex((v: any) => v === value);
             if (index >= 0) {
                 this.values.splice(index, 1);
             } else {
@@ -226,6 +230,6 @@ export class OrMwcMenu extends LitElement {
             }
             this.requestUpdate();
         }
-        this.dispatchEvent(new OrMwcMenuChangedEvent(this.values));
+        this.dispatchEvent(new OrMwcMenuChangedEvent(this.values!));
     }
 }

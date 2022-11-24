@@ -19,28 +19,47 @@
  */
 package org.openremote.manager.datapoint;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.commons.io.IOUtils;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.attribute.AttributeRef;
 import org.openremote.model.datapoint.AssetDatapointResource;
 import org.openremote.model.datapoint.DatapointInterval;
+import org.openremote.model.datapoint.DatapointPeriod;
 import org.openremote.model.datapoint.ValueDatapoint;
 import org.openremote.model.http.RequestParams;
+import org.openremote.model.syslog.SyslogCategory;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.BeanParam;
+import javax.ws.rs.NotSupportedException;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.ConnectionCallback;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
+import java.io.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.concurrent.ScheduledFuture;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static org.openremote.model.syslog.SyslogCategory.DATA;
+import static org.openremote.model.util.ValueUtil.JSON;
 
 public class AssetDatapointResourceImpl extends ManagerWebResource implements AssetDatapointResource {
 
     private static final Logger LOG = Logger.getLogger(AssetDatapointResourceImpl.class.getName());
+    private static final Logger DATA_EXPORT_LOG = SyslogCategory.getLogger(DATA, AssetDatapointResourceImpl.class);
 
     protected final AssetStorageService assetStorageService;
     protected final AssetDatapointService assetDatapointService;
@@ -56,11 +75,12 @@ public class AssetDatapointResourceImpl extends ManagerWebResource implements As
 
     @Override
     public ValueDatapoint<?>[] getDatapoints(@BeanParam RequestParams requestParams,
-                                                 String assetId,
-                                                 String attributeName,
-                                                 DatapointInterval interval,
-                                                 long fromTimestamp,
-                                                 long toTimestamp) {
+                                             String assetId,
+                                             String attributeName,
+                                             DatapointInterval interval,
+                                             Integer stepSize,
+                                             long fromTimestamp,
+                                             long toTimestamp) {
         try {
 
             if (isRestrictedUser() && !assetStorageService.isUserAsset(getUserId(), assetId)) {
@@ -73,23 +93,126 @@ public class AssetDatapointResourceImpl extends ManagerWebResource implements As
                 throw new WebApplicationException(Response.Status.NOT_FOUND);
             }
 
-            if (!isTenantActiveAndAccessible(asset.getRealm())) {
+            if (!isRealmActiveAndAccessible(asset.getRealm())) {
                 LOG.info("Forbidden access for user '" + getUsername() + "': " + asset);
                 throw new WebApplicationException(Response.Status.FORBIDDEN);
             }
 
             Attribute<?> attribute = asset.getAttribute(attributeName).orElseThrow(() ->
-                new WebApplicationException(Response.Status.NOT_FOUND)
+                    new WebApplicationException(Response.Status.NOT_FOUND)
             );
 
             return assetDatapointService.getValueDatapoints(assetId,
-                attribute,
-                interval,
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(fromTimestamp), ZoneId.systemDefault()),
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(toTimestamp), ZoneId.systemDefault()));
+                    attribute,
+                    interval,
+                    stepSize,
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(fromTimestamp), ZoneId.systemDefault()),
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(toTimestamp), ZoneId.systemDefault()));
         } catch (IllegalStateException ex) {
-            throw new WebApplicationException(ex, Response.Status.BAD_REQUEST);
+            throw new BadRequestException(ex);
+        } catch (UnsupportedOperationException ex) {
+            throw new NotSupportedException(ex);
         }
     }
 
+    @Override
+    public DatapointPeriod getDatapointPeriod(RequestParams requestParams, String assetId, String attributeName) {
+        try {
+            if (isRestrictedUser() && !assetStorageService.isUserAsset(getUserId(), assetId)) {
+                throw new WebApplicationException(Response.Status.FORBIDDEN);
+            }
+
+            Asset<?> asset = assetStorageService.find(assetId, true);
+
+            if (asset == null) {
+                throw new WebApplicationException(Response.Status.NOT_FOUND);
+            }
+
+            if (!isRealmActiveAndAccessible(asset.getRealm())) {
+                LOG.info("Forbidden access for user '" + getUsername() + "': " + asset);
+                throw new WebApplicationException(Response.Status.FORBIDDEN);
+            }
+
+            Attribute<?> attribute = asset.getAttribute(attributeName).orElseThrow(() ->
+                    new WebApplicationException(Response.Status.NOT_FOUND)
+            );
+
+            return assetDatapointService.getDatapointPeriod(assetId, attributeName);
+        } catch (IllegalStateException ex) {
+            throw new BadRequestException(ex);
+        } catch (UnsupportedOperationException ex) {
+            throw new NotSupportedException(ex);
+        }
+    }
+
+    @Override
+    public void getDatapointExport(AsyncResponse asyncResponse, String attributeRefsString, long fromTimestamp, long toTimestamp) {
+        try {
+            AttributeRef[] attributeRefs = JSON.readValue(attributeRefsString, AttributeRef[].class);
+
+            for (AttributeRef attributeRef : attributeRefs) {
+                if (isRestrictedUser() && !assetStorageService.isUserAsset(getUserId(), attributeRef.getId())) {
+                    throw new WebApplicationException(Response.Status.FORBIDDEN);
+                }
+
+                Asset<?> asset = assetStorageService.find(attributeRef.getId(), true);
+
+                if (asset == null) {
+                    throw new WebApplicationException(Response.Status.NOT_FOUND);
+                }
+
+                if (!isRealmActiveAndAccessible(asset.getRealm())) {
+                    DATA_EXPORT_LOG.info("Forbidden access for user '" + getUsername() + "': " + asset);
+                    throw new WebApplicationException(Response.Status.FORBIDDEN);
+                }
+
+                asset.getAttribute(attributeRef.getName()).orElseThrow(() ->
+                        new WebApplicationException(Response.Status.NOT_FOUND)
+                );
+            }
+
+            DATA_EXPORT_LOG.info("User '" + getUsername() +  "' started data export for " + attributeRefsString + " from " + fromTimestamp + " to " + toTimestamp);
+
+            ScheduledFuture<File> exportFuture = assetDatapointService.exportDatapoints(attributeRefs, fromTimestamp, toTimestamp);
+            asyncResponse.register((ConnectionCallback) disconnected -> {
+                exportFuture.cancel(true);
+            });
+
+            File exportFile = null;
+
+            try {
+                exportFile = exportFuture.get();
+
+                ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream());
+                FileInputStream fin = new FileInputStream(exportFile);
+                ZipEntry zipEntry = new ZipEntry(exportFile.getName());
+                zipOut.putNextEntry(zipEntry);
+                IOUtils.copy(fin, zipOut);
+                zipOut.closeEntry();
+                zipOut.close();
+                fin.close();
+
+                response.setContentType("application/zip");
+                response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"dataexport.zip\"");
+
+                asyncResponse.resume(
+                    response
+                );
+            } catch (Exception ex) {
+                exportFuture.cancel(true);
+                asyncResponse.resume(new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR));
+                DATA_EXPORT_LOG.log(Level.SEVERE, "Exception in ScheduledFuture: ", ex);
+            } finally {
+                if (exportFile != null && exportFile.exists()) {
+                    try {
+                        exportFile.delete();
+                    } catch (Exception e) {
+                        DATA_EXPORT_LOG.log(Level.SEVERE, "Failed to delete temporary export file: " + exportFile.getPath(), e);
+                    }
+                }
+            }
+        } catch (JsonProcessingException ex) {
+            asyncResponse.resume(new BadRequestException(ex));
+        }
+    }
 }

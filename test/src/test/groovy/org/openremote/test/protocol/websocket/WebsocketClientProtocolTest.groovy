@@ -20,16 +20,12 @@
 package org.openremote.test.protocol.websocket
 
 import org.openremote.agent.protocol.simulator.SimulatorProtocol
-import org.openremote.agent.protocol.websocket.WebsocketClientAgent
-import org.openremote.agent.protocol.websocket.WebsocketClientProtocol
-import org.openremote.agent.protocol.websocket.WebsocketHttpSubscription
-import org.openremote.agent.protocol.websocket.WebsocketSubscription
+import org.openremote.agent.protocol.websocket.*
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.event.ClientEventService
 import org.openremote.manager.setup.SetupService
-import org.openremote.test.setup.ManagerTestSetup
 import org.openremote.model.Constants
 import org.openremote.model.asset.AssetFilter
 import org.openremote.model.asset.ReadAttributeEvent
@@ -46,12 +42,14 @@ import org.openremote.model.event.shared.EventSubscription
 import org.openremote.model.event.shared.SharedEvent
 import org.openremote.model.query.AssetQuery
 import org.openremote.model.query.filter.StringPredicate
+import org.openremote.model.util.ValueUtil
 import org.openremote.model.value.JsonPathFilter
 import org.openremote.model.value.RegexValueFilter
 import org.openremote.model.value.SubStringValueFilter
 import org.openremote.model.value.ValueFilter
-import org.openremote.model.value.Values
+import org.openremote.model.value.ValueType
 import org.openremote.test.ManagerContainerTrait
+import org.openremote.setup.integration.ManagerTestSetup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -64,8 +62,8 @@ import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
 import static org.openremote.container.util.MapAccess.getString
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.Constants.MASTER_REALM_ADMIN_USER
 import static org.openremote.model.value.MetaItemType.AGENT_LINK
@@ -101,7 +99,7 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                         && requestContext.getHeaderString("Content-type") == MediaType.APPLICATION_JSON) {
 
                         String bodyStr = (String)requestContext.getEntity()
-                        AssetQuery assetQuery = Values.JSON.readValue(bodyStr, AssetQuery.class)
+                        AssetQuery assetQuery = ValueUtil.JSON.readValue(bodyStr, AssetQuery.class)
                         if (assetQuery != null && assetQuery.ids != null && assetQuery.ids.size() == 1) {
                             agentSubscriptionDone = true
                             requestContext.abortWith(Response.ok().build())
@@ -136,37 +134,37 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
         def clientEventService = container.getService(ClientEventService.class)
 
         when: "the web target builder is configured to use the mock HTTP server (to test subscriptions)"
-        if (!WebsocketClientProtocol.resteasyClient.configuration.isRegistered(mockServer)) {
-            WebsocketClientProtocol.resteasyClient.register(mockServer, Integer.MAX_VALUE)
+        if (!WebsocketAgentProtocol.resteasyClient.configuration.isRegistered(mockServer)) {
+            WebsocketAgentProtocol.resteasyClient.register(mockServer, Integer.MAX_VALUE)
         }
 
         and: "a Websocket client agent is created to connect to this tests manager"
-        def agent = new WebsocketClientAgent("Test agent")
+        def agent = new WebsocketAgent("Test agent")
             .setRealm(Constants.MASTER_REALM)
-            .setConnectUri("ws://127.0.0.1:$serverPort/websocket/events?Auth-Realm=master")
+            .setConnectURI("ws://127.0.0.1:$serverPort/websocket/events?Realm=master")
             .setOAuthGrant(new OAuthPasswordGrant("http://127.0.0.1:$serverPort/auth/realms/master/protocol/openid-connect/token",
                 KEYCLOAK_CLIENT_ID,
                 null,
                 null,
                 MASTER_REALM_ADMIN_USER,
-                getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)))
+                getString(container.getConfig(), OR_ADMIN_PASSWORD, OR_ADMIN_PASSWORD_DEFAULT)))
             .setConnectSubscriptions([
-                new WebsocketSubscription().body(EventSubscription.SUBSCRIBE_MESSAGE_PREFIX + Values.asJSON(
+                new WebsocketSubscriptionImpl().body(EventSubscription.SUBSCRIBE_MESSAGE_PREFIX + ValueUtil.asJSON(
                     new EventSubscription(
                         AttributeEvent.class,
                         new AssetFilter<AttributeEvent>().setAssetIds(managerTestSetup.apartment1LivingroomId),
                         "1",
                         null)).orElse(null)),
-                new WebsocketHttpSubscription()
+                new WebsocketHTTPSubscription()
                     .contentType(MediaType.APPLICATION_JSON)
-                    .method(WebsocketHttpSubscription.Method.POST)
-                    .headers(new HashMap<String, List<String>>([
+                    .method(WebsocketHTTPSubscription.Method.POST)
+                    .headers(new ValueType.MultivaluedStringMap([
                         "header1" : ["header1Value1"],
                         "header2" : ["header2Value1", "header2Value2"]
                     ]))
                     .uri("https://mockapi/assets")
                     .body(
-                        Values.asJSON(new AssetQuery().ids(managerTestSetup.apartment1LivingroomId)).orElse(null)
+                        ValueUtil.asJSON(new AssetQuery().ids(managerTestSetup.apartment1LivingroomId)).orElse(null)
                     )
                 ] as WebsocketSubscription[]
             )
@@ -192,13 +190,13 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                 // write attribute value
                 new Attribute<>("readWriteTargetTemp", NUMBER)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new WebsocketAgentLink(agent.id)
                             .setWriteValue(SharedEvent.MESSAGE_PREFIX +
-                                Values.asJSON(new AttributeEvent(
+                                ValueUtil.asJSON(new AttributeEvent(
                                     managerTestSetup.apartment1LivingroomId,
                                     "targetTemperature",
                                     0.12345))
-                                    .orElse(Values.NULL_LITERAL)
+                                    .orElse(ValueUtil.NULL_LITERAL)
                                         .replace("0.12345", Protocol.DYNAMIC_VALUE_PLACEHOLDER)
                             )
                         .setMessageMatchFilters(
@@ -218,19 +216,19 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                         )
                         .setWebsocketSubscriptions(
                             [
-                                new WebsocketSubscription().body(SharedEvent.MESSAGE_PREFIX + Values.asJSON(
+                                new WebsocketSubscriptionImpl().body(SharedEvent.MESSAGE_PREFIX + ValueUtil.asJSON(
                                     new ReadAttributeEvent(managerTestSetup.apartment1LivingroomId, "targetTemperature")
                                 ).orElse(null)),
-                                new WebsocketHttpSubscription()
+                                new WebsocketHTTPSubscription()
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .method(WebsocketHttpSubscription.Method.GET)
+                                    .method(WebsocketHTTPSubscription.Method.GET)
                                     .uri("https://mockapi/targetTemperature")
                             ] as WebsocketSubscription[]
                         ))
                     ),
                 new Attribute<>("readCo2Level", NUMBER)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new WebsocketClientAgent.WebsocketClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new WebsocketAgentLink(agent.id)
                             .setMessageMatchFilters(
                                 [
                                     new SubStringValueFilter(TriggeredEventSubscription.MESSAGE_PREFIX.length()),
@@ -248,12 +246,12 @@ class WebsocketClientProtocolTest extends Specification implements ManagerContai
                             )
                             .setWebsocketSubscriptions(
                                 [
-                                    new WebsocketSubscription().body(SharedEvent.MESSAGE_PREFIX + Values.asJSON(
+                                    new WebsocketSubscriptionImpl().body(SharedEvent.MESSAGE_PREFIX + ValueUtil.asJSON(
                                         new ReadAttributeEvent(managerTestSetup.apartment1LivingroomId, "co2Level")
                                     ).orElse(null)),
-                                    new WebsocketHttpSubscription()
+                                    new WebsocketHTTPSubscription()
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .method(WebsocketHttpSubscription.Method.GET)
+                                        .method(WebsocketHTTPSubscription.Method.GET)
                                         .uri("https://mockapi/co2Level")
                                 ] as WebsocketSubscription[]
                             ))

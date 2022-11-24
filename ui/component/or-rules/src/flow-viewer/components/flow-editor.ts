@@ -1,4 +1,5 @@
-import { LitElement, html, customElement, css, query, property } from "lit-element";
+import { LitElement, html, css } from "lit";
+import {customElement, property, query} from "lit/decorators.js";
 import { Integration } from "../services/integration";
 import { CopyPasteManager } from "../services/copy-paste-manager";
 import { Project } from "../services/project";
@@ -107,6 +108,7 @@ export class FlowEditor extends translate(i18next)(LitElement) implements RuleVi
         await integration.refreshNodes();
         this.requestUpdate();
         await this.updateComplete;
+        project.emit("fitview");
         project.addListener("changed", () => {
             this.serialiseRule();
             this.dispatchEvent(new OrRulesRuleChangedEvent(this.validate()));

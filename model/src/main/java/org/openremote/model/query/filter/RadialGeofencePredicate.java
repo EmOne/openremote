@@ -19,23 +19,34 @@
  */
 package org.openremote.model.query.filter;
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import com.vividsolutions.jts.geom.Coordinate;
 import org.geotools.referencing.GeodeticCalculator;
 import org.openremote.model.geo.GeoJSONPoint;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+/**
+ * Predicate for GEO JSON point values; will return true if the point is within the specified radius of the specified
+ * latitude and longitude unless negated.
+ */
+@JsonSchemaTitle("Radial geofence")
+@JsonSchemaDescription("Predicate for GEO JSON point values; will return true if the point is within the specified radius of the specified latitude and longitude unless negated.")
 public class RadialGeofencePredicate extends GeofencePredicate {
 
     public static final String name = "radial";
     public int radius;
     public double lat;
     public double lng;
+
+    public RadialGeofencePredicate() {
+    }
 
     @JsonCreator
     public RadialGeofencePredicate(@JsonProperty("radius") int radius,
@@ -56,7 +67,22 @@ public class RadialGeofencePredicate extends GeofencePredicate {
 
     @Override
     public RadialGeofencePredicate negate() {
-        negated = true;
+        negated = !negated;
+        return this;
+    }
+
+    public RadialGeofencePredicate radius(int radius) {
+        this.radius = radius;
+        return this;
+    }
+
+    public RadialGeofencePredicate lat(double lat) {
+        this.lat = lat;
+        return this;
+    }
+
+    public RadialGeofencePredicate lng(double lng) {
+        this.lng = lng;
         return this;
     }
 
@@ -102,14 +128,17 @@ public class RadialGeofencePredicate extends GeofencePredicate {
             Coordinate coordinate;
 
             if (obj instanceof Coordinate) {
-                coordinate = (Coordinate)obj;
+                coordinate = (Coordinate) obj;
             } else {
-                coordinate = Values.getValue(obj, GeoJSONPoint.class).map(GeoJSONPoint::getCoordinates).orElse(null);
+                coordinate = ValueUtil.getValue(obj, GeoJSONPoint.class).map(GeoJSONPoint::getCoordinates).orElse(null);
             }
 
             if (coordinate == null) {
                 return false;
             }
+
+            coordinate.x = Math.min(180d, Math.max(-180d, coordinate.x));
+            coordinate.y = Math.min(90d, Math.max(-90d, coordinate.y));
 
             GeodeticCalculator calculator = new GeodeticCalculator();
             calculator.setStartingGeographicPoint(lng, lat);

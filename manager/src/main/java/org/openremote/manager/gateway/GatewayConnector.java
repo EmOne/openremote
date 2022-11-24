@@ -48,7 +48,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.openremote.model.query.AssetQuery.Select.selectExcludeAll;
 import static org.openremote.model.syslog.SyslogCategory.GATEWAY;
 
 /**
@@ -151,15 +150,18 @@ public class GatewayConnector {
     /**
      * Start the connector and initiate synchronisation of assets
      */
-    synchronized public void connect(Consumer<Object> gatewayMessageConsumer, Runnable disconnectRunnable) {
-        if (this.gatewayMessageConsumer != null) {
-            return;
+    public void connect(Consumer<Object> gatewayMessageConsumer, Runnable disconnectRunnable) {
+        synchronized (this) {
+            if (this.gatewayMessageConsumer != null) {
+                return;
+            }
+            this.gatewayMessageConsumer = gatewayMessageConsumer;
         }
-        this.gatewayMessageConsumer = gatewayMessageConsumer;
+
         this.disconnectRunnable = disconnectRunnable;
         initialSyncInProgress = true;
 
-        LOG.info("Gateway connector starting: Gateway ID=" + gatewayId);
+        LOG.fine("Gateway connector starting: Gateway ID=" + gatewayId);
         assetProcessingService.sendAttributeEvent(new AttributeEvent(gatewayId, GatewayAsset.STATUS, ConnectionStatus.CONNECTING), AttributeEvent.Source.GATEWAY);
 
         // Reinitialise state
@@ -176,14 +178,15 @@ public class GatewayConnector {
     /**
      * Stop the connector and prevent further communication with the gateway
      */
-    synchronized public void disconnect() {
-        if (this.gatewayMessageConsumer == null) {
-            return;
+    public void disconnect() {
+        synchronized (this) {
+            if (this.gatewayMessageConsumer == null) {
+                return;
+            }
+            this.gatewayMessageConsumer = null;
         }
 
-        LOG.info("Gateway connector disconnected: Gateway ID=" + gatewayId);
-
-        this.gatewayMessageConsumer = null;
+        LOG.fine("Gateway connector disconnected: Gateway ID=" + gatewayId);
         Runnable disconnectRunnable = this.disconnectRunnable;
         this.disconnectRunnable = null;
         initialSyncInProgress = false;
@@ -229,7 +232,7 @@ public class GatewayConnector {
             if (isConnected()) {
                 disconnect();
             }
-            LOG.info("Gateway connector disabled: Gateway ID=" + gatewayId);
+            LOG.fine("Gateway connector disabled: Gateway ID=" + gatewayId);
             assetProcessingService.sendAttributeEvent(new AttributeEvent(gatewayId, GatewayAsset.STATUS, ConnectionStatus.DISABLED), AttributeEvent.Source.GATEWAY);
         } else {
             LOG.info("Gateway connector enabled: Gateway ID=" + gatewayId);
@@ -273,7 +276,7 @@ public class GatewayConnector {
         expectedSyncResponseName = ASSET_READ_EVENT_NAME_INITIAL;
         sendMessageToGateway(new EventRequestResponseWrapper<>(
             ASSET_READ_EVENT_NAME_INITIAL,
-            new ReadAssetsEvent(new AssetQuery().select(selectExcludeAll()).recursive(true))));
+            new ReadAssetsEvent(new AssetQuery().select(new AssetQuery.Select().excludeAttributes()).recursive(true))));
         syncProcessorFuture = executorService.schedule(this::onSyncAssetsTimeout, SYNC_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
@@ -330,7 +333,6 @@ public class GatewayConnector {
                 expectedSyncResponseName,
                 new ReadAssetsEvent(
                     new AssetQuery()
-                        .select(new AssetQuery.Select().excludeParentInfo(true).excludePath(true))
                         .ids(requestAssetIds)
                 )
             )
@@ -475,7 +477,7 @@ public class GatewayConnector {
         // Find obsolete local assets
         List<Asset<?>> localAssets = assetStorageService.findAll(
             new AssetQuery()
-                .select(selectExcludeAll())
+                .select(new AssetQuery.Select().excludeAttributes())
                 .recursive(true)
                 .parents(gatewayId)
         );

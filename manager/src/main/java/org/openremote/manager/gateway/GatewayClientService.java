@@ -22,13 +22,14 @@ package org.openremote.manager.gateway;
 import io.netty.channel.ChannelHandler;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.openremote.model.Constants;
 import org.openremote.model.Container;
 import org.openremote.model.auth.OAuthClientCredentialsGrant;
-import org.openremote.agent.protocol.io.AbstractNettyIoClient;
-import org.openremote.agent.protocol.websocket.WebsocketIoClient;
+import org.openremote.agent.protocol.io.AbstractNettyIOClient;
+import org.openremote.agent.protocol.websocket.WebsocketIOClient;
 import org.openremote.model.ContainerService;
 import org.openremote.container.message.MessageBrokerService;
-import org.openremote.container.persistence.PersistenceEvent;
+import org.openremote.model.PersistenceEvent;
 import org.openremote.container.persistence.PersistenceService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingService;
@@ -42,14 +43,14 @@ import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.event.shared.EventRequestResponseWrapper;
 import org.openremote.model.event.shared.EventSubscription;
 import org.openremote.model.event.shared.SharedEvent;
-import org.openremote.model.event.shared.TenantFilter;
+import org.openremote.model.event.shared.RealmFilter;
 import org.openremote.model.gateway.GatewayConnection;
 import org.openremote.model.gateway.GatewayConnectionStatusEvent;
 import org.openremote.model.gateway.GatewayDisconnectEvent;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.query.filter.TenantPredicate;
+import org.openremote.model.query.filter.RealmPredicate;
 import org.openremote.model.syslog.SyslogCategory;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,8 +58,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static org.openremote.container.persistence.PersistenceEvent.PERSISTENCE_TOPIC;
-import static org.openremote.container.persistence.PersistenceEvent.isPersistenceEventForEntityType;
+import static org.openremote.container.persistence.PersistenceService.PERSISTENCE_TOPIC;
+import static org.openremote.container.persistence.PersistenceService.isPersistenceEventForEntityType;
 import static org.openremote.model.syslog.SyslogCategory.GATEWAY;
 
 /**
@@ -77,12 +78,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
     protected ScheduledExecutorService executorService;
     protected ManagerIdentityService identityService;
     protected final Map<String, GatewayConnection> connectionRealmMap = new HashMap<>();
-    protected final Map<String, WebsocketIoClient<String>> clientRealmMap = new HashMap<>();
-
-    @Override
-    public int getPriority() {
-        return DEFAULT_PRIORITY;
-    }
+    protected final Map<String, WebsocketIOClient<String>> clientRealmMap = new HashMap<>();
 
     @Override
     public void init(Container container) throws Exception {
@@ -94,14 +90,18 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
         timerService = container.getService(TimerService.class);
         identityService = container.getService(ManagerIdentityService.class);
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
             new GatewayClientResourceImpl(timerService, identityService, this)
         );
 
         container.getService(MessageBrokerService.class).getContext().addRoutes(this);
 
-        clientEventService.addSubscriptionAuthorizer((authContext, eventSubscription) -> {
+        clientEventService.addSubscriptionAuthorizer((realm, authContext, eventSubscription) -> {
             if (!eventSubscription.isEventType(GatewayConnectionStatusEvent.class)) {
+                return false;
+            }
+
+            if (authContext == null) {
                 return false;
             }
 
@@ -109,7 +109,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
             if (!authContext.isSuperUser()) {
                 @SuppressWarnings("unchecked")
                 EventSubscription<GatewayConnectionStatusEvent> subscription = (EventSubscription<GatewayConnectionStatusEvent>) eventSubscription;
-                subscription.setFilter(new TenantFilter<>(authContext.getAuthenticatedRealm()));
+                subscription.setFilter(new RealmFilter<>(authContext.getAuthenticatedRealmName()));
             }
 
             return true;
@@ -166,7 +166,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
             switch (cause) {
 
                 case UPDATE:
-                    WebsocketIoClient<String> client = clientRealmMap.remove(connection.getLocalRealm());
+                    WebsocketIOClient<String> client = clientRealmMap.remove(connection.getLocalRealm());
                     if (client != null) {
                         destroyGatewayClient(connection, client);
                     }
@@ -187,7 +187,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
         }
     }
 
-    protected WebsocketIoClient<String> createGatewayClient(GatewayConnection connection) {
+    protected WebsocketIOClient<String> createGatewayClient(GatewayConnection connection) {
 
         if (connection.isDisabled()) {
             LOG.info("Disabled gateway client connection so ignoring: " + connection);
@@ -197,13 +197,13 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
         LOG.info("Creating gateway IO client: " + connection);
 
         try {
-            WebsocketIoClient<String> client = new WebsocketIoClient<>(
+            WebsocketIOClient<String> client = new WebsocketIOClient<>(
                 new URIBuilder()
                     .setScheme(connection.isSecured() ? "wss" : "ws")
                     .setHost(connection.getHost())
                     .setPort(connection.getPort() == null ? -1 : connection.getPort())
                 .setPath("websocket/events")
-                .setParameter("Auth-Realm", connection.getRealm()).build(),
+                .setParameter(Constants.REALM_PARAM_NAME, connection.getRealm()).build(),
                 null,
                 new OAuthClientCredentialsGrant(
                     new URIBuilder()
@@ -218,7 +218,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
             );
 
             client.setEncoderDecoderProvider(() ->
-                new ChannelHandler[] {new AbstractNettyIoClient.MessageToMessageDecoder<>(String.class, client)}
+                new ChannelHandler[] {new AbstractNettyIOClient.MessageToMessageDecoder<>(String.class, client)}
             );
 
             client.addConnectionStatusConsumer(
@@ -254,7 +254,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
         return null;
     }
 
-    protected void destroyGatewayClient(GatewayConnection connection, WebsocketIoClient<String> client) {
+    protected void destroyGatewayClient(GatewayConnection connection, WebsocketIOClient<String> client) {
         if (client == null) {
             return;
         }
@@ -339,7 +339,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
                 ReadAssetsEvent readAssets = (ReadAssetsEvent)event;
                 AssetQuery query = readAssets.getAssetQuery();
                 // Force realm to be the one that this client is associated with
-                query.tenant(new TenantPredicate(connection.getLocalRealm()));
+                query.realm(new RealmPredicate(connection.getLocalRealm()));
                 List<Asset<?>> assets = assetStorageService.findAll(readAssets.getAssetQuery());
 
                 sendCentralManagerMessage(
@@ -355,7 +355,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
     }
 
     protected void sendCentralManagerMessage(String realm, String message) {
-        WebsocketIoClient<String> client;
+        WebsocketIOClient<String> client;
 
         synchronized (clientRealmMap) {
             client = clientRealmMap.get(realm);
@@ -372,11 +372,11 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
 
     protected <T> T messageFromString(String message, String prefix, Class<T> clazz) {
         message = message.substring(prefix.length());
-        return Values.parse(message, clazz).orElse(null);
+        return ValueUtil.parse(message, clazz).orElse(null);
     }
 
     protected String messageToString(String prefix, Object message) {
-        String str = Values.asJSON(message).orElse("null");
+        String str = ValueUtil.asJSON(message).orElse("null");
         return prefix + str;
     }
 
@@ -390,7 +390,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
         persistenceService.doTransaction(em -> em.merge(connection));
     }
 
-    protected boolean deleteConnections(List<String> realms) {
+    public boolean deleteConnections(List<String> realms) {
         LOG.info("Deleting gateway connections for the following realm(s): " + Arrays.toString(realms.toArray()));
 
         try {
@@ -425,7 +425,7 @@ public class GatewayClientService extends RouteBuilder implements ContainerServi
             return ConnectionStatus.DISABLED;
         }
 
-        WebsocketIoClient<String> client = clientRealmMap.get(realm);
+        WebsocketIOClient<String> client = clientRealmMap.get(realm);
         return client != null ? client.getConnectionStatus() : null;
     }
 }

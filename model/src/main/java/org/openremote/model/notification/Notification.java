@@ -31,12 +31,12 @@ public class Notification {
         INTERNAL,
         CLIENT,
         GLOBAL_RULESET,
-        TENANT_RULESET,
+        REALM_RULESET,
         ASSET_RULESET
     }
 
     public enum TargetType {
-        TENANT,
+        REALM,
         USER,
         ASSET,
         CUSTOM
@@ -92,6 +92,9 @@ public class Notification {
     protected RepeatFrequency repeatFrequency;
     protected String repeatInterval;
     protected List<Target> targets;
+
+    public Notification() {
+    }
 
     @JsonCreator
     public Notification(@JsonProperty("name") String name, @JsonProperty("message") AbstractNotificationMessage message, @JsonProperty("targets") List<Target> targets, @JsonProperty("repeatFrequency") RepeatFrequency repeatFrequency, @JsonProperty("repeatInterval") String repeatInterval) {

@@ -38,7 +38,7 @@ import java.util.Objects;
 public class MetaItem<T> extends AbstractNameValueHolder<T> {
 
     /**
-     * Serialise the meta item as just the value
+     * Serialise the meta item as just the value to make it less verbose
      */
     @SuppressWarnings("rawtypes")
     public static class MetaItemSerializer extends StdSerializer<MetaItem> {
@@ -59,7 +59,7 @@ public class MetaItem<T> extends AbstractNameValueHolder<T> {
     @SuppressWarnings("unchecked")
     public MetaItem(MetaItemDescriptor<T> metaDescriptor) {
         // If it's a boolean meta descriptor assume the caller wants it to be true as a default
-        this(metaDescriptor, (T) (Boolean.valueOf(metaDescriptor.getType().getType() == Boolean.class)));
+        this(metaDescriptor, (T) (metaDescriptor.getType().getType() != Boolean.class ? null : true));
     }
 
     public MetaItem(MetaItemDescriptor<T> metaDescriptor, T value) {

@@ -19,15 +19,15 @@
  */
 package org.openremote.model.datapoint;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.openremote.model.Constants;
-import org.openremote.model.datapoint.DatapointInterval;
-import org.openremote.model.datapoint.ValueDatapoint;
 import org.openremote.model.http.RequestParams;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+@Tag(name = "Asset Predicted Datapoint")
 @Path("asset/predicted")
 public interface AssetPredictedDatapointResource {
     /**
@@ -42,10 +42,11 @@ public interface AssetPredictedDatapointResource {
     @Produces(APPLICATION_JSON)
     @RolesAllowed({Constants.READ_ASSETS_ROLE})
     ValueDatapoint<?>[] getPredictedDatapoints(@BeanParam RequestParams requestParams,
-                                            @PathParam("assetId") String assetId,
-                                            @PathParam("attributeName") String attributeName,
-                                            @QueryParam("interval") DatapointInterval datapointInterval,
-                                            @QueryParam("fromTimestamp") long fromTimestamp,
-                                            @QueryParam("toTimestamp") long toTimestamp);
+                                               @PathParam("assetId") String assetId,
+                                               @PathParam("attributeName") String attributeName,
+                                               @QueryParam("interval") DatapointInterval datapointInterval,
+                                               @QueryParam("step") Integer stepSize,
+                                               @QueryParam("fromTimestamp") long fromTimestamp,
+                                               @QueryParam("toTimestamp") long toTimestamp);
 
 }

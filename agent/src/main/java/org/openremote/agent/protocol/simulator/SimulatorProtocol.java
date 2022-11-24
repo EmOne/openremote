@@ -40,7 +40,7 @@ import java.util.logging.Logger;
 import static org.openremote.container.concurrent.GlobalLock.withLock;
 import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 
-public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, SimulatorAgent.SimulatorAgentLink> {
+public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, SimulatorAgentLink> {
 
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, SimulatorProtocol.class);
     public static final String PROTOCOL_DISPLAY_NAME = "Simulator";
@@ -71,10 +71,10 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, SimulatorAgent.SimulatorAgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, SimulatorAgentLink agentLink) {
 
         // Look for replay data
-        agentLink.getSimulatorReplayData()
+        agentLink.getReplayData()
             .ifPresent(simulatorReplayDatapoints -> {
                 LOG.info("Simulator replay data found for linked attribute: " + attribute);
                 AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
@@ -89,7 +89,7 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, SimulatorAgent.SimulatorAgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, SimulatorAgentLink agentLink) {
         AttributeRef attributeRef = new AttributeRef(assetId, attribute.getName());
         ScheduledFuture<?> updateValueFuture = replayMap.remove(attributeRef);
 
@@ -99,7 +99,7 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
     }
 
     @Override
-    protected void doLinkedAttributeWrite(Attribute<?> attribute, SimulatorAgent.SimulatorAgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected void doLinkedAttributeWrite(Attribute<?> attribute, SimulatorAgentLink agentLink, AttributeEvent event, Object processedValue) {
         if (replayMap.containsKey(event.getAttributeRef())) {
             LOG.info("Attempt to write to linked attribute that is configured for value replay so ignoring: " + attribute);
             return;
@@ -125,13 +125,7 @@ public class SimulatorProtocol extends AbstractProtocol<SimulatorAgent, Simulato
      * Call this to simulate a sensor update using the specified timestamp
      */
     public void updateSensor(AttributeRef attributeRef, Object value, long timestamp) {
-        Attribute<?> attribute = getLinkedAttributes().get(attributeRef);
         AttributeState state = new AttributeState(attributeRef, value);
-
-        if (attribute == null) {
-            LOG.info("Attempt to update unlinked attribute: " + state);
-            return;
-        }
 
         updateLinkedAttribute(state, timestamp);
     }

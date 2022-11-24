@@ -30,14 +30,14 @@ import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.asset.AssetTypeInfo;
-import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TextUtil;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.MetaItemDescriptor;
 import org.openremote.model.value.ValueDescriptor;
 
 // TODO: Implement model client event support
 /**
- * A service for abstracting {@link org.openremote.model.util.AssetModelUtil} and handling local model requests vs
+ * A service for abstracting {@link org.openremote.model.util.ValueUtil} and handling local model requests vs
  * {@link org.openremote.model.asset.impl.GatewayAsset} model requests. It also manages the {@link
  * org.openremote.model.asset.AssetModelResource} and provides support for model requests via the client event bus.
  */
@@ -71,9 +71,7 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
         clientEventService = container.getService(ClientEventService.class);
         gatewayService = container.getService(GatewayService.class);
 
-        clientEventService.addSubscriptionAuthorizer((auth, subscription) -> false);
-
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
             new AssetModelResourceImpl(
                 container.getService(TimerService.class),
                 identityService,
@@ -101,7 +99,7 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
             return new AssetTypeInfo[0];
         }
 
-        return AssetModelUtil.getAssetInfos(parentType);
+        return ValueUtil.getAssetInfos(parentType);
     }
 
     public AssetTypeInfo getAssetInfo(String parentId, String assetType) {
@@ -111,7 +109,7 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
             return null;
         }
 
-        return AssetModelUtil.getAssetInfo(assetType).orElse(null);
+        return ValueUtil.getAssetInfo(assetType).orElse(null);
     }
 
     public AssetDescriptor<?>[] getAssetDescriptors(String parentId, String parentType) {
@@ -121,7 +119,7 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
             return new AssetDescriptor[0];
         }
 
-        return AssetModelUtil.getAssetDescriptors(parentType);
+        return ValueUtil.getAssetDescriptors(parentType);
     }
 
     public ValueDescriptor<?>[] getValueDescriptors(String parentId) {
@@ -131,7 +129,7 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
             return new ValueDescriptor<?>[0];
         }
 
-        return AssetModelUtil.getValueDescriptors();
+        return ValueUtil.getValueDescriptors();
     }
 
     public MetaItemDescriptor<?>[] getMetaItemDescriptors(String parentId) {
@@ -141,6 +139,6 @@ public class AssetModelService extends RouteBuilder implements ContainerService 
             return new MetaItemDescriptor<?>[0];
         }
 
-        return AssetModelUtil.getMetaItemDescriptors();
+        return ValueUtil.getMetaItemDescriptors();
     }
 }

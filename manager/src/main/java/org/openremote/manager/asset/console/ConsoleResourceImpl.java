@@ -26,7 +26,7 @@ import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetEvent;
-import org.openremote.model.asset.UserAsset;
+import org.openremote.model.asset.UserAssetLink;
 import org.openremote.model.asset.impl.ConsoleAsset;
 import org.openremote.model.asset.impl.GroupAsset;
 import org.openremote.model.attribute.MetaItem;
@@ -38,18 +38,14 @@ import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.filter.AttributePredicate;
 import org.openremote.model.query.filter.ParentPredicate;
 import org.openremote.model.query.filter.StringPredicate;
-import org.openremote.model.query.filter.TenantPredicate;
-import org.openremote.model.security.Tenant;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.query.filter.RealmPredicate;
+import org.openremote.model.security.Realm;
 import org.openremote.model.util.TextUtil;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
 import javax.ws.rs.BadRequestException;
-import javax.ws.rs.core.Response;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
 import static org.openremote.model.value.MetaItemType.*;
@@ -81,7 +77,7 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
     @Override
     public ConsoleRegistration register(RequestParams requestParams, ConsoleRegistration consoleRegistration) {
 
-        if (getRequestTenant() == null) {
+        if (getRequestRealm() == null) {
             throw new BadRequestException("Invalid realm");
         }
 
@@ -98,8 +94,8 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
 
         if (consoleAsset == null) {
             consoleAsset = initConsoleAsset(consoleRegistration, true, true);
-            consoleAsset.setRealm(getRequestRealm());
-            consoleAsset.setParentId(getConsoleParentAssetId(getRequestRealm()));
+            consoleAsset.setRealm(getRequestRealmName());
+            consoleAsset.setParentId(getConsoleParentAssetId(getRequestRealmName()));
             consoleAsset.setId(consoleRegistration.getId());
         }
 
@@ -113,7 +109,7 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
 
         // If authenticated link the console to this user
         if (isAuthenticated()) {
-            assetStorageService.storeUserAsset(new UserAsset(getAuthenticatedRealm(), getUserId(), consoleAsset.getId()));
+            assetStorageService.storeUserAssetLinks(Collections.singletonList(new UserAssetLink(getAuthenticatedRealmName(), getUserId(), consoleAsset.getId())));
         }
 
         return consoleRegistration;
@@ -141,7 +137,7 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
             String id = realmConsoleParentMap.get(realm);
 
             if (TextUtil.isNullOrEmpty(id)) {
-                Asset<?> consoleParent = getConsoleParentAsset(assetStorageService, getRequestTenant());
+                Asset<?> consoleParent = getConsoleParentAsset(assetStorageService, getRequestRealm());
                 id = consoleParent.getId();
                 realmConsoleParentMap.put(realm, id);
             }
@@ -150,23 +146,23 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
         });
     }
 
-    public static Asset<?> getConsoleParentAsset(AssetStorageService assetStorageService, Tenant tenant) {
+    public static Asset<?> getConsoleParentAsset(AssetStorageService assetStorageService, Realm realm) {
 
         // Look for a group asset with a child type of console in the realm root
         GroupAsset consoleParent = (GroupAsset) assetStorageService.find(
             new AssetQuery()
-                .select(AssetQuery.Select.selectExcludeAll())
+                .select(new AssetQuery.Select().excludeAttributes())
                 .names(CONSOLE_PARENT_ASSET_NAME)
-                .parents(new ParentPredicate(true))
+                .parents(new ParentPredicate(null))
                 .types(GroupAsset.class)
-                .tenant(new TenantPredicate(tenant.getRealm()))
+                .realm(new RealmPredicate(realm.getName()))
                 .attributes(new AttributePredicate("childAssetType", new StringPredicate(ConsoleAsset.DESCRIPTOR.getName())))
         );
 
         if (consoleParent == null) {
             consoleParent = new GroupAsset(CONSOLE_PARENT_ASSET_NAME, ConsoleAsset.class);
             consoleParent.setChildAssetType(ConsoleAsset.DESCRIPTOR.getName());
-            consoleParent.setRealm(tenant.getRealm());
+            consoleParent.setRealm(realm.getName());
             consoleParent = assetStorageService.merge(consoleParent);
         }
         return consoleParent;

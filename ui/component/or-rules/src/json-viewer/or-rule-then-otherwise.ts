@@ -1,4 +1,5 @@
-import {css, customElement, html, LitElement, property, TemplateResult} from "lit-element";
+import {css, html, LitElement, TemplateResult} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {buttonStyle} from "../style";
 import "./or-rule-asset-query";
 import {ActionType, getAssetTypeFromQuery, RulesConfig} from "../index";
@@ -9,13 +10,14 @@ import {
     RuleActionNotification,
     RuleActionUnion,
     RuleRecurrence,
-    WellknownAssets
+    WellknownAssets,
+    AssetModelUtil
 } from "@openremote/model";
 import i18next from "i18next";
 import {InputType} from "@openremote/or-mwc-components/or-mwc-input";
 import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
 import {ListItem} from "@openremote/or-mwc-components/or-mwc-list";
-import {AssetModelUtil, Util} from "@openremote/core";
+import {Util} from "@openremote/core";
 import "./or-rule-action-attribute";
 import "./or-rule-action-notification";
 import {translate} from "@openremote/or-translate";
@@ -234,11 +236,13 @@ class OrRuleThenOtherwise extends translate(i18next)(LitElement) {
         }
         if(readonly) {
             recurrenceTemplate = html`
-             <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t(value)}"></or-mwc-input>
+                <div style="--or-mwc-input-color: ${buttonColor}; margin-right: 6px;">
+                    <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t(value)}"></or-mwc-input>
+                </div>
             `;
         } else {
         recurrenceTemplate = html`
-                <div style="--or-mwc-input-color: #${buttonColor}; margin-right: 6px;">
+                <div style="--or-mwc-input-color: ${buttonColor}; margin-right: 6px;">
                     ${getContentWithMenuTemplate(
                         html`<or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t(value)}"></or-mwc-input>`,
                         getRecurrenceMenu(this.config),
@@ -296,9 +300,11 @@ class OrRuleThenOtherwise extends translate(i18next)(LitElement) {
                 }
             }
 
-            if(readonly) {
+            if (readonly) {
                 typeTemplate = html`
-                  <or-mwc-input type="${InputType.BUTTON}" .icon="${buttonIcon || ""}"></or-mwc-input>
+                    <div id="type" style="--or-mwc-input-color: #${buttonColor}">
+                        <or-mwc-input type="${InputType.BUTTON}" .icon="${buttonIcon || ""}"></or-mwc-input>
+                    </div>
                 `;
             } else {
                 typeTemplate = html`
@@ -307,7 +313,7 @@ class OrRuleThenOtherwise extends translate(i18next)(LitElement) {
                             html`<or-mwc-input type="${InputType.BUTTON}" .icon="${buttonIcon || ""}"></or-mwc-input>`,
                             getActionTypesMenu(this.config, this.assetInfos),
                             action.action,
-                            (values: string[] | string) => this.setActionType(actions, action, values as string))}
+                            (value) => this.setActionType(actions, action, value as string))}
                     </div>
                 `;
             }
@@ -354,11 +360,11 @@ class OrRuleThenOtherwise extends translate(i18next)(LitElement) {
                     ${thenAllowAdd ? html`
                         <span class="add-button-wrapper">
                             ${getContentWithMenuTemplate(
-                                html`<or-mwc-input class="plus-button" type="${InputType.BUTTON}" icon="plus"></or-mwc-input>`,
+                                html`<or-mwc-input class="plus-button" type="${InputType.BUTTON}" icon="plus"
+                                                   .label="${i18next.t("rulesEditorAddAction")}"></or-mwc-input>`,
                                 getActionTypesMenu(this.config, this.assetInfos),
                                 undefined,
-                                (values: string[] | string) => this.addAction(values as string))}
-                            <span>${i18next.t("rulesEditorAddAction")}</span>
+                                (value) => this.addAction(value as string))}
                         </span>
                     ` : ``}
                 </or-panel>

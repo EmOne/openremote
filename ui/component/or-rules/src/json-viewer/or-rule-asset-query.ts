@@ -1,4 +1,5 @@
-import {css, customElement, html, LitElement, property, PropertyValues} from "lit-element";
+import {css, html, LitElement, PropertyValues} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {
     Asset,
     AssetDescriptor,
@@ -15,20 +16,21 @@ import {
     ValueDescriptor,
     ValuePredicateUnion,
     WellknownMetaItems,
-    WellknownValueTypes
+    WellknownValueTypes,
+    AssetModelUtil
 } from "@openremote/model";
 import {AssetQueryOperator, getAssetIdsFromQuery, getAssetTypeFromQuery, RulesConfig} from "../index";
 import "@openremote/or-mwc-components/or-mwc-input";
 import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import "@openremote/or-attribute-input";
-import manager, {AssetModelUtil, Util} from "@openremote/core";
+import manager, {Util} from "@openremote/core";
 import i18next from "i18next";
 import {buttonStyle} from "../style";
 import {OrRulesJsonRuleChangedEvent} from "./or-rule-json-viewer";
 import {translate} from "@openremote/or-translate";
 import {OrAttributeInputChangedEvent} from "@openremote/or-attribute-input";
 import "./modals/or-rule-radial-modal";
-import { ifDefined } from "lit-html/directives/if-defined";
+import { ifDefined } from "lit/directives/if-defined.js";
 
 // language=CSS
 const style = css`
@@ -48,7 +50,7 @@ const style = css`
     }
 
     .min-width {
-        min-width: 140px;
+        min-width: 200px;
     }
     
     .attribute-group > * {
@@ -169,15 +171,15 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
                         const label = Util.getAttributeLabel(undefined, descriptors ? descriptors[0] : undefined, assetDescriptor.name, false);
                         return [ad.name!, label];
                     });
-        }
+        }  
+        
+        attributes.sort(Util.sortByString((attr) => attr[1]));
 
         const operators = attributeName ? this.getOperators(assetDescriptor, descriptors ? descriptors[0] : undefined, descriptors ? descriptors[1] : undefined, attribute, attributeName) : [];
 
         return html`
             <or-mwc-input type="${InputType.SELECT}" class="min-width" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this.setAttributeName(attributePredicate, e.detail.value)}" .readonly="${this.readonly || false}" .options="${attributes}" .value="${attributeName}" .label="${i18next.t("attribute")}"></or-mwc-input>
-            
             ${attributeName ? html`<or-mwc-input type="${InputType.SELECT}" class="min-width" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this.setOperator(assetDescriptor, attribute, attributeName, attributePredicate, e.detail.value)}" .readonly="${this.readonly || false}" .options="${operators}" .value="${operator}" .label="${i18next.t("operator")}"></or-mwc-input>` : ``}
-            
             ${attributePredicate ? this.attributePredicateValueEditorTemplate(assetDescriptor, asset, attributePredicate) : ``}
         `;
     }
@@ -201,7 +203,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
 
         switch (valuePredicate.predicateType) {
             case "string":
-                return html`<or-attribute-input @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setValuePredicateProperty(valuePredicate, "value", ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${value}" .readonly="${this.readonly || false}" .fullWidth="${true}"></or-attribute-input>`;
+                return html`<or-attribute-input class="min-width" @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setValuePredicateProperty(valuePredicate, "value", ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${value}" .readonly="${this.readonly || false}" .fullWidth="${true}"></or-attribute-input>`;
             case "boolean":
                 return html ``; // Handled by the operator IS_TRUE or IS_FALSE
             case "datetime":
@@ -216,14 +218,12 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
                 }            
                 let inputType;
                 if(descriptors[0]?.format?.asSlider) inputType = InputType.NUMBER;
-                return html`<or-attribute-input  .inputType="${ifDefined(inputType)}" @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setValuePredicateProperty(valuePredicate, "value", ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${value}" .readonly="${this.readonly || false}" .fullWidth="${true}"></or-attribute-input>`;
+                return html`<or-attribute-input .inputType="${ifDefined(inputType)}" @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setValuePredicateProperty(valuePredicate, "value", ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${value}" .readonly="${this.readonly || false}" .fullWidth="${true}"></or-attribute-input>`;
             case "radial":
                 return html`<or-rule-radial-modal .query="${this.query}" .assetDescriptor="${assetDescriptor}" .attributePredicate="${attributePredicate}"></or-rule-radial-modal>`;
             case "rect":
                 return html `<span>NOT IMPLEMENTED</span>`;
             case "value-empty":
-                return ``;
-            case "value-not-empty":
                 return ``;
             case "array":
                 // TODO: Update once we can determine inner type of array
@@ -291,7 +291,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
         return html`
             <div class="attribute-group">
             
-                <or-mwc-input id="idSelect" type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this._assetId = (e.detail.value)}" .readonly="${this.readonly || false}" .options="${idOptions}" .value="${idValue}" .label="${i18next.t("asset")}"></or-mwc-input>
+                <or-mwc-input id="idSelect" class="min-width" type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this._assetId = (e.detail.value)}" .readonly="${this.readonly || false}" .options="${idOptions}" .value="${idValue}" .label="${i18next.t("asset")}"></or-mwc-input>
             
                 ${this.query.attributes && this.query.attributes.items ? this.query.attributes.items.map((attributePredicate) => {
                     
@@ -429,9 +429,7 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
                 }
                 return valuePredicate.negated ? AssetQueryOperator.NOT_CONTAINS : AssetQueryOperator.CONTAINS;
             case "value-empty":
-                return AssetQueryOperator.VALUE_EMPTY;
-            case "value-not-empty":
-                return AssetQueryOperator.VALUE_NOT_EMPTY;
+                return valuePredicate.negate ? AssetQueryOperator.VALUE_NOT_EMPTY : AssetQueryOperator.VALUE_EMPTY;
         }
     }
 
@@ -620,7 +618,8 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
                 break;
             case AssetQueryOperator.VALUE_NOT_EMPTY:
                 predicate = {
-                    predicateType: "value-not-empty"
+                    predicateType: "value-empty",
+                    negate: true
                 };
                 break;
             case AssetQueryOperator.CONTAINS:
@@ -695,10 +694,6 @@ export class OrRuleAssetQuery extends translate(i18next)(LitElement) {
             types: [
                 type
             ],
-            select: {
-                excludeParentInfo: true,
-                excludePath: true
-            },
             orderBy: {
                 property: AssetQueryOrderBy$Property.NAME
             }

@@ -1,5 +1,5 @@
-import {css, unsafeCSS} from "lit-element";
-import {DefaultBoxShadow, DefaultColor1, DefaultColor2, DefaultColor4, DefaultColor5} from "@openremote/core";
+import {css, unsafeCSS} from "lit";
+import {DefaultColor1, DefaultColor2, DefaultColor4, DefaultColor5} from "@openremote/core";
 import {mdiChevronRight} from "@mdi/js";
 import {mdiChevronDown} from "@mdi/js";
 
@@ -119,7 +119,19 @@ export const style = css`
     #list li[data-selected] > .node-container {
         border-left-color: var(--internal-or-asset-tree-selected-color);
     }
-            
+          
+    .asset-list-element .over {
+        background-color: ${unsafeCSS(DefaultColor5)};
+    }
+    
+    .in-between-element {
+        height: 3px;
+    }
+
+    .end-element {
+        height: 15px;
+    }
+    
     .node-container {
         display: flex;
         border-left: 4px solid transparent;
@@ -185,10 +197,112 @@ export const style = css`
         font-size: 14px;        
     }    
     
-     @media only screen and (min-width: 769px){
+     @media only screen and (min-width: 768px){
         .expander {
             width: 26px;
         }
     }
+    
+    .mdc-list-item__graphic {
+        margin-left: auto;
+        display: flex;
+        margin-right: 5px;
+    }
+    
+    .mdc-checkbox {
+        display: flex;
+        height: 100%;
+        align-items: center;
+    }
+    
+    .mdc-checkbox or-icon {
+        height: 15px;
+        width: auto;
+        color: var(--internal-or-asset-tree-line-color);
+    }
+    .mdc-checkbox or-icon.mdc-checkbox--parent {
+        height: 17px;
+    }
 
+    .mdc-checkbox or-icon[icon="checkbox-marked"],
+    .mdc-checkbox or-icon[icon="checkbox-multiple-marked"],
+    .mdc-checkbox or-icon[icon="checkbox-multiple-marked-outline"] {
+        color: var(--internal-or-asset-tree-selected-color);
+    }
+    
+    #asset-tree-filter {
+        display: flex;
+        align-items: center;
+        position: relative;
+        background-color: var(--internal-or-asset-tree-selected-background-color);
+    }
+    
+    #filterInput {
+        padding: 7px 12px 7px 7px;
+    }
+
+    #filterAssetTypeDownIcon {
+        width: 16px;
+        height: 16px;
+        position: absolute;
+        right: 20px;
+        padding-right: 14px;
+        cursor: pointer;
+    }
+    
+    #filterSettingsIcon {
+        cursor: pointer;
+        margin-right: 12px;
+    }
+    
+    #asset-tree-filter-setting {
+        position: absolute;
+        background-color: var(--internal-or-asset-tree-background-color);
+        top: calc(var(--internal-or-asset-tree-header-height) + var(--internal-or-header-height, 50px) - 1px);
+        display: none;
+        width: 300px;
+        z-index: 100;
+        box-shadow: rgb(0 0 0 / 21%) 0px 1px 3px 0px;
+        box-sizing: border-box;
+        padding: 10px;
+    }
+
+    #asset-tree-filter-setting .advanced-filter {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #asset-tree-filter-setting.visible {
+        display: block;
+    }
+    
+    .filterAssetType {
+        display: flex;
+        align-items: center;
+    }
+    
+    #clearIconContainer.visible {
+        display: block;
+    }
+
+    #noAssetsFound {
+        flex: 1 0 auto;
+        display: inline-flex;
+        align-items: center;
+        text-align: center;
+        margin: 0 auto;
+        font-size: 14px;
+    }
+    
+    .filterMatching {
+        color: #808080;
+    }
+    
+    .draggable {
+        cursor: pointer;
+    }
+    
+    .draggable:active {
+        cursor: grabbing;
+    }
 `;

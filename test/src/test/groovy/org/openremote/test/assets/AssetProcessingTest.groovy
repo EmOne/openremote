@@ -5,15 +5,16 @@ import org.openremote.manager.asset.*
 import org.openremote.manager.datapoint.AssetDatapointService
 import org.openremote.manager.rules.RulesService
 import org.openremote.manager.setup.SetupService
-import org.openremote.test.setup.KeycloakTestSetup
+import org.openremote.model.asset.agent.DefaultAgentLink
+import org.openremote.setup.integration.protocol.MockAgentLink
+import org.openremote.setup.integration.KeycloakTestSetup
 import org.openremote.model.asset.Asset
-import org.openremote.model.asset.agent.AgentLink
 import org.openremote.model.asset.agent.ConnectionStatus
 import org.openremote.model.asset.impl.ThingAsset
 import org.openremote.model.attribute.*
 import org.openremote.test.ManagerContainerTrait
-import org.openremote.test.protocol.MockAgent
-import org.openremote.test.protocol.MockProtocol
+import org.openremote.setup.integration.protocol.MockAgent
+import org.openremote.setup.integration.protocol.MockProtocol
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
@@ -98,7 +99,7 @@ class AssetProcessingTest extends Specification implements ManagerContainerTrait
 
         when: "a mock agent that uses the mock protocol is created"
         def mockAgent = new MockAgent("Mock agent")
-            .setRealm(keycloakTestSetup.masterTenant.realm)
+            .setRealm(keycloakTestSetup.realmMaster.name)
             .setRequired(true)
         mockAgent = assetStorageService.merge(mockAgent)
 
@@ -110,7 +111,7 @@ class AssetProcessingTest extends Specification implements ManagerContainerTrait
                     .addOrReplaceMeta(
                         new MetaItem<>(
                             AGENT_LINK,
-                            new MockAgent.MockAgentLink(mockAgent.id)
+                            new MockAgentLink(mockAgent.id)
                                 .setRequiredValue("true")
                         )
                     ),
@@ -118,7 +119,7 @@ class AssetProcessingTest extends Specification implements ManagerContainerTrait
                     .addOrReplaceMeta(
                         new MetaItem<>(
                             AGENT_LINK,
-                            new AgentLink.Default("INVALID AGENT ID")
+                            new DefaultAgentLink("INVALID AGENT ID")
                         )
                     ),
                 new Attribute<>("plainAttribute", TEXT, "demo")

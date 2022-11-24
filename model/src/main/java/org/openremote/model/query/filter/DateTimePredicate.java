@@ -19,10 +19,11 @@
  */
 package org.openremote.model.query.filter;
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.util.Pair;
 import org.openremote.model.util.TimeUtil;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.Date;
 import java.util.function.Predicate;
@@ -33,7 +34,8 @@ import java.util.function.Supplier;
  * (e.g. yyyy-MM-dd'T'HH:mm:ssZ or yyyy-MM-dd'T'HH:mm:ss\u00b1HH:mm), offset and time are optional, if no offset
  * information is supplied then UTC is assumed.
  */
-public class DateTimePredicate implements ValuePredicate {
+@JsonSchemaDescription("Predicate for date time values; provided values should be valid ISO 8601 datetime strings (e.g. yyyy-MM-dd'T'HH:mm:ssZ or yyyy-MM-dd'T'HH:mm:ss±HH:mm), offset and time are optional, if no offset information is supplied then UTC is assumed.")
+public class DateTimePredicate extends ValuePredicate {
 
     public static final String name = "datetime";
     public String value; // Sliding window value as ISO8601 duration e.g. PT1H or fixed date time in ISO 8601
@@ -79,7 +81,7 @@ public class DateTimePredicate implements ValuePredicate {
     @Override
     public Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier) {
         return obj ->
-            Values.getValueCoerced(obj, Date.class).map(date -> {
+            ValueUtil.getValueCoerced(obj, Date.class).map(date -> {
                 Pair<Long, Long> fromAndTo = asFromAndTo(currentMillisSupplier.get());
                 Long from = fromAndTo.key;
                 Long to = fromAndTo.value;

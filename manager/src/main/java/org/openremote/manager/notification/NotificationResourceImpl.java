@@ -31,7 +31,7 @@ import org.openremote.model.notification.Notification;
 import org.openremote.model.notification.NotificationResource;
 import org.openremote.model.notification.SentNotification;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import javax.ws.rs.WebApplicationException;
 import java.util.Collections;
@@ -62,14 +62,14 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
     }
 
     @Override
-    public SentNotification[] getNotifications(RequestParams requestParams, Long id, String type, Long fromTimestamp, Long toTimestamp, String tenantId, String userId, String assetId) {
+    public SentNotification[] getNotifications(RequestParams requestParams, Long id, String type, Long fromTimestamp, Long toTimestamp, String realmId, String userId, String assetId) {
         try {
             return notificationService.getNotifications(
                 id != null ? Collections.singletonList(id) : null,
                 type != null ? Collections.singletonList(type) : null,
                 fromTimestamp,
                 toTimestamp,
-                tenantId != null ? Collections.singletonList(tenantId) : null,
+                realmId != null ? Collections.singletonList(realmId) : null,
                 userId != null ? Collections.singletonList(userId) : null,
                 assetId != null ? Collections.singletonList(assetId) : null
             ).toArray(new SentNotification[0]);
@@ -79,14 +79,14 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
     }
 
     @Override
-    public void removeNotifications(RequestParams requestParams, Long id, String type, Long fromTimestamp, Long toTimestamp, String tenantId, String userId, String assetId) {
+    public void removeNotifications(RequestParams requestParams, Long id, String type, Long fromTimestamp, Long toTimestamp, String realmId, String userId, String assetId) {
         try {
             notificationService.removeNotifications(
                 id != null ? Collections.singletonList(id) : null,
                 type != null ? Collections.singletonList(type) : null,
                 fromTimestamp,
                 toTimestamp,
-                tenantId != null ? Collections.singletonList(tenantId) : null,
+                realmId != null ? Collections.singletonList(realmId) : null,
                 userId != null ? Collections.singletonList(userId) : null,
                 assetId != null ? Collections.singletonList(assetId) : null);
         } catch (IllegalArgumentException e) {
@@ -113,23 +113,14 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
             headers.put(Constants.AUTH_CONTEXT, getAuthContext());
         }
 
-        Object result = messageBrokerService.getProducerTemplate().requestBodyAndHeaders(
-            NotificationService.NOTIFICATION_QUEUE, notification, headers);
+        boolean success = messageBrokerService.getFluentProducerTemplate()
+            .withBody(notification)
+            .withHeaders(headers)
+            .to(NotificationService.NOTIFICATION_QUEUE)
+            .request(Boolean.class);
 
-        if (result instanceof NotificationProcessingException) {
-            NotificationProcessingException processingException = (NotificationProcessingException) result;
-            switch (processingException.getReason()) {
-
-                case INSUFFICIENT_ACCESS:
-                    throw new WebApplicationException(processingException.getMessage(), FORBIDDEN);
-                case MISSING_SOURCE:
-                case MISSING_NOTIFICATION:
-                case MISSING_MESSAGE:
-                case MISSING_TARGETS:
-                    throw new WebApplicationException(processingException.getMessage(), BAD_REQUEST);
-                case UNSUPPORTED_MESSAGE_TYPE:
-                    throw new IllegalStateException(processingException);
-            }
+        if (!success) {
+            throw new WebApplicationException(BAD_REQUEST);
         }
     }
 
@@ -152,7 +143,7 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
 
         SentNotification sentNotification = notificationService.getSentNotification(notificationId);
         verifyAccess(sentNotification, targetId);
-        notificationService.setNotificationAcknowleged(notificationId, acknowledgement == null ? null : Values.asJSON(acknowledgement).orElse(null));
+        notificationService.setNotificationAcknowleged(notificationId, acknowledgement == null ? null : ValueUtil.asJSON(acknowledgement).orElse(null));
     }
 
     protected void verifyAccess(SentNotification sentNotification, String targetId) {
@@ -193,14 +184,14 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
         } else {
             // Regular users can only update notifications sent to them or assets in their realm
             // Restricted users can only update notifications sent to them or assets linked to them
-            boolean isRestrictedUser = managerIdentityService.getIdentityProvider().isRestrictedUser(getUserId());
+            boolean isRestrictedUser = managerIdentityService.getIdentityProvider().isRestrictedUser(getAuthContext());
             switch (sentNotification.getTarget()) {
 
-                case TENANT:
-                    // What does it mean when a notification has been sent to a tenant - who can acknowledge them?
+                case REALM:
+                    // What does it mean when a notification has been sent to a realm - who can acknowledge them?
                     if (isRestrictedUser) {
-                        LOG.fine("DENIED: Restricted user request to update a notification sent to a tenant");
-                        throw new WebApplicationException("Restricted users cannot update a tenant notification", FORBIDDEN);
+                        LOG.fine("DENIED: Restricted user request to update a notification sent to a realm");
+                        throw new WebApplicationException("Restricted users cannot update a realm notification", FORBIDDEN);
                     }
                     break;
                 case USER:
@@ -215,7 +206,7 @@ public class NotificationResourceImpl extends WebResource implements Notificatio
                         LOG.fine("DENIED: User request to update a notification sent to an asset that doesn't exist");
                         throw new WebApplicationException("Asset not found", NOT_FOUND);
                     }
-                    if (!asset.getRealm().equals(getAuthenticatedRealm())) {
+                    if (!asset.getRealm().equals(getAuthenticatedRealmName())) {
                         LOG.fine("DENIED: User request to update a notification sent to an asset that is in another realm");
                         throw new WebApplicationException("Asset not in users realm", FORBIDDEN);
                     }

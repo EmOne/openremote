@@ -1,37 +1,54 @@
-apply plugin: "java"
+import java.nio.file.Paths
+
+apply plugin: "java-library"
 apply plugin: "application"
 apply plugin: "distribution"
+apply plugin: "maven-publish"
+apply plugin: "signing"
 
 mainClassName = "org.openremote.manager.Main"
 
 dependencies {
 
-    compile resolveProject(":container")
-    compile resolveProject(":agent")
-    compile resolveProject(":model")
+    api resolveProject(":container")
+    api resolveProject(":agent")
+    api resolveProject(":model")
 
-    compile "org.xerial:sqlite-jdbc:$sqliteVersion"
+    implementation "org.xerial:sqlite-jdbc:$sqliteVersion"
 
-    compile "org.mnode.ical4j:ical4j:$ical4jVersion"
+    api "org.mnode.ical4j:ical4j:$ical4jVersion"
 
-    compile "net.jafama:jafama:$jafamaVersion"
-    compile "org.geotools:gt-main:$geotoolsVersion"
-    compile "com.google.firebase:firebase-admin:$firebaseAdminVersion"
-    compile "org.simplejavamail:simple-java-mail:$simpleJavaMailVersion"
+    implementation "org.geotools:gt-main:$geotoolsVersion"
+    implementation "com.google.firebase:firebase-admin:$firebaseAdminVersion"
+    implementation "org.simplejavamail:simple-java-mail:$simpleJavaMailVersion"
+    implementation "io.swagger.core.v3:swagger-jaxrs2:$swaggerVersion"
+    implementation "org.openjdk.nashorn:nashorn-core:$nashornVersion"
 
-    compile ("io.netty:netty-codec-http:$nettyVersion") {
+    implementation ("io.netty:netty-codec-http:$nettyVersion") {
         force = true
     }
 
-    compile ("io.moquette:moquette-broker:$moquetteVersion") {
-        exclude module: "slf4j-log4j12" // Don't want log4J
+    // Exposed via MQTT API
+    api ("io.netty:netty-codec-mqtt:$nettyVersion") {
+        force = true
     }
-}
 
-// Load version properties file and use same version as source code
-def props = new Properties()
-file("src/main/resources/system.properties").withInputStream { props.load(it) }
-version = props.get("version")
+    implementation("org.apache.activemq:artemis-mqtt-protocol:$activeMQVersion") {
+        exclude group: "org.osgi"
+        exclude group: "org.jboss.logging"
+    }
+
+    // Needed for reference in tests
+    api("org.apache.activemq:artemis-server:$activeMQVersion") {
+        exclude group: "org.osgi"
+    }
+
+    implementation("org.quartz-scheduler:quartz:$quartzVersion") {
+        exclude group: "c3p0"
+    }
+
+    implementation "org.shredzone.commons:commons-suncalc:$suncalcVersion"
+}
 
 jar {
     archivesBaseName = "openremote-${project.name}"
@@ -44,6 +61,9 @@ distributions {
                 include("*Dockerfile")
             }
             into ("web") {
+                from("${rootDir}/LICENSE.txt")
+            }
+            into ("web") {
                 from("${projectDir}/src/web")
             }
             into ("map") {
@@ -52,3 +72,57 @@ distributions {
         }
     }
 }
+
+javadoc {
+    failOnError = false
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            group = "io.openremote"
+            artifactId = "openremote-${project.name}"
+            from components.java
+            pom {
+                name = 'OpenRemote Manager'
+                description = 'Provides core container services and is the main component of the OpenRemote backend; add maven {url "https://jitpack.io"} and maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
+                url = 'https://github.com/openremote/openremote'
+                licenses {
+                    license {
+                        name = 'GNU Affero General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/agpl-3.0.en.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'developers'
+                        name = 'Developers'
+                        email = 'developers@openremote.io'
+                        organization = 'OpenRemote'
+                        organizationUrl = 'https://openremote.io'
+                    }
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'myRepo'
+            url = layout.buildDirectory.dir("repo")
+        }
+    }
+}
+
+// Output version.properties file
+task setVersionProperties(type: WriteProperties) {
+    outputFile =  Paths.get(projectDir.path, "src", "main", "resources", "version.properties").toFile()
+    property 'version', project.version
+}
+publish.mustRunAfter(setVersionProperties)
+publish.dependsOn(setVersionProperties)

@@ -19,7 +19,12 @@
  */
 package org.openremote.model.value;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BaseJsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.asset.agent.ConnectionStatus;
@@ -32,6 +37,8 @@ import org.openremote.model.auth.UsernamePassword;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.console.ConsoleProviders;
 import org.openremote.model.geo.GeoJSONPoint;
+import org.openremote.model.query.AssetQuery;
+import org.openremote.model.util.CronExpressionParser;
 import org.openremote.model.util.TsIgnore;
 import org.openremote.model.value.impl.*;
 
@@ -51,7 +58,6 @@ public final class ValueType {
     public static class IntegerMap extends HashMap<String, Integer> {}
     public static class DoubleMap extends HashMap<String, Double> {}
     public static class BooleanMap extends HashMap<String, Double> {}
-
     public static class MultivaluedStringMap extends HashMap<String, List<String>> {}
 
     public static final ValueDescriptor<Boolean> BOOLEAN = new ValueDescriptor<>("boolean", Boolean.class);
@@ -79,6 +85,10 @@ public final class ValueType {
     public static final ValueDescriptor<MultivaluedStringMap> MULTIVALUED_TEXT_MAP = new ValueDescriptor<>("multivaluedTextMap", MultivaluedStringMap.class);
 
     public static final ValueDescriptor<ObjectNode> JSON_OBJECT = new ValueDescriptor<>("JSONObject", ObjectNode.class);
+
+    public static final ValueDescriptor<ArrayNode> JSON_ARRAY = new ValueDescriptor<>("JSONArray", ArrayNode.class);
+
+    public static final ValueDescriptor<BaseJsonNode> JSON = new ValueDescriptor<>("JSON", BaseJsonNode.class);
 
     public static final ValueDescriptor<Integer> POSITIVE_INTEGER = new ValueDescriptor<>("positiveInteger", Integer.class,
         new ValueConstraint.Min(0)
@@ -136,13 +146,13 @@ public final class ValueType {
     );
 
     /**
-     * Allowed values constraint is added at runtime based on {@link org.openremote.model.util.AssetModelUtil}
+     * Allowed values constraint is added at runtime based on {@link org.openremote.model.util.ValueUtil}
      */
     public static final ValueDescriptor<String> ASSET_TYPE = new ValueDescriptor<>("assetType", String.class);
 
     public static final ValueDescriptor<Integer> DIRECTION = new ValueDescriptor<>("direction", Integer.class,
         new ValueConstraint.Min(0),
-        new ValueConstraint.Max(259)
+        new ValueConstraint.Max(359)
     );
 
     public static final ValueDescriptor<Integer> PORT = new ValueDescriptor<>("TCP_IPPortNumber", Integer.class,
@@ -164,7 +174,7 @@ public final class ValueType {
 
     public static final ValueDescriptor<AttributeState> ATTRIBUTE_STATE = new ValueDescriptor<>("attributeState", AttributeState.class);
 
-    public static final ValueDescriptor<GeoJSONPoint> GEO_JSON_POINT = new ValueDescriptor<>("geoJSONPoint", GeoJSONPoint.class);
+    public static final ValueDescriptor<GeoJSONPoint> GEO_JSON_POINT = new ValueDescriptor<>("GEO_JSONPoint", GeoJSONPoint.class);
 
     public static final ValueDescriptor<CalendarEvent> CALENDAR_EVENT = new ValueDescriptor<>("calendarEvent", CalendarEvent.class);
 
@@ -176,7 +186,7 @@ public final class ValueType {
 
     public static final ValueDescriptor<ColourRGB> COLOUR_RGB = new ValueDescriptor<>("colourRGB", ColourRGB.class);
 
-    public static final ValueDescriptor<OAuthGrant> OAUTH_GRANT = new ValueDescriptor<>("OAuthGrant", OAuthGrant.class);
+    public static final ValueDescriptor<OAuthGrant> OAUTH_GRANT = new ValueDescriptor<>("oAuthGrant", OAuthGrant.class);
 
     public static final ValueDescriptor<UsernamePassword> USERNAME_AND_PASSWORD = new ValueDescriptor<>("usernameAndPassword", UsernamePassword.class);
 
@@ -185,6 +195,18 @@ public final class ValueType {
     public static final ValueDescriptor<ValueConstraint> VALUE_CONSTRAINT = new ValueDescriptor<>("valueConstraint", ValueConstraint.class);
 
     public static final ValueDescriptor<AgentLink> VALUE_AGENT_LINK = new ValueDescriptor<>("agentLink", AgentLink.class);
+
+    public static final ValueDescriptor<CronExpressionParser> CRON_EXPRESSION = new ValueDescriptor<>("CRONExpression", CronExpressionParser.class);
+
+    public static final ValueDescriptor<String> HTTP_URL = new ValueDescriptor<>("HTTP_URL", String.class,
+        new ValueConstraint.Pattern(Constants.HTTP_URL_REGEXP)
+    );
+
+    public static final ValueDescriptor<String> WS_URL = new ValueDescriptor<>("WS_URL", String.class,
+        new ValueConstraint.Pattern(Constants.WS_URL_REGEXP)
+    );
+
+    public static final ValueDescriptor<AssetQuery> ASSET_QUERY = new ValueDescriptor<>("assetQuery", AssetQuery.class);
 
     protected ValueType() {
     }

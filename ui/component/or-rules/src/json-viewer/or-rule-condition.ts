@@ -1,14 +1,16 @@
-import {css, customElement, html, LitElement, property, query, TemplateResult} from "lit-element";
-import {AssetTypeInfo, RuleCondition, WellknownAssets} from "@openremote/model";
+import {css, html, LitElement, TemplateResult} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
+import {AssetTypeInfo, RuleCondition, WellknownAssets, AssetModelUtil} from "@openremote/model";
 import {ConditionType, getAssetTypeFromQuery, RulesConfig} from "../index";
 import "./or-rule-asset-query";
+import "./or-rule-trigger-query";
 import "@openremote/or-mwc-components/or-mwc-menu";
 import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
 import {ListItem} from "@openremote/or-mwc-components/or-mwc-list";
 import "@openremote/or-icon";
 import "@openremote/or-translate";
 import {InputType} from "@openremote/or-mwc-components/or-mwc-input";
-import {AssetModelUtil, Util} from "@openremote/core";
+import {Util} from "@openremote/core";
 import {i18next, translate} from "@openremote/or-translate";
 import {OrRulesJsonRuleChangedEvent} from "./or-rule-json-viewer";
 import {OrRuleAssetQuery} from "./or-rule-asset-query";
@@ -16,40 +18,69 @@ import {OrRuleAssetQuery} from "./or-rule-asset-query";
 const TIMER_COLOR = "4b87ea";
 const DATE_TIME_COLOR = "6AEAA4";
 
-export function getWhenTypesMenu(config?: RulesConfig, assetInfos?: AssetTypeInfo[]): ListItem[] {
+export function getWhenTypesMenu(config?: RulesConfig, assetInfos?: AssetTypeInfo[]): (ListItem | null)[] {
 
     let addAssetTypes = true;
+    let addAgentTypes = true;
     let addTimer = true;
 
     if (config && config.controls && config.controls.allowedConditionTypes) {
         addAssetTypes = config.controls.allowedConditionTypes.indexOf(ConditionType.ASSET_QUERY) >= 0;
-        addTimer = config.controls.allowedConditionTypes.indexOf(ConditionType.TIMER) >= 0;
+        addAgentTypes = config.controls.allowedConditionTypes.indexOf(ConditionType.AGENT_QUERY) >= 0;
+        addTimer = config.controls.allowedConditionTypes.indexOf(ConditionType.TIME) >= 0;
     }
 
-    const menu: ListItem[] = [];
+    const menu: (ListItem | null)[] = [];
 
-    if (addAssetTypes && assetInfos) {
-        menu.push(...assetInfos.filter((assetInfo) => assetInfo.assetDescriptor!.descriptorType !== "agent").map((assetTypeInfo) => {
+    if (assetInfos) {
 
-            const color = AssetModelUtil.getAssetDescriptorColour(assetTypeInfo);
-            const icon = AssetModelUtil.getAssetDescriptorIcon(assetTypeInfo);
-            const styleMap = color ? {"--or-icon-fill": "#" + color} : undefined;
+        if (addAssetTypes) {
+            const items = assetInfos.filter((assetInfo) => assetInfo.assetDescriptor!.descriptorType !== "agent").map((assetTypeInfo) => {
 
-            return {
-                text: Util.getAssetTypeLabel(assetTypeInfo.assetDescriptor!),
-                value: assetTypeInfo.assetDescriptor!.name,
-                icon: icon ? icon : AssetModelUtil.getAssetDescriptorIcon(WellknownAssets.THINGASSET),
-                styleMap: styleMap
-            } as ListItem;
-        })
-        .sort(Util.sortByString((listItem) => listItem.value!)));
+                const color = AssetModelUtil.getAssetDescriptorColour(assetTypeInfo);
+                const icon = AssetModelUtil.getAssetDescriptorIcon(assetTypeInfo);
+                const styleMap = color ? {"--or-icon-fill": "#" + color} : undefined;
+
+                return {
+                    text: Util.getAssetTypeLabel(assetTypeInfo.assetDescriptor!),
+                    value: assetTypeInfo.assetDescriptor!.name,
+                    icon: icon ? icon : AssetModelUtil.getAssetDescriptorIcon(WellknownAssets.THINGASSET),
+                    styleMap: styleMap
+                } as ListItem;
+            });
+
+            menu.push(...items.sort(Util.sortByString((listItem) => listItem.text!)));
+        }
+
+        if (addAssetTypes && addAgentTypes) {
+            menu.push(null);
+        }
+
+        if (addAgentTypes) {
+            const items = assetInfos.filter((assetInfo) => assetInfo.assetDescriptor!.descriptorType === "agent").map((assetTypeInfo) => {
+
+                const color = AssetModelUtil.getAssetDescriptorColour(assetTypeInfo);
+                const icon = AssetModelUtil.getAssetDescriptorIcon(assetTypeInfo);
+                const styleMap = color ? {"--or-icon-fill": "#" + color} : undefined;
+
+                return {
+                    text: Util.getAssetTypeLabel(assetTypeInfo.assetDescriptor!),
+                    value: assetTypeInfo.assetDescriptor!.name,
+                    icon: icon ? icon : AssetModelUtil.getAssetDescriptorIcon(WellknownAssets.THINGASSET),
+                    styleMap: styleMap
+                } as ListItem;
+            });
+
+            menu.push(...items.sort(Util.sortByString((listItem) => listItem.text!)));
+        }
     }
 
     if (addTimer) {
+        menu.push(null);
         menu.push({
-            text: i18next.t("timer"),
+            text: i18next.t("time"),
             icon: "timer",
-            value: ConditionType.TIMER,
+            value: ConditionType.TIME,
             styleMap: {"--or-icon-fill": "#" + TIMER_COLOR}
         } as ListItem);
     }
@@ -61,12 +92,14 @@ export function updateRuleConditionType(ruleCondition: RuleCondition, value: str
 
     if (!value) {
         ruleCondition.assets = undefined;
-        ruleCondition.timer = undefined;
-    } else if (value === ConditionType.TIMER) {
+        ruleCondition.cron = undefined;
+        ruleCondition.sun = undefined;
+    } else if (value === ConditionType.TIME) {
         ruleCondition.assets = undefined;
-        ruleCondition.timer = "1h";
+        const date = new Date();
+        ruleCondition.cron = Util.formatCronString(undefined, undefined, undefined, date.getUTCHours().toString(), date.getUTCMinutes().toString());
     } else {
-        ruleCondition.timer = undefined;
+        ruleCondition.cron = undefined;
 
         if (config && config.json && config.json.whenAssetQuery) {
             ruleCondition.assets = JSON.parse(JSON.stringify(config.json.whenAssetQuery));
@@ -129,13 +162,13 @@ class OrRuleCondition extends translate(i18next)(LitElement) {
         let template: TemplateResult | string = ``;
 
         if (showTypeSelect) {
-            
+
             let buttonIcon;
             let buttonColor = "inherit";
 
             if (type) {
                 switch (type) {
-                    case ConditionType.TIMER:
+                    case ConditionType.TIME:
                         buttonIcon = "timer";
                         buttonColor = TIMER_COLOR;
                         break;
@@ -148,7 +181,9 @@ class OrRuleCondition extends translate(i18next)(LitElement) {
             }
             if(this.readonly) {
                 typeTemplate = html`
+                <div id="type" style="--or-mwc-input-color: #${buttonColor}">
                     <or-mwc-input readonly type="${InputType.BUTTON}" .icon="${buttonIcon || ""}"></or-mwc-input>
+                </div>
                 `;
             } else {
                 typeTemplate = html`
@@ -157,17 +192,17 @@ class OrRuleCondition extends translate(i18next)(LitElement) {
                         html`<or-mwc-input type="${InputType.BUTTON}" .icon="${buttonIcon || ""}"></or-mwc-input>`,
                         getWhenTypesMenu(this.config, this.assetInfos),
                         type,
-                        (values: string[] | string) => this.type = values as ConditionType)}
+                        (value) => this.type = value as ConditionType)}
                 </div>
             `;
             }
-           
+
         }
-        
+
         if (type) {
             switch (type) {
-                case ConditionType.TIMER:
-                    template = html`<span>TIMER NOT IMPLEMENTED</span>`;
+                case ConditionType.TIME:
+                    template = html`<or-rule-trigger-query id="asset-query" .condition="${this.ruleCondition}"></or-rule-trigger-query>`;
                     break;
                 default:
                     template = html`<or-rule-asset-query id="asset-query" .config="${this.config}" .assetInfos="${this.assetInfos}" .readonly="${this.readonly}" .condition="${this.ruleCondition}"></or-rule-asset-query>`;
@@ -188,8 +223,8 @@ class OrRuleCondition extends translate(i18next)(LitElement) {
             return assetType;
         }
 
-        if (this.ruleCondition.timer) {
-            return ConditionType.TIMER;
+        if (this.ruleCondition.cron || this.ruleCondition.sun) {
+            return ConditionType.TIME;
         }
     }
 

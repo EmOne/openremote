@@ -20,9 +20,12 @@
 package org.openremote.manager.system;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.openremote.container.security.IdentityService;
+import org.openremote.manager.security.ManagerIdentityService;
+import org.openremote.model.Container;
 import org.openremote.model.system.HealthStatusProvider;
 import org.openremote.model.system.StatusResource;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,26 +38,37 @@ public class StatusResourceImpl implements StatusResource {
 
     private static final Logger LOG = Logger.getLogger(StatusResourceImpl.class.getName());
     protected List<HealthStatusProvider> healthStatusProviderList;
-    protected Properties versionProps = new Properties();
+    protected ObjectNode serverInfo;
 
-    public StatusResourceImpl(List<HealthStatusProvider> healthStatusProviderList) {
+    public StatusResourceImpl(Container container, List<HealthStatusProvider> healthStatusProviderList) {
         this.healthStatusProviderList = healthStatusProviderList;
+        Properties versionProps = new Properties();
+        String authServerUrl = null;
 
-        try(InputStream resourceStream = StatusResourceImpl.class.getClassLoader().getResourceAsStream("system.properties")) {
+        ManagerIdentityService identityService = container.getService(ManagerIdentityService.class);
+        if (identityService != null) {
+            authServerUrl = identityService.getIdentityProvider().getFrontendUrl();
+        }
+
+        try(InputStream resourceStream = StatusResourceImpl.class.getClassLoader().getResourceAsStream("version.properties")) {
             versionProps.load(resourceStream);
         } catch (IOException e) {
-            LOG.log(Level.SEVERE, "Failed to load manager version properties file: system.properties");
-            throw new IllegalStateException("Missing manager system.properties file");
+            LOG.log(Level.SEVERE, "Failed to load manager version properties file: version.properties");
+            throw new IllegalStateException("Missing manager version.properties file");
         }
+
+        String version = versionProps.getProperty("version");
+        serverInfo = ValueUtil.JSON.createObjectNode();
+        serverInfo.put("version", version);
+        serverInfo.put("authServerUrl", authServerUrl);
     }
 
     @Override
     public ObjectNode getHealthStatus() {
-        ObjectNode objectValue = Values.JSON.createObjectNode();
+        ObjectNode objectValue = ValueUtil.JSON.createObjectNode();
 
         healthStatusProviderList.forEach(healthStatusProvider -> {
-                ObjectNode providerValue = Values.JSON.createObjectNode();
-                providerValue.put("version", healthStatusProvider.getHealthStatusVersion());
+                ObjectNode providerValue = ValueUtil.JSON.createObjectNode();
                 providerValue.putPOJO("data", healthStatusProvider.getHealthStatus());
                 objectValue.set(healthStatusProvider.getHealthStatusName(), providerValue);
             }
@@ -65,9 +79,6 @@ public class StatusResourceImpl implements StatusResource {
 
     @Override
     public ObjectNode getInfo() {
-        String version = versionProps.getProperty("version");
-        ObjectNode objectValue = Values.JSON.createObjectNode();
-        objectValue.put("version", version);
-        return objectValue;
+        return serverInfo;
     }
 }

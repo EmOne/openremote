@@ -1,18 +1,32 @@
-import {css, unsafeCSS} from "lit-element";
-import {DefaultColor1, DefaultColor2, DefaultColor3, DefaultColor5, DefaultColor4, DefaultHeaderHeight} from "@openremote/core";
+import {css, unsafeCSS} from "lit";
+import {DefaultColor1, DefaultColor2, DefaultColor3, DefaultColor5, DefaultColor4, DefaultColor6, DefaultHeaderHeight} from "@openremote/core";
 
 // language=CSS
 export const panelStyles = css`
+    .panelContainer {
+        flex: 1 1 50%;
+        box-sizing: border-box;
+        min-width: 400px;
+        padding: 0 5px;
+    }
+    
     .panel {
         background-color: var(--internal-or-asset-viewer-panel-color);
         border: 1px solid #e5e5e5;
         border-radius: 5px;
-        max-width: 100%;
         position: relative;
+        margin: 0 0 10px 0;
     }
 
     .panel-content-wrapper {
         padding: var(--internal-or-asset-viewer-panel-padding);
+    }
+
+    .panel-content > :first-child {
+        margin-top: 0;
+    }
+    .panel-content > :last-child {
+        margin-bottom: 0;
     }
 
     .panel-content {
@@ -41,12 +55,18 @@ export const panelStyles = css`
         box-sizing: border-box;
     }
 
-    .panel-content > :first-child {
-        margin-top: 0;
+    @media screen and (max-width: 767px) {
+        .panel {
+            border-radius: 0;
+            border-right: none;
+            border-left: none;
+            flex-basis: 100%;
+            min-width: 360px;
+        }
     }
-
-    .panel-content > :last-child {
-        margin-bottom: 0;
+    
+    #linkedUsers-panel {
+        min-height: 200px;
     }
 `;
 
@@ -62,6 +82,7 @@ export const style = css`
         --internal-or-asset-viewer-panel-color: var(--or-asset-viewer-panel-color, var(--or-app-color1, ${unsafeCSS(DefaultColor1)}));
         --internal-or-asset-viewer-line-color: var(--or-asset-viewer-line-color, var(--or-app-color5, ${unsafeCSS(DefaultColor5)}));
         --internal-or-asset-viewer-button-color: var(--or-asset-viewer-button-color, var(--or-app-color4, ${unsafeCSS(DefaultColor4)}));
+        --internal-or-asset-viewer-error-color: var(--or-asset-viewer-error-color, var(--or-app-color6, ${unsafeCSS(DefaultColor6)}));
         --internal-or-header-height: var(--or-header-height, ${unsafeCSS(DefaultHeaderHeight)});
                 
         height: 100%;
@@ -87,19 +108,18 @@ export const style = css`
 
     #view-container, #edit-container {
         flex: 0 1 auto;
-        margin-top: 10px;
         overflow: auto;
     }
     
     #view-container {
+        flex: 1;
         margin-top: 0;
         box-sizing: border-box;
-        display: grid;
-        padding: 20px 20px;
-        grid-gap: 10px;
-        grid-template-columns: repeat(auto-fill, minmax(calc(50% - 5px),1fr));
-        grid-auto-rows: 5px;
-        min-height: calc(100vh - 68px - var(--internal-or-header-height));
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
+        padding: 0 15px 15px;
 
         -webkit-animation: fadein 0.3s; /* Safari, Chrome and Opera > 12.1 */
         -moz-animation: fadein 0.3s; /* Firefox < 16 */
@@ -107,19 +127,15 @@ export const style = css`
         -o-animation: fadein 0.3s; /* Opera < 12.1 */
         animation: fadein 0.3s;
     }
+
+    #edit-container {
+        padding: 10px 20px 0;
+    }
     
     #name-input {
         width: 300px;
     }
-    
-    @media only screen and (max-width: 767px) {
-        #wrapper {
-            position: absolute;
-            left: 0;
-            right: 0;
-        }
-    }
-    
+
     @keyframes fadein {
         from { opacity: 0; }
         to   { opacity: 1; }
@@ -150,21 +166,48 @@ export const style = css`
     }
 
     #asset-header {
-        padding: 20px 30px 0 30px;
+        padding: 20px 30px 15px;
         display: flex;
         flex: 0 0 auto;
         align-items: center;
         justify-content: space-between;
+        z-index: 1;
+        transition: box-shadow 0.2s;
+        box-shadow: none;
+    }
+
+    #asset-header.editmode {
+        padding: 14px 30px;
+        background-color: var(--internal-or-asset-viewer-panel-color);
+        border-bottom: solid 1px #e5e5e5;
+    }
+    #asset-header.scrolled {
+        box-shadow: rgb(0 0 0 / 15%) 0 0 5px 0;
     }
 
     #title {
-        flex: 1 1 0%;
+        flex: 1 1 auto;
         font-size: 18px;
         font-weight: bold;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
     }
 
     #title > or-icon {
         margin-right: 10px;
+    }
+
+    #error-wrapper {
+        color: var(--internal-or-asset-viewer-error-color);
+    }
+
+    #error-wrapper > * {
+        vertical-align: middle;
+    }
+
+    #error-wrapper or-translate {
+        margin-left: 5px;
     }
    
     #created-time {
@@ -172,7 +215,7 @@ export const style = css`
     }
     
     #right-wrapper {
-        flex: 1 1 0%;
+        flex: 1 1 auto;
         text-align: right;
     }
     
@@ -186,6 +229,10 @@ export const style = css`
 
     #save-btn {
         margin-left: 20px;
+    }
+
+    #edit-btn {
+        margin-left: 15px;
     }
     
     #location-panel .panel-content {
@@ -208,8 +255,27 @@ export const style = css`
         display: none;
         cursor: pointer;
     }
+    
+    #fileupload {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .hidden {
+        display: none;
+    }
+    
+    .multipleAssetsView {
+        display: flex;
+        flex-direction: column;
+    }
 
-    @media screen and (max-width: 769px) {
+    .multipleAssetsView > *:first-child {
+        margin: 30px;
+    }
+
+    @media screen and (max-width: 767px) {
         #wrapper {
             position: absolute;
             left: 0;
@@ -225,37 +291,44 @@ export const style = css`
         }
         
         #asset-header {
-            grid-area: auto!important;
-            padding: 20px 15px 0;
+            padding: 15px 15px 15px;
         }
 
-        .panel {
-            border-radius: 0;
-            border-right: none;
-            border-left: none;
+        #name-input {
+            width: auto;
         }
 
-        #chart-panel {
-            grid-row-start: 1;
+        #view-container {
+            padding: 0;
         }
 
-        #attributes-panel {
-            grid-row-start: 2;
+        #edit-container {
+            padding: 10px 0;
         }
-        
-        #location-panel {         
-            grid-row-start: 3;
-        }
-        
-        #history-panel {
-            grid-row-start: 4;
-        }
-        
-        #view-container { 
-            grid-auto-rows: auto;
-            grid-template-columns: 100% !important;
-            padding: 20px 0;
-            min-height: unset;
+
+        .panelContainer {
+            min-width: 360px;
+            padding: 0;
         }
     }
+    
+    @media screen and (max-width: 1130px) {
+        #name-input {
+            width: 150px;
+        }
+
+        .tabletHidden {
+            display: none;
+        }
+
+        #view-container {
+            flex-direction: column;
+            flex-wrap: nowrap;
+        }
+
+        .panelContainer {
+            flex: 0 1 auto;
+        }
+    }
+
 `;

@@ -29,14 +29,17 @@ import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.ParseContext;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import org.openremote.model.util.TextUtil;
+import org.openremote.model.util.ValueUtil;
 
-import java.util.Optional;
+import javax.validation.constraints.NotNull;
 
 /**
  * This filter works on any type of data; when applying the filter the data should be converted to JSON representation
  * using a tool like Jackson and then the JSON path expression should be applied to this JSON string.
  */
+@JsonSchemaTitle("JSON Path")
 @JsonTypeName(JsonPathFilter.NAME)
 public class JsonPathFilter extends ValueFilter {
 
@@ -50,6 +53,7 @@ public class JsonPathFilter extends ValueFilter {
 
     public static final String NAME = "jsonPath";
 
+    @NotNull
     @JsonProperty
     public String path;
 
@@ -74,7 +78,7 @@ public class JsonPathFilter extends ValueFilter {
             return null;
         }
 
-        String valueStr = Values.convert(value, String.class);
+        String valueStr = ValueUtil.convert(value, String.class);
 
         if (valueStr == null) {
             return null;
@@ -82,8 +86,8 @@ public class JsonPathFilter extends ValueFilter {
 
         Object obj = jsonPathParser.parse(valueStr).read(path);
 
-        if ((returnFirst || returnLast) && obj != null && Values.isArray(obj.getClass())) {
-            ArrayNode arrayNode = Values.convert(obj, ArrayNode.class);
+        if ((returnFirst || returnLast) && obj != null && ValueUtil.isArray(obj.getClass())) {
+            ArrayNode arrayNode = ValueUtil.convert(obj, ArrayNode.class);
             obj = arrayNode.get(returnFirst ? 0 : arrayNode.size() - 1);
         }
         return obj;

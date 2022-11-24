@@ -19,13 +19,12 @@
  */
 package org.openremote.manager.security;
 
-import org.openremote.model.Container;
 import org.openremote.container.persistence.PersistenceService;
 import org.openremote.container.security.IdentityService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.web.ManagerWebService;
+import org.openremote.model.Container;
 
-import javax.persistence.EntityManager;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -41,10 +40,10 @@ public class ManagerIdentityService extends IdentityService {
         super.init(container);
         persistenceService = container.getService(PersistenceService.class);
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
-            new TenantResourceImpl(container.getService(TimerService.class), this, container)
+        container.getService(ManagerWebService.class).addApiSingleton(
+            new RealmResourceImpl(container.getService(TimerService.class), this, container)
         );
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
             new UserResourceImpl(container.getService(TimerService.class), this)
         );
     }
@@ -71,31 +70,6 @@ public class ManagerIdentityService extends IdentityService {
         }
         return identityProvider;
     }
-
-    public UserConfiguration getUserConfiguration(String userId) {
-        return persistenceService.doReturningTransaction(entityManager -> getUserConfiguration(entityManager, userId));
-    }
-
-    protected UserConfiguration getUserConfiguration(EntityManager em, String userId) {
-        UserConfiguration userConfiguration = em.find(UserConfiguration.class, userId);
-        if (userConfiguration == null) {
-            userConfiguration = new UserConfiguration(userId);
-            userConfiguration = mergeUserConfiguration(em, userConfiguration);
-        }
-        return userConfiguration;
-    }
-
-    public UserConfiguration mergeUserConfiguration(UserConfiguration userConfiguration) {
-        return persistenceService.doReturningTransaction(entityManager -> mergeUserConfiguration(entityManager, userConfiguration));
-    }
-
-    protected UserConfiguration mergeUserConfiguration(EntityManager em, UserConfiguration userConfiguration) {
-        if (userConfiguration.getUserId() == null || userConfiguration.getUserId().length() == 0) {
-            throw new IllegalArgumentException("User ID must be set on: " + userConfiguration);
-        }
-        return em.merge(userConfiguration);
-    }
-
 
     @Override
     public String toString() {

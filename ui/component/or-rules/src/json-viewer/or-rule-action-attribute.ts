@@ -1,4 +1,5 @@
-import {css, customElement, html, LitElement, property, PropertyValues, TemplateResult} from "lit-element";
+import {css, html, LitElement, PropertyValues, TemplateResult} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {getAssetIdsFromQuery, getAssetTypeFromQuery, RulesConfig} from "../index";
 import {
     Asset,
@@ -7,16 +8,17 @@ import {
     RuleActionUpdateAttribute,
     RuleActionWriteAttribute,
     WellknownMetaItems,
-    WellknownValueTypes
+    WellknownValueTypes,
+    AssetModelUtil
 } from "@openremote/model";
-import manager, {AssetModelUtil, Util} from "@openremote/core";
+import manager, {Util} from "@openremote/core";
 import "@openremote/or-attribute-input";
 import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import i18next from "i18next";
 import {OrRulesJsonRuleChangedEvent} from "./or-rule-json-viewer";
 import {translate} from "@openremote/or-translate";
 import {OrAttributeInputChangedEvent} from "@openremote/or-attribute-input";
-import { ifDefined } from "lit-html/directives/if-defined";
+import { ifDefined } from "lit/directives/if-defined.js";
 
 // language=CSS
 const style = css`
@@ -29,6 +31,10 @@ const style = css`
 
     :host > * {
         margin: 0 3px 6px;
+    }
+
+    .min-width {
+        min-width: 200px;
     }
 `;
 
@@ -105,13 +111,13 @@ export class OrRuleActionAttribute extends translate(i18next)(LitElement) {
         idOptions.push(...this._assets!.map((asset) => [asset.id!, asset.name!] as [string, string]));
 
         const asset = idValue && idValue !== "*" ? this._assets.find(a => a.id === idValue) : undefined;
-        const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(assetType, this.action.attributeName);
+        const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(assetType, this.action.attributeName, asset && asset.attributes && this.action.attributeName ? asset.attributes[this.action.attributeName] : undefined);
 
         // Only RW attributes can be used in actions
         let attributes: [string, string][] = [];
 
         if (asset && asset.attributes) {
-            attributes = Object.values(asset.attributes).filter((attr) => !Util.getMetaValue(WellknownMetaItems.READONLY, attr))
+            attributes = Object.values(asset.attributes)
                 .map((attr) => {
                     const label = Util.getAttributeLabel(attr, descriptors[0], assetType, false);
                     return [attr.name!, label];
@@ -119,12 +125,16 @@ export class OrRuleActionAttribute extends translate(i18next)(LitElement) {
         } else if (assetDescriptor) {
             const assetTypeInfo = AssetModelUtil.getAssetTypeInfo(assetDescriptor);
 
-            attributes = !assetTypeInfo || !assetTypeInfo.attributeDescriptors ? [] : assetTypeInfo.attributeDescriptors.filter((ad) => !Util.hasMetaItem(WellknownMetaItems.READONLY, ad))
-                    .map((ad) => {
+            attributes =
+                !assetTypeInfo || !assetTypeInfo.attributeDescriptors
+                    ? []
+                    : assetTypeInfo.attributeDescriptors.map((ad) => {
                         const label = Util.getAttributeLabel(ad, descriptors[0], assetType, false);
                         return [ad.name!, label];
                     });
         }
+
+        attributes.sort(Util.sortByString((attr) => attr[1]));
 
         let attributeInput: TemplateResult | undefined;
 
@@ -132,13 +142,13 @@ export class OrRuleActionAttribute extends translate(i18next)(LitElement) {
             const label = descriptors[1] && (descriptors[1].name === WellknownValueTypes.BOOLEAN) ? "" : i18next.t("value");
             let inputType;
             if(descriptors[0]?.format?.asSlider) inputType = InputType.NUMBER;
-            attributeInput = html`<or-attribute-input .inputType="${ifDefined(inputType)}" @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setActionAttributeValue(ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="${label}" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${this.action.value}" .readonly="${this.readonly || false}"></or-attribute-input>`;
+            attributeInput = html`<or-attribute-input ?compact=${descriptors[1] && (descriptors[1].name === WellknownValueTypes.GEOJSONPOINT)} .inputType="${ifDefined(inputType)}" @or-attribute-input-changed="${(ev: OrAttributeInputChangedEvent) => this.setActionAttributeValue(ev.detail.value)}" .customProvider="${this.config?.inputProvider}" .label="${label}" .assetType="${assetType}" .attributeDescriptor="${descriptors[0]}" .attributeValueDescriptor="${descriptors[1]}" .value="${this.action.value}" .readonly="${this.readonly || false}"></or-attribute-input>`;
         }
 
         return html`
-            <or-mwc-input id="matchSelect" .label="${i18next.t("asset")}" .type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this._assetId = (e.detail.value)}" .readonly="${this.readonly || false}" .options="${idOptions}" .value="${idValue}"></or-mwc-input>
+            <or-mwc-input id="matchSelect" class="min-width" .label="${i18next.t("asset")}" .type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this._assetId = (e.detail.value)}" .readonly="${this.readonly || false}" .options="${idOptions}" .value="${idValue}"></or-mwc-input>
             ${attributes.length > 0 ? html`
-                <or-mwc-input id="attributeSelect" .label="${i18next.t("attribute")}" .type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this.setActionAttributeName(e.detail.value)}" .readonly="${this.readonly || false}" .options="${attributes}" .value="${this.action.attributeName}"></or-mwc-input>
+                <or-mwc-input id="attributeSelect" class="min-width" .label="${i18next.t("attribute")}" .type="${InputType.SELECT}" @or-mwc-input-changed="${(e: OrInputChangedEvent) => this.setActionAttributeName(e.detail.value)}" .readonly="${this.readonly || false}" .options="${attributes}" .value="${this.action.attributeName}"></or-mwc-input>
                 ${attributeInput}
             ` : html`
                 <or-translate value="No attributes with write permission"></or-translate>
@@ -195,10 +205,6 @@ export class OrRuleActionAttribute extends translate(i18next)(LitElement) {
             types: [
                 type
             ],
-            select: {
-                excludeParentInfo: true,
-                excludePath: true
-            },
             orderBy: {
                 property: AssetQueryOrderBy$Property.NAME
             }

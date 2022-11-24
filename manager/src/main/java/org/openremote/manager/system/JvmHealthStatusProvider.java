@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.system.HealthStatusProvider;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -33,7 +33,6 @@ import java.lang.management.ThreadMXBean;
 public class JvmHealthStatusProvider implements HealthStatusProvider, ContainerService {
 
     public static final String NAME = "jvm";
-    public static final String VERSION = "1.0";
 
     @Override
     public int getPriority() {
@@ -61,13 +60,8 @@ public class JvmHealthStatusProvider implements HealthStatusProvider, ContainerS
     }
 
     @Override
-    public String getHealthStatusVersion() {
-        return VERSION;
-    }
-
-    @Override
     public Object getHealthStatus() {
-        ObjectNode objectValue = Values.createJsonObject();
+        ObjectNode objectValue = ValueUtil.createJsonObject();
         com.sun.management.OperatingSystemMXBean operatingSystemMXBean = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
         ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();

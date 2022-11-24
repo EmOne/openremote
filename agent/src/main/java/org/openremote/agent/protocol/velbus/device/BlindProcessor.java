@@ -22,13 +22,14 @@ package org.openremote.agent.protocol.velbus.device;
 import org.openremote.agent.protocol.velbus.VelbusPacket;
 import org.openremote.model.util.EnumUtil;
 import org.openremote.model.util.Pair;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.ValueDescriptor;
 import org.openremote.model.value.ValueType;
-import org.openremote.model.value.Values;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.openremote.agent.protocol.velbus.VelbusPacket.OutboundCommand.*;
 import static org.openremote.model.util.TextUtil.toProperCase;
@@ -46,8 +47,8 @@ public class BlindProcessor extends OutputChannelProcessor {
                 return Optional.of(HALT);
             }
 
-            if (Values.isBoolean(value.getClass())) {
-                return fromBoolean(Values.getBoolean(value).orElse(null));
+            if (ValueUtil.isBoolean(value.getClass())) {
+                return fromBoolean(ValueUtil.getBoolean(value).orElse(null));
             }
 
             return EnumUtil.enumFromValue(ChannelState.class, value);
@@ -91,6 +92,10 @@ public class BlindProcessor extends OutputChannelProcessor {
             }
 
             return NORMAL;
+        }
+
+        public static Optional<ChannelSetting> fromValue(Object value) {
+            return EnumUtil.enumFromValue(ChannelSetting.class, value);
         }
     }
 
@@ -155,6 +160,7 @@ public class BlindProcessor extends OutputChannelProcessor {
             .collect(Collectors.toList());
     }
 
+    @SuppressWarnings("ConstantConditions")
     @Override
     public List<VelbusPacket> getPropertyWritePackets(VelbusDevice device, String property, Object value) {
         return getChannelNumberAndPropertySuffix(device, CHANNEL_REGEX, property)
@@ -181,24 +187,96 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 })
                                 .orElse(null);
                             break;
-                        case "LOCKED":
-                            command = Values.getBoolean(value)
+                        case "_SETTING":
+                            Optional<ChannelSetting> setting = ChannelSetting.fromValue(value);
+                            if (!setting.isPresent()) {
+                                return null;
+                            }
+                            switch (setting.get()) {
+                                case NORMAL:
+                                    return Stream.of(
+                                        getPackets(device, channelNumber, INHIBIT_CANCEL, 0xFFFFFF, 0),
+                                        getPackets(device, channelNumber, BLIND_FORCE_DOWN_CANCEL, 0xFFFFFF, 0),
+                                        getPackets(device, channelNumber, BLIND_FORCE_UP_CANCEL, 0xFFFFFF, 0),
+                                        getPackets(device, channelNumber, LOCK_CANCEL, 0xFFFFFF, 0)
+                                    ).flatMap(List::stream).collect(Collectors.toList());
+                                case INHIBITED:
+                                    params[0] = 0xFFFFFF;
+                                    command = INHIBIT;
+                                    break;
+                                case INHIBITED_DOWN:
+                                    params[0] = 0xFFFFFF;
+                                    command = BLIND_INHIBIT_DOWN;
+                                    break;
+                                case INHIBITED_UP:
+                                    params[0] = 0xFFFFFF;
+                                    command = BLIND_INHIBIT_UP;
+                                    break;
+                                case FORCED_DOWN:
+                                    params[0] = 0xFFFFFF;
+                                    command = BLIND_FORCE_DOWN;
+                                    break;
+                                case FORCED_UP:
+                                    params[0] = 0xFFFFFF;
+                                    command = BLIND_FORCE_UP;
+                                    break;
+                                case LOCKED:
+                                    params[0] = 0xFFFFFF;
+                                    command = LOCK;
+                                    break;
+                            }
+                            break;
+                        case "_LOCKED":
+                            command = ValueUtil.getBoolean(value)
                                 .map(locked -> {
                                     params[0] = 0xFFFFFF;
                                     return locked ? LOCK : LOCK_CANCEL;
                                 })
                                 .orElse(null);
                             break;
-                        case "INHIBITED":
-                            command = Values.getBoolean(value)
+                        case "_INHIBITED":
+                            command = ValueUtil.getBoolean(value)
                                 .map(inhibited -> {
                                     params[0] = 0xFFFFFF;
                                     return inhibited ? INHIBIT : INHIBIT_CANCEL;
                                 })
                                 .orElse(null);
                             break;
+                        case "_INHIBITED_UP":
+                            command = ValueUtil.getBoolean(value)
+                                .map(inhibited -> {
+                                    params[0] = 0xFFFFFF;
+                                    return inhibited ? BLIND_INHIBIT_UP : INHIBIT_CANCEL;
+                                })
+                                .orElse(null);
+                            break;
+
+                        case "_INHIBITED_DOWN":
+                            command = ValueUtil.getBoolean(value)
+                                .map(inhibited -> {
+                                    params[0] = 0xFFFFFF;
+                                    return inhibited ? BLIND_INHIBIT_DOWN : INHIBIT_CANCEL;
+                                })
+                                .orElse(null);
+                            break;
+                        case "_FORCED_DOWN":
+                            command = ValueUtil.getBoolean(value)
+                                .map(inhibited -> {
+                                    params[0] = 0xFFFFFF;
+                                    return inhibited ? BLIND_FORCE_DOWN : BLIND_FORCE_DOWN_CANCEL;
+                                })
+                                .orElse(null);
+                            break;
+                        case "_FORCED_UP":
+                            command = ValueUtil.getBoolean(value)
+                                .map(inhibited -> {
+                                    params[0] = 0xFFFFFF;
+                                    return inhibited ? BLIND_FORCE_UP : BLIND_FORCE_UP_CANCEL;
+                                })
+                                .orElse(null);
+                            break;
                         case "_POSITION":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(position -> {
                                     params[1] = position;
                                     return position < 0 ? BLIND_HALT : BLIND_POSITION;
@@ -206,7 +284,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_LOCK":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? BLIND_LOCK_CANCEL : BLIND_LOCK;
@@ -214,7 +292,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_UP":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     if (duration == 0) {
@@ -226,7 +304,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_DOWN":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     if (duration == 0) {
@@ -238,7 +316,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_FORCE_UP":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? BLIND_FORCE_UP_CANCEL : BLIND_FORCE_UP;
@@ -246,7 +324,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_FORCE_DOWN":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? BLIND_FORCE_DOWN_CANCEL : BLIND_FORCE_DOWN;
@@ -254,7 +332,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_INHIBIT":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? INHIBIT_CANCEL : INHIBIT;
@@ -262,7 +340,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_INHIBIT_UP":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? INHIBIT_CANCEL : BLIND_INHIBIT_UP;
@@ -270,7 +348,7 @@ public class BlindProcessor extends OutputChannelProcessor {
                                 .orElse(null);
                             break;
                         case "_INHIBIT_DOWN":
-                            command = Values.getIntegerCoerced(value)
+                            command = ValueUtil.getIntegerCoerced(value)
                                 .map(duration -> {
                                     params[0] = duration;
                                     return duration == 0 ? INHIBIT_CANCEL : BLIND_INHIBIT_DOWN;

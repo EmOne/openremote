@@ -1,32 +1,46 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-apply plugin: "java"
+plugins {
+    id 'com.adarshr.test-logger' version '3.1.0'
+}
+
+apply plugin: "java-library"
+apply plugin: "java-test-fixtures"
 apply plugin: "groovy"
+apply plugin: "maven-publish"
+apply plugin: "signing"
 
 dependencies {
 
-    compile "org.codehaus.groovy:groovy:$groovyVersion"
+    testImplementation resolveProject(":setup").sourceSets.integration.output
+    api resolveProject(":manager")
 
-    compile resolveProject(":manager")
+    testFixturesImplementation "org.codehaus.groovy:groovy:$groovyVersion"
+    testFixturesApi platform("org.spockframework:spock-bom:$spockVersion")
+    testFixturesApi 'org.spockframework:spock-core'
 
-    compile "junit:junit:$junitVersion"
-    compile "org.spockframework:spock-core:$spockVersion"
+    // optional dependencies for using Spock
+    testFixturesRuntimeOnly "net.bytebuddy:byte-buddy:$byteBuddyVersion" // allows mocking of classes (in addition to interfaces)
+    testFixturesRuntimeOnly "org.objenesis:objenesis:$objenesisVersion"      // allows mocking of classes without default constructor (together with ByteBuddy or CGLIB)
 
-    compile "org.glassfish.tyrus:tyrus-client:$tyrusVersion"
-    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:$tyrusVersion"
-    compile "org.objenesis:objenesis:$objenesisVersion"
-    compile "net.bytebuddy:byte-buddy:$byteBuddyVersion"
-
-    compile("com.github.calimero:calimero-server:$calimeroVersion") {
+    testImplementation("com.github.calimero:calimero-server:$calimeroVersion") {
         // Libraries should not depend on a logging implementation and/or alpha versions!
         exclude group: "org.slf4j"
     }
+
+    testImplementation "com.google.firebase:firebase-admin:$firebaseAdminVersion"
+    testImplementation "org.simplejavamail:simple-java-mail:$simpleJavaMailVersion"
+    testImplementation "org.shredzone.commons:commons-suncalc:$suncalcVersion"
+}
+
+tasks.withType(Test) {
+    environment("OR_LOGGING_CONFIG_FILE", "test/src/logging-test.properties")
 }
 
 test {
     workingDir = findProject(":openremote") != null ? resolveProject("").projectDir : rootProject.projectDir
-    outputs.upToDateWhen {false}
+    useJUnitPlatform()
     testLogging {
         // set options for log level LIFECYCLE
         events TestLogEvent.FAILED,
@@ -49,9 +63,9 @@ test {
         info.events = debug.events
         info.exceptionFormat = debug.exceptionFormat
 
-        afterTest { desc, result ->
-            logger.quiet "${desc.className} > ${desc.name} took: ${(result.endTime - result.startTime)}ms"
-        }
+//        afterTest { desc, result ->
+//            logger.quiet "${desc.className} > ${desc.name} took: ${(result.endTime - result.startTime)}ms"
+//        }
 
         afterSuite { desc, result ->
             if (!desc.parent) { // will match the outermost suite
@@ -62,4 +76,62 @@ test {
             }
         }
     }
+}
+
+javadoc {
+    failOnError = false
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            group = "io.openremote"
+            artifactId = "openremote-${project.name}"
+            from components.java
+            pom {
+                name = 'OpenRemote Test Fixtures'
+                description = 'Provides test fixtures for writing backend integration tests; add maven {url "https://jitpack.io"} and maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
+                url = 'https://github.com/openremote/openremote'
+                licenses {
+                    license {
+                        name = 'GNU Affero General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/agpl-3.0.en.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'developers'
+                        name = 'Developers'
+                        email = 'developers@openremote.io'
+                        organization = 'OpenRemote'
+                        organizationUrl = 'https://openremote.io'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/openremote/openremote.git'
+                    developerConnection = 'scm:git:ssh://github.com:openremote/openremote.git'
+                    url = 'https://github.com/openremote/openremote/tree/master'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            if (!version.endsWith('-LOCAL')) {
+                credentials {
+                    username findProperty("publishUsername")
+                    password findProperty("publishPassword")
+                }
+            }
+            url = version.endsWith('-LOCAL') ? layout.buildDirectory.dir('repo') : version.endsWith('-SNAPSHOT') ? findProperty("snapshotsRepoUrl") : findProperty("releasesRepoUrl")
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.maven
 }

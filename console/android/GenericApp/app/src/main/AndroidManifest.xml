@@ -19,7 +19,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/OpenRemoteTheme">
-        <activity android:name=".ui.PrivacyPolicyActivity"></activity>
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
@@ -34,10 +33,10 @@
         <activity
             android:name=".ui.SplashActivity"
             android:exported="true"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
@@ -48,23 +47,33 @@
         <activity
             android:name=".ui.ProjectActivity"
             android:exported="true"
-            android:label="@string/title_activity_project" />
-        <activity android:name=".ui.MainActivity" />
+            android:label="@string/title_activity_project"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name="io.openremote.orlib.ui.OrMainActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name="io.openremote.orlib.ui.OrPrivacyPolicyActivity"
+            android:screenOrientation="portrait" />
 
-        <service android:name=".service.ORFirebaseMessagingService">
+        <service
+            android:name="io.openremote.orlib.service.ORFirebaseMessagingService"
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        <service android:name=".service.ORMessagingActionService"></service>
+        <service android:name="io.openremote.orlib.service.ORMessagingActionService" />
 
-        <receiver android:name=".service.GeofenceBootCompleteReceiver">
+        <receiver
+            android:name="io.openremote.orlib.service.GeofenceBootCompleteReceiver"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".service.GeofenceTransitionsIntentService"
+            android:name="io.openremote.orlib.service.GeofenceTransitionsIntentService"
             android:enabled="true"
             android:exported="true" />
     </application>

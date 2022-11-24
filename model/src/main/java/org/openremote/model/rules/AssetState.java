@@ -19,7 +19,6 @@
  */
 package org.openremote.model.rules;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -27,6 +26,7 @@ import org.openremote.model.asset.Asset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.attribute.MetaMap;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.*;
 
 import java.util.Date;
@@ -71,10 +71,6 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
 
     final protected String parentId;
 
-    final protected String parentName;
-
-    final protected String parentType;
-
     final protected String realm;
 
     final protected MetaMap meta;
@@ -93,8 +89,6 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         this.createdOn = asset.getCreatedOn();
         this.path = asset.getPath();
         this.parentId = asset.getParentId();
-        this.parentName = asset.getParentName();
-        this.parentType = asset.getParentType();
         this.realm = asset.getRealm();
         this.meta = attribute.getMeta();
     }
@@ -118,12 +112,7 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
 
     @Override
     public <U> Optional<U> getValueAs(Class<U> valueType) {
-        return Values.getValueCoerced(value, valueType);
-    }
-
-    @Override
-    public void setValue(Object value) {
-        throw new UnsupportedOperationException("Cannot set value of Asset State");
+        return ValueUtil.getValueCoerced(value, valueType);
     }
 
     public long getTimestamp() {
@@ -166,20 +155,20 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         return parentId;
     }
 
-    public String getParentName() {
-        return parentName;
-    }
-
-    public String getParentType() {
-        return parentType;
-    }
-
     public String getRealm() {
         return realm;
     }
 
     public MetaMap getMeta() {
         return meta;
+    }
+
+    public <U> Optional<U> getMetaValue(MetaItemDescriptor<U> metaItemDescriptor) {
+        return getMeta().getValue(metaItemDescriptor);
+    }
+
+    public boolean hasMeta(MetaItemDescriptor<?> metaItemDescriptor) {
+        return getMeta().has(metaItemDescriptor);
     }
 
     /**
@@ -229,7 +218,6 @@ public class AssetState<T> implements Comparable<AssetState<?>>, NameValueHolder
         return getClass().getSimpleName() + "{" +
             "id='" + getId() + '\'' +
             ", name='" + getAssetName() + '\'' +
-            ", parentName='" + getParentName() + '\'' +
             ", type='" + getAssetType() + '\'' +
             ", attributeName='" + getName() + '\'' +
             ", attributeValueDescriptor=" + getType() +

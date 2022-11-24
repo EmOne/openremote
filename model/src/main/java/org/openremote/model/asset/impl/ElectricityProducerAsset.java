@@ -21,8 +21,13 @@ package org.openremote.model.asset.impl;
 
 import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
+import java.util.Optional;
+
+import static org.openremote.model.Constants.UNITS_KILO;
+import static org.openremote.model.Constants.UNITS_WATT;
 
 @Entity
 public class ElectricityProducerAsset extends ElectricityAsset<ElectricityProducerAsset> {
@@ -37,8 +42,9 @@ public class ElectricityProducerAsset extends ElectricityAsset<ElectricityProduc
     public static final AttributeDescriptor<Double> TARIFF_IMPORT = ElectricitySupplierAsset.TARIFF_IMPORT.withOptional(true);
     public static final AttributeDescriptor<Double> TARIFF_EXPORT = ElectricitySupplierAsset.TARIFF_EXPORT.withOptional(true);
     public static final AttributeDescriptor<Double> CARBON_IMPORT = ElectricitySupplierAsset.CARBON_IMPORT.withOptional(true);
-    public static final AttributeDescriptor<Integer> CARBON_IMPORT_TOTAL = ElectricitySupplierAsset.CARBON_IMPORT_TOTAL.withOptional(true);
-    public static final AttributeDescriptor<Integer> CARBON_EXPORT_TOTAL = ElectricitySupplierAsset.CARBON_EXPORT_TOTAL.withOptional(true);
+
+    public static final AttributeDescriptor<Double> POWER_FORECAST = new AttributeDescriptor<>("powerForecast", ValueType.NUMBER
+    ).withUnits(UNITS_KILO, UNITS_WATT);
 
     public static final AssetDescriptor<ElectricityProducerAsset> DESCRIPTOR = new AssetDescriptor<>("flash", "EABB4D", ElectricityProducerAsset.class);
 
@@ -50,5 +56,9 @@ public class ElectricityProducerAsset extends ElectricityAsset<ElectricityProduc
 
     public ElectricityProducerAsset(String name) {
         super(name);
+    }
+
+    public Optional<Double> getPowerForecast() {
+        return getAttributes().getOrCreate(POWER_FORECAST).getValue();
     }
 }

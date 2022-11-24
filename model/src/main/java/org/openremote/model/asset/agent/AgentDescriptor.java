@@ -29,8 +29,6 @@ import org.openremote.model.asset.AssetDescriptor;
 import org.openremote.model.protocol.ProtocolAssetDiscovery;
 import org.openremote.model.protocol.ProtocolAssetImport;
 import org.openremote.model.protocol.ProtocolInstanceDiscovery;
-import org.openremote.model.value.AttributeDescriptor;
-import org.openremote.model.value.MetaItemDescriptor;
 
 /**
  * Special type of {@link AssetDescriptor} that describes an agent {@link Asset}.
@@ -82,6 +80,11 @@ public class AgentDescriptor<T extends Agent<T, U, V>, U extends Protocol<T>, V 
     @JsonProperty
     public boolean isAssetImport() {
         return ProtocolAssetImport.class.isAssignableFrom(protocolClass);
+    }
+
+    @JsonProperty
+    public String getAgentLinkType() {
+        return agentLinkClass.getSimpleName();
     }
 
     public Class<U> getProtocolClass() {

@@ -1,4 +1,5 @@
-import {customElement, html, LitElement, property, PropertyValues} from "lit-element";
+import {html, LitElement, PropertyValues} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {
     RuleActionNotification,
     AssetQuery,
@@ -70,7 +71,7 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
                     container.appendChild(child);
                 }
             });
-            dialog.dialogContent = html`${container}`;
+            dialog.content = html`${container}`;
             dialog.dismissAction = null;
             this.requestUpdate();
         }
@@ -113,7 +114,7 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
             },
             {
                 actionName: "",
-                content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("ok")}" @click="${this.checkForm}"></or-mwc-input>`
+                content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("ok")}" @or-mwc-input-changed="${this.checkForm}"></or-mwc-input>`
             }
         ];
        
@@ -126,8 +127,8 @@ export class OrRuleNotificationModal extends translate(i18next)(LitElement) {
         };
 
         return html`
-            <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("message")}" @click="${notificationPickerModalOpen}"></or-mwc-input>
-            <or-mwc-dialog id="notification-modal" dialogTitle="${this.title}" .dialogActions="${notificationPickerModalActions}"></or-mwc-dialog>
+            <or-mwc-input .type="${InputType.BUTTON}" .label="${i18next.t("message")}" @or-mwc-input-changed="${notificationPickerModalOpen}"></or-mwc-input>
+            <or-mwc-dialog id="notification-modal" heading="${this.title}" .actions="${notificationPickerModalActions}"></or-mwc-dialog>
             <slot class="notification-form-slot"></slot>
         `
     }

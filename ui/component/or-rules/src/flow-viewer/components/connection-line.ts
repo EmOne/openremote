@@ -1,4 +1,5 @@
-import { html, customElement, css, property } from "lit-element";
+import { html, css } from "lit";
+import {customElement, property} from "lit/decorators.js";
 import { NodeConnection } from "@openremote/model";
 import { IdentityDomLink, IdentityAssigner, NodeUtilities } from "../node-structure";
 import { FlowNodeSocket } from "./flow-node-socket";
@@ -37,7 +38,9 @@ export class ConnectionLine extends SelectableElement {
 
     protected firstUpdated() {
         super.firstUpdated();
-        this.setHandle(this.shadowRoot!.getElementById(this.polylineId)!);
+        const elem = this.shadowRoot!.getElementById(this.polylineId)!;
+        if (elem)
+            this.setHandle(elem);
     }
 
     protected render() {

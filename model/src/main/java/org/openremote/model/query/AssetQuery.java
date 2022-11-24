@@ -24,9 +24,11 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
+import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.query.filter.*;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.ValueUtil;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Collectors;
@@ -34,62 +36,26 @@ import java.util.stream.Collectors;
 /**
  * Encapsulate asset query restriction, projection, and ordering of results.
  */
-// TODO: Add AssetQuery support for arbitrary attribute property path amd value (e.g. attributes.consoleProviders.geofence.version == "ORConsole")
-public class AssetQuery {
+// TODO: Add AssetQuery support for arbitrary attribute property path and value (e.g. consoleProviders.geofence.version == "ORConsole")
+public class AssetQuery implements Serializable {
 
     public static class Select {
-
+        protected static final String[] EMPTY_ATTRIBUTES = new String[0];
         public String[] attributes;
-        public boolean excludePath;
-        public boolean excludeAttributes;
-        public boolean excludeParentInfo;
-
-        public static Select selectExcludePathAndParentInfo() {
-            return new Select()
-                    .excludeAttributes(false)
-                    .excludePath(true)
-                    .excludeParentInfo(true);
-        }
-
-        public static Select selectExcludePathAndAttributes() {
-            return new Select()
-                    .excludePath(true)
-                    .excludeAttributes(true);
-        }
-
-        public static Select selectExcludeAll() {
-            return new Select()
-                    .excludeAttributes(true)
-                    .excludePath(true)
-                    .excludeParentInfo(true);
-        }
 
         public Select attributes(String... attributeNames) {
             this.attributes = attributeNames;
             return this;
         }
 
-        public Select excludeAttributes(boolean exclude) {
-            this.excludeAttributes = exclude;
-            return this;
-        }
-
-        public Select excludePath(boolean exclude) {
-            this.excludePath = exclude;
-            return this;
-        }
-
-        public Select excludeParentInfo(boolean exclude) {
-            this.excludeParentInfo = exclude;
+        public Select excludeAttributes() {
+            this.attributes = EMPTY_ATTRIBUTES;
             return this;
         }
 
         @Override
         public String toString() {
             return getClass().getSimpleName() + "{" +
-                    "excludeAttributes=" + excludeAttributes +
-                    ", excludePath=" + excludePath +
-                    ", excludeParentInfo=" + excludeParentInfo +
                     ", attributeNames=" + Arrays.toString(attributes) +
                     '}';
         }
@@ -212,12 +178,12 @@ public class AssetQuery {
     // Projection
     public Select select;
     // Restriction predicates
-    public Access access = Access.PRIVATE;
+    public Access access;
     public String[] ids;
     public StringPredicate[] names;
     public ParentPredicate[] parents;
     public PathPredicate[] paths;
-    public TenantPredicate tenant;
+    public RealmPredicate realm;
     public String[] userIds;
     @JsonSerialize(contentConverter = AssetClassToStringConverter.class)
     @JsonDeserialize(contentConverter = StringToAssetClassConverter.class)
@@ -237,9 +203,17 @@ public class AssetQuery {
 
     public static class StringToAssetClassConverter extends StdConverter<String, Class<? extends Asset<?>>> {
 
+        @SuppressWarnings("unchecked")
         @Override
         public Class<? extends Asset<?>> convert(String value) {
-            return AssetModelUtil.getAssetDescriptor(value).map(AssetDescriptor::getType).orElse(null);
+            if (Agent.class.getSimpleName().equals(value)) {
+                return (Class<? extends Asset<?>>)(Class<?>) Agent.class;
+            }
+            if (Asset.class.getSimpleName().equals(value)) {
+                return (Class<? extends Asset<?>>)(Class<?>) Asset.class;
+            }
+
+            return ValueUtil.getAssetDescriptor(value).map(AssetDescriptor::getType).orElse(null);
         }
     }
 
@@ -293,25 +267,6 @@ public class AssetQuery {
         return this;
     }
 
-    @SafeVarargs
-    public final AssetQuery parents(Class<? extends Asset<?>>...assetTypes) {
-        if (assetTypes == null || assetTypes.length == 0) {
-            this.names = null;
-            return this;
-        }
-        this.parents = Arrays.stream(assetTypes).map(assetType -> new ParentPredicate().type(assetType)).toArray(ParentPredicate[]::new);
-        return this;
-    }
-
-    public AssetQuery parents(AssetDescriptor<?>... assetTypes) {
-        if (assetTypes == null || assetTypes.length == 0) {
-            this.names = null;
-            return this;
-        }
-        this.parents = Arrays.stream(assetTypes).map(assetType -> new ParentPredicate().type(assetType)).toArray(ParentPredicate[]::new);
-        return this;
-    }
-
     public AssetQuery parents(ParentPredicate... parentPredicates) {
         this.parents = parentPredicates;
         return this;
@@ -322,8 +277,8 @@ public class AssetQuery {
         return this;
     }
 
-    public AssetQuery tenant(TenantPredicate tenantPredicate) {
-        this.tenant = tenantPredicate;
+    public AssetQuery realm(RealmPredicate realmPredicate) {
+        this.realm = realmPredicate;
         return this;
     }
 
@@ -333,7 +288,8 @@ public class AssetQuery {
     }
 
     @SuppressWarnings("unchecked")
-    public AssetQuery types(AssetDescriptor<? extends Asset<?>>... types) {
+    @SafeVarargs
+    public final AssetQuery types(AssetDescriptor<? extends Asset<?>>... types) {
         if (types == null || types.length == 0) {
             this.types = null;
             return this;
@@ -392,7 +348,7 @@ public class AssetQuery {
     }
 
     public AssetQuery attributeValue(String name) {
-        return attributeValue(name, new ValueNotEmptyPredicate());
+        return attributeValue(name, new ValueEmptyPredicate().negate(true));
     }
 
     public AssetQuery attributeValue(String name, boolean b) {
@@ -432,7 +388,7 @@ public class AssetQuery {
                 ", name=" + Arrays.toString(names) +
                 ", parent=" + Arrays.toString(parents) +
                 ", path=" + Arrays.toString(paths) +
-                ", tenant=" + tenant +
+                ", realm=" + realm +
                 ", userId='" + Arrays.toString(userIds) + '\'' +
                 ", type=" + Arrays.toString(types) +
                 ", attribute=" + (attributes != null ? attributes.toString() : "null") +

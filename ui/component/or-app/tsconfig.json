@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src",
     "strict": true
   },
@@ -15,12 +14,14 @@
   	{ "path": "../../component/or-icon" },
   	{ "path": "../../component/or-map" },
   	{ "path": "../../component/or-attribute-input" },
+  	{ "path": "../../component/or-attribute-picker" },
     { "path": "../../component/or-asset-tree" },
     { "path": "../../component/or-asset-viewer" },
     { "path": "../../component/or-data-viewer" },
     { "path": "../../component/or-log-viewer" },
     { "path": "../../component/or-chart" },
-    { "path": "../../component/or-table" },
-    { "path": "../../component/or-rules" }
+    { "path": "../../component/or-rules" },
+    { "path": "../../component/or-dashboard-builder" },
+    { "path": "../../component/or-gauge" }
   ]
 }

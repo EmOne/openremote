@@ -31,8 +31,8 @@ import org.openremote.model.asset.agent.AgentDescriptor;
 import org.openremote.model.asset.agent.AgentResource;
 import org.openremote.model.file.FileInfo;
 import org.openremote.model.http.RequestParams;
-import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TextUtil;
+import org.openremote.model.util.ValueUtil;
 
 import javax.ws.rs.*;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,21 +54,24 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
     private static final Logger LOG = Logger.getLogger(AgentResourceImpl.class.getName());
     protected final AgentService agentService;
     protected final AssetStorageService assetStorageService;
+    protected final ScheduledExecutorService executorService;
 
     public AgentResourceImpl(TimerService timerService,
                              ManagerIdentityService identityService,
                              AssetStorageService assetStorageService,
-                             AgentService agentService) {
+                             AgentService agentService,
+                             ScheduledExecutorService executorService) {
         super(timerService, identityService);
         this.agentService = agentService;
         this.assetStorageService = assetStorageService;
+        this.executorService = executorService;
     }
 
     @Override
     public Agent<?, ?, ?>[] doProtocolInstanceDiscovery(RequestParams requestParams, String parentId, String agentType, String realm) {
 
         if (!isSuperUser()) {
-            realm = getAuthenticatedRealm();
+            realm = getAuthenticatedRealmName();
         }
 
         if (parentId != null) {
@@ -76,11 +81,11 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
                 throw new NotFoundException("Parent asset does not exist");
             }
             if (realm != null && !asset.getRealm().equals(realm)) {
-                throw new NotAuthorizedException("Parent asset not in the correct realm: agent ID =" + parentId);
+                throw new ForbiddenException("Parent asset not in the correct realm: agent ID =" + parentId);
             }
         }
 
-        Optional<AgentDescriptor<?, ?, ?>> agentDescriptor = AssetModelUtil.getAgentDescriptor(agentType);
+        Optional<AgentDescriptor<?, ?, ?>> agentDescriptor = ValueUtil.getAgentDescriptor(agentType);
 
         if (!agentDescriptor.isPresent()) {
             throw new IllegalArgumentException("Agent descriptor not found: agent type =" + agentType);
@@ -104,7 +109,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
     public AssetTreeNode[] doProtocolAssetDiscovery(RequestParams requestParams, String agentId, String realm) {
 
         if (!isSuperUser()) {
-            realm = getAuthenticatedRealm();
+            realm = getAuthenticatedRealmName();
         }
 
         Agent<?, ?, ?> agent = agentService.getAgent(agentId);
@@ -114,15 +119,28 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
         }
 
         if (realm != null && !realm.equals(agent.getRealm())) {
-            throw new NotAuthorizedException("Agent not in the correct realm: agent ID =" + agentId);
+            throw new ForbiddenException("Agent not in the correct realm: agent ID =" + agentId);
         }
 
         List<AssetTreeNode> foundAssets = new ArrayList<>();
-        agentService.doProtocolAssetDiscovery(agent, assets -> {
+        String finalRealm = realm;
+
+        Future<Void> result = agentService.doProtocolAssetDiscovery(agent, assets -> {
             if (assets != null) {
+                // Persist the assets in a separate thread
+                executorService.submit(() -> persistAssets(assets, agent, finalRealm));
                 foundAssets.addAll(Arrays.asList(assets));
             }
         });
+
+        try {
+            result.get(10000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            LOG.fine("Protocol discovery stopped as timeout reached");
+        } catch (Exception e) {
+            LOG.log(Level.INFO, "Protocol discovery threw an exception: " + agent, e);
+            throw new BadRequestException("Protocol discovery threw an exception: " + agent, e);
+        }
 
         return foundAssets.toArray(new AssetTreeNode[0]);
     }
@@ -131,7 +149,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
     public AssetTreeNode[] doProtocolAssetImport(RequestParams requestParams, String agentId, String realm, FileInfo fileInfo) {
 
         if (!isSuperUser()) {
-            realm = getAuthenticatedRealm();
+            realm = getAuthenticatedRealmName();
         }
 
         Agent<?, ?, ?> agent = agentService.getAgent(agentId);
@@ -141,7 +159,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
         }
 
         if (realm != null && !realm.equals(agent.getRealm())) {
-            throw new NotAuthorizedException("Agent not in the correct realm: agent ID =" + agentId);
+            throw new ForbiddenException("Agent not in the correct realm: agent ID =" + agentId);
         }
 
         List<AssetTreeNode> foundAssets = new ArrayList<>();
@@ -178,9 +196,10 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
     // TODO: Allow user to select which assets/attributes are actually added to the DB
     protected void persistAssets(AssetTreeNode[] assets, Asset<?> parentAsset, String realm) {
         try {
+            LOG.fine("Persisting assets");
 
             if (assets == null || assets.length == 0) {
-                LOG.info("No assets to import");
+                LOG.fine("No assets to import");
                 return;
             }
 
@@ -188,7 +207,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
                 Asset<?> asset = assetNode.asset;
 
                 if (asset == null) {
-                    LOG.info("Skipping node as asset not set");
+                    LOG.fine("Skipping node as asset not set");
                     continue;
                 }
 
@@ -216,7 +235,7 @@ public class AgentResourceImpl extends ManagerWebResource implements AgentResour
     }
 
     protected Asset<?> getParent(String parentId, String realm) throws WebApplicationException {
-        if (!isSuperUser() && !realm.equals(getAuthenticatedRealm())) {
+        if (!isSuperUser() && !realm.equals(getAuthenticatedRealmName())) {
             throw new ForbiddenException();
         }
 

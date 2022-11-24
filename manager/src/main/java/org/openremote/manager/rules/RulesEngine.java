@@ -19,18 +19,22 @@
  */
 package org.openremote.manager.rules;
 
+import org.jeasy.rules.api.Facts;
+import org.jeasy.rules.api.Rule;
+import org.jeasy.rules.api.RuleListener;
 import org.jeasy.rules.api.RulesEngineParameters;
-import org.jeasy.rules.core.InferenceRulesEngine;
-import org.openremote.container.persistence.PersistenceEvent;
+import org.jeasy.rules.core.AbstractRulesEngine;
+import org.jeasy.rules.core.DefaultRulesEngine;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.datapoint.AssetDatapointService;
+import org.openremote.manager.datapoint.AssetPredictedDatapointService;
 import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.notification.NotificationService;
-import org.openremote.manager.datapoint.AssetPredictedDatapointService;
 import org.openremote.manager.rules.facade.*;
 import org.openremote.manager.security.ManagerIdentityService;
+import org.openremote.model.PersistenceEvent;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.query.filter.GeofencePredicate;
 import org.openremote.model.query.filter.LocationAttributePredicate;
@@ -115,7 +119,7 @@ public class RulesEngine<T extends Ruleset> {
 
     final protected Map<Long, RulesetDeployment> deployments = new LinkedHashMap<>();
     final protected RulesFacts facts;
-    final protected InferenceRulesEngine engine;
+    final protected AbstractRulesEngine engine;
 
     protected boolean running;
     protected long lastFireTimestamp;
@@ -156,11 +160,36 @@ public class RulesEngine<T extends Ruleset> {
         this.assetLocationPredicatesConsumer = assetLocationPredicatesConsumer;
 
         this.facts = new RulesFacts(timerService, assetStorageService, assetsFacade, this, RULES_LOG);
-        engine = new InferenceRulesEngine(
+        engine = new DefaultRulesEngine(
             // Skip any other rules after the first failed rule (exception thrown in condition or action)
             new RulesEngineParameters(false, true, false, RulesEngineParameters.DEFAULT_RULE_PRIORITY_THRESHOLD)
         );
         engine.registerRuleListener(facts);
+
+        // Add listener to rethrow runtime exceptions which are otherwise swallowed by the DefaultRulesEngine
+        engine.registerRuleListener(new RuleListener() {
+            @Override
+            public void onEvaluationError(Rule rule, Facts facts, Exception exception) {
+                RuntimeException ex;
+                if (exception instanceof RuntimeException) {
+                    ex = (RuntimeException) exception;
+                } else {
+                    ex = new RuntimeException(exception);
+                }
+                throw ex;
+            }
+
+            @Override
+            public void onFailure(Rule rule, Facts facts, Exception exception) {
+                RuntimeException ex;
+                if (exception instanceof RuntimeException) {
+                    ex = (RuntimeException) exception;
+                } else {
+                    ex = new RuntimeException(exception);
+                }
+                throw ex;
+            }
+        });
     }
 
     public RulesEngineId<T> getId() {
@@ -476,10 +505,6 @@ public class RulesEngine<T extends Ruleset> {
             facts.startTrackingLocationRules();
         }
 
-        // Set the current clock
-        RulesClock clock = new RulesClock(timerService);
-        facts.setClock(clock);
-
         // Remove any expired temporary facts
         facts.removeExpiredTemporaryFacts();
 
@@ -488,21 +513,19 @@ public class RulesEngine<T extends Ruleset> {
 
                 if (deployment.getStatus() == DEPLOYED) {
 
-                    RULES_LOG.fine("Executing rules @" + clock + " of: " + deployment);
+                    RULES_LOG.fine("Executing rules of: " + deployment);
 
                     // If full detail logging is enabled
-                    if (RULES_LOG.isLoggable(Level.FINEST)) {
-                        // Log asset states and events before firing (note that this will log at INFO)
-                        facts.logFacts(RULES_LOG);
-                    }
+                    // Log asset states and events before firing
+                    facts.logFacts(RULES_LOG, Level.FINEST);
 
                     // Reset facts for this firing (loop detection etc.)
                     facts.reset();
 
-                    long startTimestamp = System.currentTimeMillis();
+                    long startTimestamp = timerService.getCurrentTimeMillis();
                     lastFireTimestamp = startTimestamp;
                     engine.fire(deployment.getRules(), facts);
-                    RULES_FIRED_LOG.fine("Rules deployment '" + deployment.getName() + "' executed in: " + (System.currentTimeMillis() - startTimestamp) + "ms");
+                    RULES_FIRED_LOG.fine("Rules deployment '" + deployment.getName() + "' executed in: " + (timerService.getCurrentTimeMillis() - startTimestamp) + "ms");
                 }
 
             } catch (Exception ex) {
@@ -531,7 +554,9 @@ public class RulesEngine<T extends Ruleset> {
     }
 
     protected void fireAllDeploymentsWithPredictedData() {
-        fireDeployments(deployments.values().stream().filter(RulesetDeployment::isTriggerOnPredictedData).collect(Collectors.toList()));
+        withLock(toString() + "::fireAllDeploymentsWithPredictedData", () -> {
+            fireDeployments(deployments.values().stream().filter(RulesetDeployment::isTriggerOnPredictedData).collect(Collectors.toList()));
+        });
     }
 
     protected void notifyAssetStatesChanged(AssetStateChangeEvent event) {
@@ -562,8 +587,8 @@ public class RulesEngine<T extends Ruleset> {
         }
     }
 
-    public void insertAssetEvent(String expires, AssetState<?> assetState) {
-        facts.insertAssetEvent(expires, assetState);
+    public void insertAssetEvent(long expiresMillis, AssetState<?> assetState) {
+        facts.insertAssetEvent(expiresMillis, assetState);
         if (running) {
             scheduleFire();
         }
@@ -593,9 +618,7 @@ public class RulesEngine<T extends Ruleset> {
                 + ", Temporary: " + temporaryFactsCount);
 
             // Additional details if FINEST is enabled
-            if (STATS_LOG.isLoggable(Level.FINEST)) {
-                facts.logFacts(STATS_LOG);
-            }
+            facts.logFacts(STATS_LOG, Level.FINEST);
         });
     }
 

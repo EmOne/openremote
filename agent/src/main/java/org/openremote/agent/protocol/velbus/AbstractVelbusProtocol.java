@@ -20,7 +20,7 @@
 package org.openremote.agent.protocol.velbus;
 
 import org.openremote.agent.protocol.AbstractProtocol;
-import org.openremote.agent.protocol.io.IoClient;
+import org.openremote.agent.protocol.io.IOClient;
 import org.openremote.agent.protocol.velbus.device.VelbusDeviceType;
 import org.openremote.model.Container;
 import org.openremote.model.asset.Asset;
@@ -52,7 +52,7 @@ import static org.openremote.model.syslog.SyslogCategory.PROTOCOL;
 import static org.openremote.model.util.TextUtil.isNullOrEmpty;
 import static org.openremote.model.value.MetaItemType.AGENT_LINK;
 
-public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,T>, T extends VelbusAgent<T, S>> extends AbstractProtocol<T, VelbusAgent.VelbusAgentLink> implements
+public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,T>, T extends VelbusAgent<T, S>> extends AbstractProtocol<T, VelbusAgentLink> implements
     ProtocolAssetImport {
 
     public static final int DEFAULT_TIME_INJECTION_INTERVAL_SECONDS = 3600 * 6;
@@ -74,7 +74,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
 
         try {
 
-            IoClient<VelbusPacket> messageProcessor = createIoClient(agent);
+            IOClient<VelbusPacket> messageProcessor = createIoClient(agent);
             int timeInjectionSeconds = agent.getTimeInjectionInterval().orElse(DEFAULT_TIME_INJECTION_INTERVAL_SECONDS);
 
             LOG.fine("Creating new VELBUS network instance for protocol instance: " + agent);
@@ -92,14 +92,14 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
     @Override
     protected void doStop(Container container) throws Exception {
         if (network != null) {
+            network.removeConnectionStatusConsumer(this::setConnectionStatus);
             network.disconnect();
             network.close();
-            network.removeConnectionStatusConsumer(this::setConnectionStatus);
         }
     }
 
     @Override
-    protected void doLinkAttribute(String assetId, Attribute<?> attribute, VelbusAgent.VelbusAgentLink agentLink) {
+    protected void doLinkAttribute(String assetId, Attribute<?> attribute, VelbusAgentLink agentLink) {
 
         // Get the device that this attribute is linked to
         int deviceAddress = getOrThrowAgentLinkProperty(agentLink.getDeviceAddress(), "device address");
@@ -118,7 +118,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
     }
 
     @Override
-    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, VelbusAgent.VelbusAgentLink agentLink) {
+    protected void doUnlinkAttribute(String assetId, Attribute<?> attribute, VelbusAgentLink agentLink) {
 
         // Get the device that this attribute is linked to
         int deviceAddress = getOrThrowAgentLinkProperty(agentLink.getDeviceAddress(), "device address");
@@ -132,7 +132,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
     }
 
     @Override
-    protected void doLinkedAttributeWrite(Attribute<?> attribute, VelbusAgent.VelbusAgentLink agentLink, AttributeEvent event, Object processedValue) {
+    protected void doLinkedAttributeWrite(Attribute<?> attribute, VelbusAgentLink agentLink, AttributeEvent event, Object processedValue) {
 
         // Get the device that this attribute is linked to
         int deviceAddress = getOrThrowAgentLinkProperty(agentLink.getDeviceAddress(), "device address");
@@ -144,9 +144,9 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
     }
 
     /**
-     * Should return an instance of {@link IoClient} for the supplied agent
+     * Should return an instance of {@link IOClient} for the supplied agent
      */
-    protected abstract IoClient<VelbusPacket> createIoClient(T agent) throws RuntimeException;
+    protected abstract IOClient<VelbusPacket> createIoClient(T agent) throws RuntimeException;
 
     /* ProtocolAssetImport */
 
@@ -215,7 +215,7 @@ public abstract class AbstractVelbusProtocol<S extends AbstractVelbusProtocol<S,
                             Arrays.stream(processors).flatMap(processor ->
                                 processor.getPropertyDescriptors(type).stream().map(descriptor -> {
 
-                                    VelbusAgent.VelbusAgentLink agentLink = new VelbusAgent.VelbusAgentLink(agent.getId(), baseAddress, descriptor.getLinkName());
+                                    VelbusAgentLink agentLink = new VelbusAgentLink(agent.getId(), baseAddress, descriptor.getLinkName());
 
                                     Attribute<?> attribute = new Attribute<>(descriptor.getName(), descriptor.getAttributeValueDescriptor())
                                         .addMeta(

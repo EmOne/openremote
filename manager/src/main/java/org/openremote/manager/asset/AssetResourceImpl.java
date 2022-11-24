@@ -19,52 +19,59 @@
  */
 package org.openremote.manager.asset;
 
+import com.fasterxml.jackson.databind.node.NullNode;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.timer.TimerService;
+import org.openremote.manager.event.ClientEventService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.Constants;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetResource;
-import org.openremote.model.asset.UserAsset;
+import org.openremote.model.asset.UserAssetLink;
 import org.openremote.model.attribute.*;
 import org.openremote.model.http.RequestParams;
 import org.openremote.model.query.AssetQuery;
-import org.openremote.model.query.filter.ParentPredicate;
-import org.openremote.model.query.filter.TenantPredicate;
+import org.openremote.model.query.filter.RealmPredicate;
+import org.openremote.model.security.ClientRole;
 import org.openremote.model.util.TextUtil;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import javax.persistence.OptimisticLockException;
 import javax.validation.ConstraintViolationException;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.IntStream;
 
 import static javax.ws.rs.core.Response.Status.*;
 import static org.openremote.model.attribute.AttributeEvent.Source.CLIENT;
 import static org.openremote.model.query.AssetQuery.Access;
-import static org.openremote.model.query.AssetQuery.Select.selectExcludeAll;
-import static org.openremote.model.query.AssetQuery.Select.selectExcludePathAndAttributes;
-import static org.openremote.model.util.TextUtil.isNullOrEmpty;
 import static org.openremote.model.value.MetaItemType.*;
 
 public class AssetResourceImpl extends ManagerWebResource implements AssetResource {
 
     private static final Logger LOG = Logger.getLogger(AssetResourceImpl.class.getName());
-
-    protected final static Asset<?>[] EMPTY_ASSETS = new Asset<?>[0];
     protected final AssetStorageService assetStorageService;
     protected final MessageBrokerService messageBrokerService;
+    protected final ClientEventService clientEventService;
 
     public AssetResourceImpl(TimerService timerService,
                              ManagerIdentityService identityService,
                              AssetStorageService assetStorageService,
-                             MessageBrokerService messageBrokerService) {
+                             MessageBrokerService messageBrokerService,
+                             ClientEventService clientEventService) {
         super(timerService, identityService);
         this.assetStorageService = assetStorageService;
         this.messageBrokerService = messageBrokerService;
+        this.clientEventService = clientEventService;
     }
 
     @Override
@@ -74,19 +81,17 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                 return new Asset<?>[0];
             }
 
-            AssetQuery assetQuery = new AssetQuery()
-                .select(AssetQuery.Select.selectExcludePathAndParentInfo());
-
-            if (!isRestrictedUser()) {
-                assetQuery
-                    .tenant(new TenantPredicate(getAuthenticatedRealm()))
-                    .recursive(true);
-            } else {
-                assetQuery
-                    .userIds(getUserId());
+            if (!isAuthenticated()) {
+                throw new NotAuthorizedException("Must be authenticated");
             }
 
-            List<Asset<?>> assets = assetStorageService.findAll(assetQuery);
+            AssetQuery query = new AssetQuery().userIds(getUserId());
+
+            if (!assetStorageService.authorizeAssetQuery(query, getAuthContext(), getRequestRealmName())) {
+                throw new ForbiddenException("User not authorized to execute specified query");
+            }
+
+            List<Asset<?>> assets = assetStorageService.findAll(query);
 
             // Compress response (the request attribute enables the interceptor)
             request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
@@ -98,21 +103,25 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public UserAsset[] getUserAssetLinks(RequestParams requestParams, String realm, String userId, String assetId) {
+    public UserAssetLink[] getUserAssetLinks(RequestParams requestParams, String realm, String userId, String assetId) {
         try {
+            realm = TextUtil.isNullOrEmpty(realm) ? getAuthenticatedRealmName() : realm;
+            boolean hasAdminReadRole = hasResourceRole(ClientRole.READ_ADMIN.getValue(), Constants.KEYCLOAK_CLIENT_ID);
+
             if (realm == null)
                 throw new WebApplicationException(BAD_REQUEST);
 
-            if (!identityService.getIdentityProvider().tenantExists(realm))
-                throw new WebApplicationException(NOT_FOUND);
-
-            if (!(isSuperUser() || getAuthenticatedRealm().equals(realm)))
+            if (!(isSuperUser() || getAuthenticatedRealmName().equals(realm)))
                 throw new WebApplicationException(FORBIDDEN);
 
-            if (userId != null && !identityService.getIdentityProvider().isUserInTenant(userId, realm))
+            if (!hasAdminReadRole && userId != null && !Objects.equals(getUserId(), userId)) {
+                throw new ForbiddenException("Can only retrieve own asset links unless you have role '" + ClientRole.READ_ADMIN + "'");
+            }
+
+            if (userId != null && !identityService.getIdentityProvider().isUserInRealm(userId, realm))
                 throw new WebApplicationException(BAD_REQUEST);
 
-            UserAsset[] result = assetStorageService.findUserAssets(realm, userId, assetId).toArray(new UserAsset[0]);
+            UserAssetLink[] result = assetStorageService.findUserAssetLinks(realm, userId, assetId).toArray(new UserAssetLink[0]);
 
             // Compress response (the request attribute enables the interceptor)
             request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
@@ -126,48 +135,105 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
 
     @Override
-    public void createUserAsset(RequestParams requestParams, UserAsset userAsset) {
-        String realm = userAsset.getId().getRealm();
-        String userId = userAsset.getId().getUserId();
-        String assetId = userAsset.getId().getAssetId();
+    public void createUserAssetLinks(RequestParams requestParams, List<UserAssetLink> userAssetLinks) {
 
-        if (!identityService.getIdentityProvider().isUserInTenant(userId, realm))
-            throw new WebApplicationException(BAD_REQUEST);
-
-        Asset<?> asset;
-        if ((asset = assetStorageService.find(assetId)) == null || !asset.getRealm().equals(realm)) {
-            throw new WebApplicationException(BAD_REQUEST);
-        }
-
-        if (isSuperUser()) {
-            assetStorageService.storeUserAsset(userAsset);
-            return;
-        }
-
-        // Restricted users or regular users in a different realm can not create links
-        if (isRestrictedUser()
-            || !getAuthenticatedTenant().getRealm().equals(realm))
+        // Restricted users cannot create or delete links
+        if (isRestrictedUser()) {
             throw new WebApplicationException(FORBIDDEN);
+        }
 
-        assetStorageService.storeUserAsset(userAsset);
+        // Check all links are for the same user and realm
+        String realm = userAssetLinks.get(0).getId().getRealm();
+        String userId = userAssetLinks.get(0).getId().getUserId();
+        String[] assetIds = new String[userAssetLinks.size()];
+
+        IntStream.range(0, userAssetLinks.size()).forEach(i -> {
+            UserAssetLink userAssetLink = userAssetLinks.get(i);
+            assetIds[i] = userAssetLink.getId().getAssetId();
+
+            if (!userAssetLink.getId().getRealm().equals(realm) || !userAssetLink.getId().getUserId().equals(userId)) {
+                throw new BadRequestException("All user asset links must be for the same user");
+            }
+        });
+
+        if (!isSuperUser() && !realm.equals(getAuthenticatedRealmName())) {
+            throw new WebApplicationException(FORBIDDEN);
+        }
+
+        if (!identityService.getIdentityProvider().isUserInRealm(userId, realm)) {
+            throw new WebApplicationException(FORBIDDEN);
+        }
+
+        List<Asset<?>> assets = assetStorageService.findAll(
+            new AssetQuery()
+                .select(new AssetQuery.Select().excludeAttributes())
+                .realm(new RealmPredicate(realm))
+                .ids(assetIds)
+        );
+
+        if (assets.size() != userAssetLinks.size()) {
+            throw new BadRequestException("One or more asset IDs are invalid");
+        }
+
+        try {
+            assetStorageService.storeUserAssetLinks(userAssetLinks);
+        } catch (Exception e) {
+            throw new WebApplicationException(BAD_REQUEST);
+        }
     }
 
     @Override
-    public void deleteUserAsset(RequestParams requestParams, String realm, String userId, String assetId) {
-        if (!identityService.getIdentityProvider().isUserInTenant(userId, realm))
-            throw new WebApplicationException(BAD_REQUEST);
+    public void deleteUserAssetLink(RequestParams requestParams, String realm, String userId, String assetId) {
+        deleteUserAssetLinks(requestParams, Collections.singletonList(new UserAssetLink(realm, userId, assetId)));
+    }
 
-        if (isSuperUser()) {
-            assetStorageService.deleteUserAsset(realm, userId, assetId);
-            return;
+    @Override
+    public void deleteAllUserAssetLinks(RequestParams requestParams, String realm, String userId) {
+        // Restricted users cannot create or delete links
+        if (isRestrictedUser()) {
+            throw new WebApplicationException(FORBIDDEN);
         }
 
-        // Restricted users or regular users in a different realm can not delete links
-        if (isRestrictedUser()
-            || !getAuthenticatedTenant().getRealm().equals(realm))
+        // Regular users in a different realm can not delete links
+        if (!isSuperUser() && !getAuthenticatedRealm().getName().equals(realm)) {
             throw new WebApplicationException(FORBIDDEN);
+        }
 
-        assetStorageService.deleteUserAsset(realm, userId, assetId);
+        // User must be in the same realm as the requested realm
+        if (!identityService.getIdentityProvider().isUserInRealm(userId, realm)) {
+            throw new WebApplicationException(FORBIDDEN);
+        }
+
+        assetStorageService.deleteUserAssetLinks(userId);
+    }
+
+    @Override
+    public void deleteUserAssetLinks(RequestParams requestParams, List<UserAssetLink> userAssetLinks) {
+        // Restricted users cannot create or delete links
+        if (isRestrictedUser()) {
+            throw new WebApplicationException(FORBIDDEN);
+        }
+
+        // Check all links are for the same user and realm
+        String realm = userAssetLinks.get(0).getId().getRealm();
+        String userId = userAssetLinks.get(0).getId().getUserId();
+
+        if (userAssetLinks.stream().anyMatch(userAssetLink -> !userAssetLink.getId().getRealm().equals(realm) || !userAssetLink.getId().getUserId().equals(userId))) {
+            throw new BadRequestException("All user asset links must be for the same user");
+        }
+
+        // Regular users in a different realm can not delete links
+        if (!isSuperUser() && !getAuthenticatedRealm().getName().equals(realm)) {
+            throw new WebApplicationException(FORBIDDEN);
+        }
+
+        // If delete count doesn't equal link count an exception will be thrown
+        try {
+            assetStorageService.deleteUserAssetLinks(userAssetLinks);
+        } catch (Exception e) {
+            LOG.log(Level.INFO, "Failed to delete user asset links", e);
+            throw new BadRequestException();
+        }
     }
 
     @Override
@@ -187,6 +253,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             // Check restricted
             if (isRestrictedUser()) {
                 if (!assetStorageService.isUserAsset(getUserId(), assetId)) {
+                    LOG.fine("Forbidden access for restricted user: username=" + getUsername() + ", assetID=" + assetId);
                     throw new WebApplicationException(FORBIDDEN);
                 }
                 asset = assetStorageService.find(assetId, loadComplete, Access.PROTECTED);
@@ -197,8 +264,8 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
             if (asset == null)
                 throw new WebApplicationException(NOT_FOUND);
 
-            if (!isTenantActiveAndAccessible(asset.getRealm())) {
-                LOG.info("Forbidden access for user '" + getUsername() + "': " + asset);
+            if (!isRealmActiveAndAccessible(asset.getRealm())) {
+                LOG.fine("Forbidden access (realm '" + asset.getRealm() + "' nonexistent, inactive or inaccessible) for user: " + getUsername());
                 throw new WebApplicationException(FORBIDDEN);
             }
 
@@ -214,25 +281,30 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
     @Override
     public void update(RequestParams requestParams, String assetId, Asset<?> asset) {
+
+        LOG.fine("Updating asset: assetID=" + assetId);
+
         try {
             Asset<?> storageAsset = assetStorageService.find(assetId, true);
 
-            if (storageAsset == null)
+            if (storageAsset == null) {
+                LOG.fine("Asset not found: assetID=" + assetId);
                 throw new WebApplicationException(NOT_FOUND);
+            }
 
             // Realm of asset must be accessible
-            if (!isTenantActiveAndAccessible(storageAsset.getRealm())) {
-                LOG.info("Tenant not accessible by user '" + getUsername() + "', can't update: " + storageAsset);
+            if (!isRealmActiveAndAccessible(storageAsset.getRealm())) {
+                LOG.fine("Realm '" + storageAsset.getRealm() + "' is nonexistent, inactive or inaccessible: username=" + getUsername() + ", assetID=" + assetId);
                 throw new WebApplicationException(FORBIDDEN);
             }
 
             if (!storageAsset.getRealm().equals(asset.getRealm())) {
-                LOG.info("Cannot change asset's realm: " + storageAsset);
+                LOG.fine("Cannot change asset's realm: existingRealm=" + storageAsset.getRealm() + ", requestedRealm=" + asset.getRealm());
                 throw new WebApplicationException(FORBIDDEN);
             }
 
             if (!storageAsset.getType().equals(asset.getType())) {
-                LOG.info("Cannot change asset's type: " + storageAsset);
+                LOG.fine("Cannot change asset's type: existingType=" + storageAsset.getType() + ", requestedType=" + asset.getType());
                 throw new WebApplicationException(FORBIDDEN);
             }
 
@@ -268,7 +340,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
                         // If the existing attribute is not writable by restricted client, ignore it
                         if (!existingAttribute.getMetaValue(ACCESS_RESTRICTED_WRITE).orElse(false)) {
-                            LOG.info("Existing attribute not writable by restricted client, ignoring update of: " + updatedAttributeName);
+                            LOG.fine("Existing attribute not writable by restricted client, ignoring update of: " + updatedAttributeName);
                             continue;
                         }
 
@@ -291,7 +363,7 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                             return false;
                         });
 
-                        MetaMap existingMetaItems = Values.clone(existingAttribute.getMeta());
+                        MetaMap existingMetaItems = ValueUtil.clone(existingAttribute.getMeta());
 
                         existingMetaItems.addOrReplace(updatedMetaItems);
 
@@ -341,55 +413,60 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
     }
 
     @Override
-    public void writeAttributeValue(RequestParams requestParams, String assetId, String attributeName, String valueStr) {
-        try {
+    public Response writeAttributeValue(RequestParams requestParams, String assetId, String attributeName, Object value) {
 
-            // JAX-RS converts a null to empty string so simple check here - means cannot actually send an empty string
-            // but not sure you would want to as really it conveys the same meaning as no value
-            if (TextUtil.isNullOrEmpty(valueStr)) {
-                valueStr = null;
-            }
+        Response.Status status = Response.Status.OK;
 
-            AttributeEvent event = new AttributeEvent(
-                new AttributeRef(assetId, attributeName), valueStr, timerService.getCurrentTimeMillis()
-            );
-
-            LOG.info("Write attribute value request: " + event);
-
-            // Process asynchronously but block for a little while waiting for the result
-            Map<String, Object> headers = new HashMap<>();
-            headers.put(AttributeEvent.HEADER_SOURCE, CLIENT);
-
-            if (isAuthenticated()) {
-                headers.put(Constants.AUTH_CONTEXT, getAuthContext());
-            }
-            Object result = messageBrokerService.getProducerTemplate().requestBodyAndHeaders(
-                AssetProcessingService.ASSET_QUEUE, event, headers
-            );
-
-            if (result instanceof AssetProcessingException) {
-                AssetProcessingException processingException = (AssetProcessingException) result;
-                switch (processingException.getReason()) {
-                    case ILLEGAL_SOURCE:
-                    case NO_AUTH_CONTEXT:
-                    case INSUFFICIENT_ACCESS:
-                        throw new WebApplicationException(FORBIDDEN);
-                    case ASSET_NOT_FOUND:
-                    case ATTRIBUTE_NOT_FOUND:
-                        throw new WebApplicationException(NOT_FOUND);
-                    case INVALID_AGENT_LINK:
-                    case ILLEGAL_AGENT_UPDATE:
-                    case INVALID_ATTRIBUTE_EXECUTE_STATUS:
-                    case INVALID_VALUE_FOR_WELL_KNOWN_ATTRIBUTE:
-                        throw new IllegalStateException(processingException);
-                    default:
-                        throw processingException;
-                }
-            }
-
-        } catch (IllegalStateException ex) {
-            throw new WebApplicationException(ex, BAD_REQUEST);
+        if (value instanceof NullNode) {
+            value = null;
         }
+
+        AttributeEvent event = new AttributeEvent(assetId, attributeName, value);
+
+        // Check authorisation
+        if (!clientEventService.authorizeEventWrite(getRequestRealmName(), getAuthContext(), event)) {
+            throw new ForbiddenException("Cannot write specified attribute: " + event);
+        }
+
+        // Process asynchronously but block for a little while waiting for the result
+        AttributeWriteResult result = doAttributeWrite(event);
+
+        if (result.getFailure() != null) {
+            switch (result.getFailure()) {
+                case ILLEGAL_SOURCE:
+                case INSUFFICIENT_ACCESS:
+                case INVALID_REALM:
+                    status = FORBIDDEN;
+                    break;
+                case ASSET_NOT_FOUND:
+                case ATTRIBUTE_NOT_FOUND:
+                    status = NOT_FOUND;
+                    break;
+                case INVALID_AGENT_LINK:
+                case ILLEGAL_AGENT_UPDATE:
+                case INVALID_ATTRIBUTE_EXECUTE_STATUS:
+                case INVALID_VALUE_FOR_WELL_KNOWN_ATTRIBUTE:
+                    status = NOT_ACCEPTABLE;
+                    break;
+                default:
+                    status = BAD_REQUEST;
+            }
+        }
+
+        return Response.status(status).entity(result).type(MediaType.APPLICATION_JSON_TYPE).build();
+    }
+
+    @Override
+    public AttributeWriteResult[] writeAttributeValues(RequestParams requestParams, AttributeState[] attributeStates) {
+
+        // Process asynchronously but block for a little while waiting for the result
+        return Arrays.stream(attributeStates).map(attributeState -> {
+            AttributeEvent event = new AttributeEvent(attributeState);
+            if (!clientEventService.authorizeEventWrite(getRequestRealmName(), getAuthContext(), event)) {
+                return new AttributeWriteResult(event.getAttributeRef(), AttributeWriteFailure.INSUFFICIENT_ACCESS);
+            }
+            return doAttributeWrite(event);
+        }).toArray(AttributeWriteResult[]::new);
     }
 
     @Override
@@ -406,13 +483,13 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
             // If there was no realm provided (create was called by regular user in manager UI), use the auth realm
             if (asset.getRealm() == null || asset.getRealm().length() == 0) {
-                asset.setRealm(getAuthenticatedTenant().getRealm());
-            } else if (!isTenantActiveAndAccessible(asset.getRealm())) {
-                LOG.info("Forbidden access for user '" + getUsername() + "', can't create: " + asset);
+                asset.setRealm(getAuthenticatedRealm().getName());
+            } else if (!isRealmActiveAndAccessible(asset.getRealm())) {
+                LOG.fine("Forbidden access for user '" + getUsername() + "', can't create: " + asset);
                 throw new WebApplicationException(FORBIDDEN);
             }
 
-            Asset<?> newAsset = Values.clone(asset);
+            Asset<?> newAsset = ValueUtil.clone(asset);
 
             // Allow client to set identifier
             if (asset.getId() != null) {
@@ -459,6 +536,11 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
     @Override
     public void delete(RequestParams requestParams, List<String> assetIds) {
+
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("Deleting assets: " + assetIds);
+        }
+
         try {
             if (assetIds == null || assetIds.isEmpty()) {
                 throw new WebApplicationException(BAD_REQUEST);
@@ -468,14 +550,14 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
                 throw new WebApplicationException(FORBIDDEN);
             }
 
-            List<Asset<?>> assets = assetStorageService.findAll(new AssetQuery().ids(assetIds.toArray(new String[0])).select(selectExcludeAll()));
+            List<Asset<?>> assets = assetStorageService.findAll(new AssetQuery().ids(assetIds.toArray(new String[0])).select(new AssetQuery.Select().excludeAttributes()));
             if (assets == null || assets.size() != assetIds.size()) {
                 LOG.fine("Request to delete one or more invalid assets");
                 throw new WebApplicationException(BAD_REQUEST);
             }
 
-            if (assets.stream().map(Asset::getRealm).distinct().anyMatch(asset -> !isTenantActiveAndAccessible(asset))) {
-                LOG.info("Forbidden access for user '" + getUsername() + "', can't delete requested assets");
+            if (assets.stream().map(Asset::getRealm).distinct().anyMatch(asset -> !isRealmActiveAndAccessible(asset))) {
+                LOG.fine("One or more assets in an nonexistent, inactive or inaccessible realm: username=" + getUsername());
                 throw new WebApplicationException(FORBIDDEN);
             }
 
@@ -489,94 +571,78 @@ public class AssetResourceImpl extends ManagerWebResource implements AssetResour
 
     @Override
     public Asset<?>[] queryAssets(RequestParams requestParams, AssetQuery query) {
-        try {
-            if (query == null) {
-                return EMPTY_ASSETS;
-            }
-
-            if (isRestrictedUser()) {
-                // A restricted user can only query linked assets
-                query = query.userIds(getUserId());
-
-                // A restricted user may not query private asset data, only restricted or public
-                if (query.access == null || query.access == Access.PRIVATE)
-                    query.access(Access.PROTECTED);
-            }
-
-            String realm = query.tenant != null && !isNullOrEmpty(query.tenant.realm)
-                ? query.tenant.realm
-                : getAuthenticatedRealm();
-
-            if (TextUtil.isNullOrEmpty(realm)) {
-                throw new WebApplicationException(NOT_FOUND);
-            }
-
-            if (!isTenantActiveAndAccessible(realm)) {
-                return EMPTY_ASSETS;
-            }
-
-            // This replicates behaviour of old getRoot and getChildren methods
-            if (!isSuperUser()) {
-                query.tenant(new TenantPredicate(realm));
-            }
-
-            List<Asset<?>> result = assetStorageService.findAll(query);
-
-            // Compress response (the request attribute enables the interceptor)
-            request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
-
-            return result.toArray(new Asset[0]);
-
-        } catch (IllegalStateException ex) {
-            throw new WebApplicationException(ex, BAD_REQUEST);
-        }
-    }
-
-    @Override
-    public Asset<?>[] queryPublicAssets(RequestParams requestParams, AssetQuery query) {
-
-        String requestRealm = getRequestRealm();
-
-        if (query == null || TextUtil.isNullOrEmpty(requestRealm)) {
-            return EMPTY_ASSETS;
+        if (query == null) {
+            query = new AssetQuery();
         }
 
-        // Force realm to be request realm
-        if (query.tenant == null) {
-            query.tenant(new TenantPredicate(requestRealm));
-        } else {
-            query.tenant.realm = requestRealm;
+        if (!assetStorageService.authorizeAssetQuery(query, getAuthContext(), getRequestRealmName())) {
+            throw new ForbiddenException("User not authorized to execute specified query");
         }
 
-        // Force public access filter on query
-        if (query.access == null) {
-            query.access(Access.PUBLIC);
-        } else {
-            query.access(Access.PUBLIC);
-        }
-
-        try {
-            List<Asset<?>> result = assetStorageService.findAll(query);
-
-            // Compress response (the request attribute enables the interceptor)
-            request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
-
-            return result.toArray(new Asset[0]);
-        } catch (IllegalStateException ex) {
-            throw new WebApplicationException(ex, BAD_REQUEST);
-        }
-    }
-
-    @Override
-    public Asset<?>[] getPublicAssets(RequestParams requestParams, String q) {
-        AssetQuery assetQuery = Values.parse(q, AssetQuery.class)
-            .orElseThrow(() -> new WebApplicationException("Error parsing query parameter 'q' as JSON object", BAD_REQUEST));
-
-        Asset<?>[] result = queryPublicAssets(requestParams, assetQuery);
+        List<Asset<?>> result = assetStorageService.findAll(query);
 
         // Compress response (the request attribute enables the interceptor)
         request.setAttribute(HttpHeaders.CONTENT_ENCODING, "gzip");
 
-        return result;
+        return result.toArray(new Asset[0]);
+    }
+
+    protected AttributeWriteResult doAttributeWrite(AttributeEvent event) {
+        AttributeWriteFailure failure = null;
+
+        try {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Write attribute value request: " + event);
+            }
+
+            // Process synchronously
+            Object result = messageBrokerService.getFluentProducerTemplate()
+                .withBody(event)
+                .withHeader(AttributeEvent.HEADER_SOURCE, CLIENT)
+                .to(AssetProcessingService.ASSET_QUEUE)
+                .request();
+
+            if (result instanceof AssetProcessingException) {
+                AssetProcessingException processingException = (AssetProcessingException) result;
+                failure = processingException.getReason();
+            }
+
+        } catch (AssetProcessingException e) {
+            failure = e.getReason();
+        } catch (IllegalStateException ex) {
+            failure = AttributeWriteFailure.UNKNOWN;
+        }
+
+        return new AttributeWriteResult(event.getAttributeRef(), failure);
+    }
+
+    @Override
+    public void updateParent(RequestParams requestParams, String parentId, List<String> assetIds) {
+        AssetQuery query = new AssetQuery();
+        query.ids = assetIds.toArray(String[]::new);
+
+        List<Asset<?>> assets = this.assetStorageService.findAll(query);
+        LOG.fine("Updating parent for assets: count=" + assets.size() + ", newParentID=" + parentId);
+
+        for (Asset asset : assets) {
+            asset.setParentId(parentId);
+            LOG.fine("Updating asset parent: assetID=" + asset.getId() + ", newParentID=" + parentId);
+            assetStorageService.merge(asset);
+        }
+    }
+
+    @Override
+    public void updateNoneParent(RequestParams requestParams, List<String> assetIds) {
+        AssetQuery query = new AssetQuery();
+        query.ids = assetIds.toArray(String[]::new);
+
+        List<Asset<?>> assets = this.assetStorageService.findAll(query);
+        LOG.fine("Updating parent for assets: count=" + assets.size() + ", newParentID=NONE");
+
+        for (Asset<?> asset : assets) {
+            asset.setParentId(null);
+            LOG.fine("Updating asset parent: assetID=" + asset.getId() + ", newParentID=NONE");
+            assetStorageService.merge(asset);
+        }
     }
 }

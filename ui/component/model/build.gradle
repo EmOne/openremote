@@ -15,12 +15,18 @@ buildscript {
 }
 
 dependencies {
-    compile resolveProject(":model")
-    compile resolveProject(":agent")
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion"
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion"
-    compile "com.fasterxml.jackson.module:jackson-module-parameter-names:$jacksonVersion"
-    compile "cz.habarta.typescript-generator:typescript-generator-core:$typescriptGeneratorVersion"
+    if (isCustomProject()) {
+        def customModel = findProject(":model")
+        if (customModel != null) {
+            implementation customModel
+        }
+    }
+    implementation resolveProject(":model")
+    implementation resolveProject(":agent")
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion"
+    implementation "com.fasterxml.jackson.module:jackson-module-parameter-names:$jacksonVersion"
+    implementation "cz.habarta.typescript-generator:typescript-generator-core:$typescriptGeneratorVersion"
 }
 
 generateTypeScript {
@@ -45,7 +51,7 @@ generateTypeScript {
     optionalProperties = "all" // TODO: cleanup model to be more explicit about optional params
     mapEnum = cz.habarta.typescript.generator.EnumMapping.asEnum
     mapDate = cz.habarta.typescript.generator.DateMapping.asNumber
-    outputFile = "src/index.ts"
+    outputFile = "src/model.ts"
     outputFileType = "implementationFile"
     outputKind = "module"
     jackson2Configuration = [

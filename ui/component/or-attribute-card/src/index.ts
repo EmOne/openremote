@@ -1,27 +1,34 @@
-import {css, customElement, html, LitElement, property, PropertyValues, query, unsafeCSS} from "lit-element";
+import {css, html, LitElement, PropertyValues, unsafeCSS} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
 import i18next from "i18next";
 import {
     Asset,
     AssetEvent,
     AssetQuery,
     Attribute,
+    AttributeEvent,
+    AttributeRef,
     DatapointInterval,
+    ReadAttributeEvent,
     ValueDatapoint,
-    WellknownMetaItems
+    AssetModelUtil
 } from "@openremote/model";
-import {AssetModelUtil, DefaultColor3, DefaultColor4, manager, Util} from "@openremote/core";
-import {Chart, ChartDataset, ChartOptions, ScatterDataPoint, LineController, LineElement, PointElement, LinearScale, TimeSeriesScale, Title} from "chart.js";
+import {DefaultColor3, DefaultColor4, manager, Util} from "@openremote/core";
+import {Chart, ScatterDataPoint, LineController, LineElement, PointElement, LinearScale, TimeSeriesScale, Title} from "chart.js";
 import "chartjs-adapter-moment";
 import {OrChartConfig} from "@openremote/or-chart";
 import {InputType, OrInputChangedEvent} from "@openremote/or-mwc-components/or-mwc-input";
 import {getAssetDescriptorIconTemplate} from "@openremote/or-icon";
 import "@openremote/or-mwc-components/or-mwc-dialog";
+import "@openremote/or-attribute-picker";
 import moment from "moment";
 import {OrAssetTreeSelectionEvent} from "@openremote/or-asset-tree";
-import {OrMwcDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import {OrMwcDialog, showDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import {OrAttributePicker, OrAttributePickerPickedEvent} from "@openremote/or-attribute-picker";
 import {getContentWithMenuTemplate} from "@openremote/or-mwc-components/or-mwc-menu";
+import {debounce} from "lodash";
 
-export type ContextMenuOptions = "editAttribute" | "editDelta" | "editCurrentValue";
+export type ContextMenuOption = "editAttribute" | "editDelta" | "editCurrentValue" | "delete";
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Title, TimeSeriesScale);
 
@@ -39,6 +46,7 @@ const style = css`
     
     .panel {
         position: relative;
+        height: 100%;
     }
     .panel.panel-empty {
         display: flex;
@@ -54,7 +62,7 @@ const style = css`
     }
     
     .panel-content-wrapper {
-        height: 200px;
+        height: 100%;
         display: flex;
         flex-direction: column;
     }
@@ -62,7 +70,7 @@ const style = css`
     .panel-title {
         display: flex;
         align-items: center;
-        margin: -15px -15px 0 0; /* compensate for the click-space of the plusminus button */
+        /*margin: -15px -15px 0 0;*/ /* compensate for the click-space of the plusminus button */
         font-weight: bolder;
         line-height: 1em;
         color: var(--internal-or-asset-viewer-title-text-color);
@@ -107,6 +115,7 @@ const style = css`
     .main-number-icon {   
         font-size: 24px;
         margin-right: 10px;
+        display: flex;
     }
     
     .main-number-unit {
@@ -139,7 +148,7 @@ const style = css`
     }
     
     .delta-wrapper {
-        flex: 0 0 75px;
+        flex: 0 0 50px;
         text-align: right;
         
         /*position: absolute;*/
@@ -154,7 +163,7 @@ const style = css`
     
     .period-selector {
         position: absolute;
-        right: -16px;
+        right: -12px;
         bottom: 0;
     }
     
@@ -163,33 +172,9 @@ const style = css`
         font-weight: bold;
     }
 `;
-export class OrAttributeCardAddAttributeEvent extends CustomEvent<string> {
-
-    public static readonly NAME = "or-attribute-card-add-attribute";
-
-    constructor(value:string) {
-        super(OrAttributeCardAddAttributeEvent.NAME, {
-            bubbles: true,
-            composed: true,
-            detail: value
-        });
-    }
-}
-
-declare global {
-    export interface HTMLElementEventMap {
-        [OrAttributeCardAddAttributeEvent.NAME]: OrAttributeCardAddAttributeEvent;
-    }
-}
 
 @customElement("or-attribute-card")
 export class OrAttributeCard extends LitElement {
-
-    @property()
-    public assetId: string | undefined;
-
-    @property()
-    public attributeName: string | undefined;
 
     @property()
     public panelName?: string;
@@ -197,10 +182,16 @@ export class OrAttributeCard extends LitElement {
     protected _style!: CSSStyleDeclaration;
 
     @property({type: Object})
-    private assetAttributes: Attribute<any>[] = [];
+    public assets: Asset[] = [];
+
+    @property({type: Object})
+    private assetAttributes: [number, Attribute<any>][] = [];
 
     @property()
-    private data: ValueDatapoint<any>[] = [];
+    private data?: ValueDatapoint<any>[] = undefined;
+
+    @property({type: String})
+    public realm?: string;
 
     @property()
     private mainValue?: number;
@@ -209,27 +200,29 @@ export class OrAttributeCard extends LitElement {
     @property()
     private mainValueSize: "xs" | "s" | "m" | "l" | "xl" = "m";
     @property()
-    private delta: {val?: number, unit?: string} = {};
+    private delta?: {val?: number, unit?: string} = undefined;
     @property()
     private deltaPlus: string = "";
     @property()
-    private deltaFormat: string = "absolute";
+    private deltaFormat: "absolute" | "percentage" = "absolute";
+    @property()
+    public showControls: boolean = true;
+    @property()
+    public showTitle: boolean = true;
+    @property()
+    protected _loading: boolean = false;
 
     private error: boolean = false;
 
-    private period?: moment.unitOfTime.Base = "day";
-    private now: Date = new Date();
-    private currentPeriod?: { start: number; end: number };
-
+    @property()
+    private period: moment.unitOfTime.Base = "day";
     private asset?: Asset;
     private formattedMainValue?: {value: number|undefined, unit: string};
 
     @query("#chart")
     private _chartElem!: HTMLCanvasElement;
     private _chart?: Chart<"line", ScatterDataPoint[]>;
-
-    @query("#mdc-dialog")
-    private _dialog!: OrMwcDialog;
+    private resizeObserver?: ResizeObserver;
 
     static get styles() {
         return [
@@ -239,14 +232,11 @@ export class OrAttributeCard extends LitElement {
 
     constructor() {
         super();
-        this.addEventListener(OrAttributeCardAddAttributeEvent.NAME, this._setAttribute);
-        this.addEventListener(OrAssetTreeSelectionEvent.NAME, this._onTreeSelectionChanged);
     }
 
     connectedCallback() {
         super.connectedCallback();
         this._style = window.getComputedStyle(this);
-        this.getData();
     }
 
     disconnectedCallback(): void {
@@ -254,18 +244,30 @@ export class OrAttributeCard extends LitElement {
         this._cleanup();
     }
 
+    firstUpdated() {
+        this.loadSettings();
+    }
+
     updated(changedProperties: PropertyValues) {
-        if (changedProperties.has("asset") || changedProperties.has("assetAttributes")) {
-            if (this._dialog && this._dialog.isOpen) {
-                this._refreshDialog();
+
+        if (changedProperties.has("realm") && changedProperties.get("realm") != undefined) {
+            this.assets = [];
+            this.loadSettings();
+        }
+
+        const reloadData = changedProperties.has("period") || changedProperties.has("compareTimestamp")
+            || changedProperties.has("timestamp") || changedProperties.has("assetAttributes") || changedProperties.has("realm");
+
+        if (reloadData) {
+            this.data = undefined;
+            if (this._chart) {
+                this._chart.destroy();
+                this._chart = undefined;
             }
+            this.loadData();
         }
 
-        if (changedProperties.has("assetId") && this.assetId && changedProperties.get("assetId") !== this.assetId) {
-            this.getSettings();
-        }
-
-        if (!this.data || !this.data.length) {
+        if (!this.data || this.data.length === 0) {
             return;
         }
 
@@ -330,287 +332,33 @@ export class OrAttributeCard extends LitElement {
         }
 
         if (changedProperties.has("delta")) {
-            this.deltaPlus = (this.delta.val && this.delta.val > 0) ? "+" : "";
+            this.deltaPlus = this .delta && this.delta.val! > 0 ? "+" : "";
         }
     }
 
-    async onCompleted() {
-        await this.updateComplete;
+    shouldShowControls(): boolean { // Checking for string input as well since that was not working
+        return (this.showControls && this.showControls.toString() == "true");
     }
-
-    protected _refreshDialog(dialogContent?: ContextMenuOptions) {
-        if (this._dialog) {
-            if (dialogContent === "editDelta") {
-                const options = [
-                    ["percentage", "Percentage"],
-                    ["absolute", "Absolute"]
-                ];
-
-                this._dialog.dialogTitle = i18next.t("editDelta");
-
-                this._dialog.dialogActions = [
-                    {
-                        actionName: "cancel",
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
-                        action: () => {
-                            // Nothing to do here
-                        }
-                    },
-                    {
-                        actionName: "yes",
-                        default: true,
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
-                        action: () => {
-                            this.delta = this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data));
-                        }
-                    }
-                ];
-
-                this._dialog.dialogContent = html`
-                    <or-mwc-input id="delta-mode-picker" value="${this.deltaFormat}" @or-mwc-input-changed="${(evt: OrInputChangedEvent) => {this.deltaFormat = evt.detail.value;this.saveSettings();}}" .type="${InputType.LIST}" .options="${options}"></or-mwc-input>                
-                `;
-
-                this._dialog.dismissAction = null;
-            }
-            else if (dialogContent === "editCurrentValue") {
-
-                this._dialog.dialogTitle = i18next.t("editCurrentValue");
-
-                this._dialog.dialogActions = [
-                    {
-                        actionName: "cancel",
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
-                        action: () => {
-                            // Nothing to do here
-                        }
-                    },
-                    {
-                        actionName: "yes",
-                        default: true,
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
-                        action: () => {
-                            const dialog: OrMwcDialog = this._dialog as OrMwcDialog;
-                            if (dialog.shadowRoot && dialog.shadowRoot.getElementById("current-value-decimals")) {
-                                const elm = dialog.shadowRoot.getElementById("current-value-decimals") as HTMLInputElement;
-                                const input = parseInt(elm.value);
-                                if (input < 0) {this.mainValueDecimals = 0;}
-                                else if (input > 10) {this.mainValueDecimals = 10;}
-                                else {this.mainValueDecimals = input;}
-                                this.formattedMainValue = this.getFormattedValue(this.mainValue!);
-                                this.saveSettings();
-                            }
-                        }
-                    }
-                ];
-
-                this._dialog.dialogContent = html`
-                    <or-mwc-input id="current-value-decimals" .label="${i18next.t("decimals")}" value="${this.mainValueDecimals}" .type="${InputType.TEXT}"></or-mwc-input>
-                `;
-
-                this._dialog.dismissAction = null;
-            }
-            else {
-
-                this._dialog.dialogTitle = i18next.t("addAttribute");
-
-                this._dialog.dialogActions = [
-                    {
-                        actionName: "cancel",
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
-                        action: () => {
-                            // Nothing to do here
-                        }
-                    },
-                    {
-                        actionName: "yes",
-                        default: true,
-                        content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("add")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
-                        action: () => {
-                            const dialog: OrMwcDialog = this.shadowRoot!.getElementById("mdc-dialog") as OrMwcDialog;
-                            if (dialog.shadowRoot && dialog.shadowRoot.getElementById("attribute-picker")) {
-                                const elm = dialog.shadowRoot.getElementById("attribute-picker") as HTMLInputElement;
-                                this.dispatchEvent(new OrAttributeCardAddAttributeEvent(elm.value));
-                            }
-                        }
-                    }
-                ];
-
-                this._dialog.dialogContent = html`
-                    <or-asset-tree id="chart-asset-tree"  readonly
-                        .selectedIds="${this.asset ? [this.asset.id] : null}"></or-asset-tree>
-                    ${this.asset && this.asset.attributes ? html`
-                        <or-mwc-input id="attribute-picker" 
-                            style="display:flex;"
-                            .label="${i18next.t("attribute")}" 
-                            .type="${InputType.LIST}"
-                            .options="${this._getAttributeOptions()}"
-                            .value="${this.attributeName}"></or-mwc-input>
-                    ` : ``}
-                `;
-
-                this._dialog.dismissAction = null;
-            }
-        }
-    }
-
-    protected _openDialog(dialogContent?: ContextMenuOptions) {
-        if (this._dialog) {
-            this._refreshDialog(dialogContent);
-            this._dialog.open();
-        }
-    }
-
-    protected _onTreeSelectionChanged(event: OrAssetTreeSelectionEvent) {
-        // Need to fully load the asset
-        if (!manager.events) {
-            return;
-        }
-
-        const selectedNode = event.detail && event.detail.newNodes.length > 0 ? event.detail.newNodes[0] : undefined;
-
-        if (!selectedNode) {
-            this.asset = undefined;
-        } else {
-            // fully load the asset
-            manager.events.sendEventWithReply({
-                event: {
-                    eventType: "read-asset",
-                    assetId: selectedNode.asset!.id
-                }
-            }).then((ev) => {
-                this.asset = (ev as AssetEvent).asset;
-                this.assetAttributes = this.asset!.attributes ? Object.values(this.asset!.attributes!) : [];
-            }).catch(() => this.asset = undefined);
-        }
-    }
-
-    protected _getAttributeOptions(): [string, string][] | undefined {
-        if (!this.asset || !this.assetAttributes) {
-            return;
-        }
-
-        if (this.shadowRoot && this.shadowRoot.getElementById("attribute-picker")) {
-            const elm = this.shadowRoot.getElementById("attribute-picker") as HTMLInputElement;
-            elm.value = "";
-        }
-
-        let attributes = this.assetAttributes;
-
-        if (attributes && attributes.length > 0) {
-            return attributes
-                .filter((attribute) => attribute.meta && (attribute.meta.hasOwnProperty(WellknownMetaItems.STOREDATAPOINTS) ? attribute.meta[WellknownMetaItems.STOREDATAPOINTS] : attribute.meta.hasOwnProperty(WellknownMetaItems.AGENTLINK)))
-                .map((attr: Attribute<any>) => {
-                    const descriptors = AssetModelUtil.getAttributeAndValueDescriptors(this.asset!.type, attr.name, attr);
-                    return [attr.name!, Util.getAttributeLabel(attr, descriptors[0], this.asset!.type, false)];
-                });
-        }
-    }
-
-    private _setAttribute(event:OrAttributeCardAddAttributeEvent) {
-        if (this.asset && event) {
-            const attr = this.asset.attributes ? this.asset.attributes[event.detail] : undefined;
-            if (attr) {
-                this.assetId = this.asset.id;
-                this.attributeName = attr.name;
-
-                this.getData();
-                this.saveSettings();
-                this.requestUpdate();
-            }
-        }
-    }
-
-    protected _cleanup() {
-        if (this._chart) {
-            this._chart.destroy();
-            this._chart = undefined;
-        }
-    }
-
-    getSettings() {
-        const configStr = window.localStorage.getItem('OrChartConfig')
-        if (!configStr || !this.panelName) return;
-
-        const viewSelector = this.assetId ? this.assetId : window.location.hash;
-        const config = JSON.parse(configStr) as OrChartConfig;
-        const view = config.views[viewSelector][this.panelName];
-        if (!view) return;
-        if (view.assetIds && view.assetIds.length === 1 && view.assetIds[0] === this.assetId) return;
-
-        if (view.assetIds && view.attributes) {
-            const query: AssetQuery = {
-                ids: view.assetIds
-            }
-
-            manager.rest.api.AssetResource.queryAssets(query).then((response) => {
-                const assets = response.data;
-                if (!view || !view.assetIds || !view.attributes || assets.length !== view.assetIds.length || assets.length !== view.attributes.length) return;
-
-                this.assetAttributes = view.attributes.map((attr: string, index: number) => assets[index] && assets[index].attributes ? assets[index].attributes![attr] : undefined).filter(attr => !!attr) as Attribute<any>[];
-
-                if (this.assetAttributes && this.assetAttributes.length > 0) {
-                    this.assetId = assets[0].id;
-                    this.period = view.period;
-                    if(view.deltaFormat) this.deltaFormat = view.deltaFormat;
-                    if(view.decimals) this.mainValueDecimals = view.decimals;
-                    this.attributeName = this.assetAttributes[0].name;
-                    this.getData();
-                }
-            });
-        }
-    }
-
-    saveSettings() {
-        const viewSelector = window.location.hash;
-        const attributes = this.attributeName ? [this.attributeName] : undefined;
-        const assetIds = this.assetId ? [this.assetId] : undefined;
-        const configStr = window.localStorage.getItem('OrChartConfig')
-        if (!this.panelName) return;
-
-        let config: OrChartConfig;
-        if (configStr) {
-            config = JSON.parse(configStr);
-        } else {
-            config = {
-                views: {
-                    [viewSelector]: {
-                        [this.panelName] : {
-
-                        }
-                    }
-                }
-            }
-        }   
-
-        config.views[viewSelector][this.panelName] = {
-            assetIds: assetIds,
-            attributes: attributes,
-            period: this.period,
-            deltaFormat: this.deltaFormat,
-            decimals: this.mainValueDecimals
-        };
-        const message = {
-            provider: "STORAGE",
-            action: "STORE",
-            key: "OrChartConfig",
-            value: JSON.stringify(config)
-
-        }
-        manager.console._doSendProviderMessage(message)
+    shouldShowTitle(): boolean {
+        return (this.showTitle && this.showTitle.toString() == "true");
     }
 
     protected render() {
 
-        if (!this.assetId || !this.attributeName) {
+        if (!this.assets || !this.assetAttributes || this.assetAttributes.length === 0) {
             return html`
                 <div class="panel panel-empty">
                     <div class="panel-content-wrapper">
                         <div class="panel-content">
-                            <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-mwc-input>
+                            ${this.shouldShowControls() ? html`
+                                <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("selectAttribute")}" icon="plus" @or-mwc-input-changed="${() => this._openDialog("editAttribute")}"></or-mwc-input>
+                            ` : html`
+                                <span>${i18next.t('noAttributesConnected')}</span>
+                                <or-mwc-input class="button" .type="${InputType.BUTTON}" icon="reload" @or-mwc-input-changed="${() => { this.requestUpdate(); }}"></or-mwc-input>
+                            `}
                         </div>
                     </div>
                 </div>
-                <or-mwc-dialog id="mdc-dialog"></or-mwc-dialog>
             `;
         }
 
@@ -620,20 +368,31 @@ export class OrAttributeCard extends LitElement {
                     <div class="panel-content-wrapper">
                         <div class="panel-content">
                             <span>${i18next.t("couldNotRetrieveAttribute")}</span>
-                            <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("addAttribute")}" icon="plus" @click="${() => this._openDialog()}"></or-mwc-input>
+                            ${this.shouldShowControls() ? html`
+                                <or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("selectAttribute")}" icon="plus" @or-mwc-input-changed="${() => this._openDialog("editAttribute")}"></or-mwc-input>
+                            ` : html`
+                                <or-mwc-input class="button" .type="${InputType.BUTTON}" icon="reload" @or-mwc-input-changed="${() => { this.requestUpdate(); }}"></or-mwc-input>
+                            `}
                         </div>
                     </div>
                 </div>
-                <or-mwc-dialog id="mdc-dialog"><or-mwc-dialog>
             `;
         }
+
+        this.updateComplete.then(() => {
+            this.resizeObserver = new ResizeObserver(debounce((entries: ResizeObserverEntry[]) => {
+                const elemSize = entries[0].devicePixelContentBoxSize[0].blockSize;
+                this.setLabelSizeByWidth(elemSize);
+            }, 200))
+            this.resizeObserver.observe(this.shadowRoot!.querySelector(".graph-wrapper")!);
+        })
 
         return html`
             <div class="panel" id="attribute-card">
                 <div class="panel-content-wrapper">
                     <div class="panel-title">
-                        <span class="panel-title-text">${this.asset ? (this.asset.name + " - " + i18next.t(this.attributeName)) : ""}</span>
-                        ${getContentWithMenuTemplate(html`
+                        ${this.shouldShowTitle() ? html`<span class="panel-title-text">${this.assets[0].name + " - " + i18next.t(this.assetAttributes[0][1].name!)}</span>` : undefined}
+                        ${this.shouldShowControls() ? getContentWithMenuTemplate(html`
                             <or-mwc-input icon="dots-vertical" type="button"></or-mwc-input>
                         `,
                         [
@@ -648,126 +407,350 @@ export class OrAttributeCard extends LitElement {
                             {
                                 text: i18next.t("editCurrentValue"),
                                 value: "editCurrentValue"
+                            },
+                            {
+                                text: i18next.t("delete"),
+                                value: "delete"
                             }
                         ],
                         undefined,
-                        (values: string | string[]) => this.handleMenuSelect(values as ContextMenuOptions))}
+                        (option) => this.handleMenuSelect(option as ContextMenuOption)) : undefined}
                     </div>
                     <div class="panel-content">
                         <div class="mainvalue-wrapper">
-                            <span class="main-number-icon">${getAssetDescriptorIconTemplate(AssetModelUtil.getAssetDescriptor(this.asset!.type!))}</span>
-                            <span class="main-number ${this.mainValueSize}">${this.formattedMainValue!.value}</span>
-                            <span class="main-number-unit ${this.mainValueSize}">${this.formattedMainValue!.unit}</span>                        
+                            <span class="main-number-icon">${this.assets && this.assets.length === 1 ? getAssetDescriptorIconTemplate(AssetModelUtil.getAssetDescriptor(this.assets[0].type!)) : ""}</span>
+                            <span class="main-number ${this.mainValueSize}">${this.formattedMainValue ? this.formattedMainValue.value : ""}</span>
+                            <span class="main-number-unit ${this.mainValueSize}">${this.formattedMainValue ? this.formattedMainValue.unit : ""}</span>      
                         </div>
                         <div class="graph-wrapper">
                             <div class="chart-wrapper">
                                 <canvas id="chart"></canvas>
                             </div>
                             <div class="delta-wrapper">
-                                <span class="delta">${this.deltaPlus}${this.delta.val}${this.delta.unit}</span>
+                                <span class="delta">${this.delta ? this.deltaPlus + (this.delta.val !== undefined && this.delta.val !== null ? this.delta.val : "") + (this.delta.unit || "") : ""}</span>
                             </div>
                             
-                            <div class="period-selector-wrapper">
-                                ${getContentWithMenuTemplate(
-                                    html`<or-mwc-input class="period-selector" .type="${InputType.BUTTON}" .label="${i18next.t(this.period ? this.period : "-")}"></or-mwc-input>`,
-                                    [{value: "hour", text: "hour"}, {value: "day", text: "day"}, {value: "week", text: "week"}, {value: "month", text: "month"}, {value: "year", text: "year"}]
-                                        .map((option) => {
+                            ${this.shouldShowControls() ? html`
+                                <div class="period-selector-wrapper">
+                                    ${getContentWithMenuTemplate(
+                                        html`<or-mwc-input class="period-selector" .type="${InputType.BUTTON}" .label="${i18next.t(this.period ? this.period : "-")}"></or-mwc-input>`,
+                                        [{value: "hour", text: "hour"}, {value: "day", text: "day"}, {value: "week", text: "week"}, {value: "month", text: "month"}, {value: "year", text: "year"}].map((option) => {
                                             option.text = i18next.t(option.value);
                                             return option;
                                         }),
-                                    this.period,
-                                    (value) => this._setPeriodOption(value))}
-                            </div>
+                                        this.period,
+                                        (value) => this._setPeriodOption(value)
+                                    )}
+                                </div>
+                            ` : html`
+                                <or-mwc-input class="period-selector" .type="${InputType.BUTTON}" disabled .label="${i18next.t(this.period ? this.period : "-")}"></or-mwc-input>
+                            `}
                         </div>
                     </div>
                 </div>
             </div>
-            <or-mwc-dialog id="mdc-dialog"></or-mwc-dialog>
         `;
     }
 
-    protected async getAssetById(id: string): Promise<Asset> {
-        const response = await manager.rest.api.AssetResource.queryAssets({
-            ids: [id],
-            recursive: false
-        });
+    protected _openDialog(dialogContent?: ContextMenuOption) {
 
-        if (response.status !== 200 || !response.data || !response.data.length) {
-            return {};
+        let dialog: OrMwcDialog | undefined;
+
+        switch (dialogContent) {
+            case "editDelta":
+            case "editCurrentValue":
+                dialog = new OrMwcDialog()
+                    .setHeading(i18next.t(dialogContent))
+                    .setDismissAction(null)
+                    .setContent(
+                        dialogContent === "editDelta"
+                            ? html`
+                                <or-mwc-input id="delta-mode-picker" value="${this.deltaFormat}" @or-mwc-input-changed="${(evt: OrInputChangedEvent) => {this.deltaFormat = evt.detail.value;this.saveSettings();}}" .type="${InputType.LIST}" .options="${[
+                                            ["percentage", "Percentage"],
+                                            ["absolute", "Absolute"]
+                                        ]}"></or-mwc-input>                
+                            `
+                            : html`
+                                <or-mwc-input id="current-value-decimals" .label="${i18next.t("decimals")}" value="${this.mainValueDecimals}" .type="${InputType.TEXT}"></or-mwc-input>
+                            `
+                    )
+                    .setActions([
+                        {
+                            actionName: "cancel",
+                            content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" .label="${i18next.t("cancel")}"></or-mwc-input>`,
+                            action: () => {
+                                // Nothing to do here
+                            }
+                        },
+                        {
+                            actionName: "yes",
+                            default: true,
+                            content: html`<or-mwc-input class="button" .type="${InputType.BUTTON}" label="${i18next.t("ok")}" data-mdc-dialog-action="yes"></or-mwc-input>`,
+                            action: () => {
+                                if (dialogContent === "editDelta") {
+                                    this.delta = this.data ? this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data)) : undefined;
+                                } else {
+                                    if (dialog && dialog.shadowRoot && dialog.shadowRoot.getElementById("current-value-decimals")) {
+                                        const elm = dialog.shadowRoot.getElementById("current-value-decimals") as HTMLInputElement;
+                                        const input = parseInt(elm.value, 10);
+                                        if (input < 0) {this.mainValueDecimals = 0;}
+                                        else if (input > 10) {this.mainValueDecimals = 10;}
+                                        else {this.mainValueDecimals = input;}
+                                        this.formattedMainValue = this.getFormattedValue(this.mainValue!);
+                                        this.saveSettings();
+                                    }
+                                }
+                            }
+                        }
+                    ]);
+
+                dialog.addEventListener(OrAssetTreeSelectionEvent.NAME, async (ev: OrAssetTreeSelectionEvent) => {
+                    const selectedNode = ev.detail && ev.detail.newNodes.length > 0 ? ev.detail.newNodes[0] : undefined;
+
+                    if (!selectedNode) {
+                        this.asset = undefined;
+                    } else {
+                        // fully load the asset
+                        const assetEvent: AssetEvent = await manager.events!.sendEventWithReply({
+                            event: {
+                                eventType: "read-asset",
+                                assetId: selectedNode.asset!.id
+                            }
+                        });
+                        this.asset = assetEvent.asset;
+                    }
+                });
+                break;
+            default:
+                dialog = new OrAttributePicker()
+                    .setHeading(i18next.t("selectAttribute"));
+
+                dialog.addEventListener(OrAttributePickerPickedEvent.NAME, async (ev: OrAttributePickerPickedEvent) => {
+                    // handle selected attrs
+                    const attrRef = ev.detail[0];
+                    try {
+                        const response = await manager.rest.api.AssetResource.get(attrRef.id!);
+                        this.asset = response.data;
+                        this._setAttribute(attrRef.name as string);
+                    } catch (e) {
+                        console.error("Failed to get assets requested in settings", e);
+                    }
+                });
+                break;
         }
 
-        return response.data[0];
+        if (dialog) {
+            showDialog(dialog);
+        }
     }
 
-    protected async getDatapointsByAttribute(id: string, attributeName: string, startOfPeriod: number, endOfPeriod: number): Promise<ValueDatapoint<any>[]> {
+    private _setAttribute(attributeName: string) {
+        if (this.asset && attributeName) {
+            const attr = this.asset.attributes ? this.asset.attributes[attributeName] : undefined;
+            this.assets = [this.asset];
+            this.assetAttributes = attr ? [[0,attr]] : [];
+            this.saveSettings();
+        }
+    }
+
+    protected _cleanup() {
+        if (this._chart) {
+            this._chart.destroy();
+            this._chart = undefined;
+        }
+    }
+
+    protected async loadSettings(reset: boolean = false) {
+
+        this.assetAttributes = [];
+        if(!this.period || reset) { this.period = "day"; }
+        if(!this.deltaFormat || reset) { this.deltaFormat = "absolute"; }
+        if(!this.mainValueDecimals || reset) { this.mainValueDecimals = 0; }
+
+        if (!this.realm) {
+            this.realm = manager.getRealm();
+        }
+
+        let allConfigs: OrChartConfig[] = await manager.console.retrieveData("OrChartConfig") || [];
+        if (!Array.isArray(allConfigs)) {
+            allConfigs = [allConfigs];
+        }
+
+        if (allConfigs.length === 0 || !this.panelName) {
+            return;
+        }
+
+        const viewSelector = window.location.hash;
+        let config: OrChartConfig = allConfigs.find(e => e.realm === this.realm) as OrChartConfig;
+
+        const view = config && config.views && config.views[viewSelector] ? config.views[viewSelector][this.panelName] : undefined;
+
+        if (!view) {
+            return;
+        }
+
+        if (!view.attributeRefs) {
+            // Old/invalid config format remove it
+            delete config.views[viewSelector][this.panelName];
+            const cleanData = [...allConfigs.filter(e => e.realm !== this.realm), config];
+            manager.console.storeData("OrChartConfig", cleanData);
+            return;
+        }
+
+        const assetIds = view.attributeRefs.map((attrRef) => attrRef.id!);
+
+        if (assetIds.length === 0) {
+            return;
+        }
+
+        this._loading = true;
+
+        if (!assetIds.every(id => !!this.assets.find(asset => asset.id === id))) {
+            const query = {
+                ids: assetIds
+            } as AssetQuery;
+
+            try {
+                const response = await manager.rest.api.AssetResource.queryAssets(query);
+                const assets = response.data || [];
+                view.attributeRefs = view.attributeRefs.filter((attrRef) => !!assets.find((asset) => asset.id === attrRef.id && asset.attributes && asset.attributes.hasOwnProperty(attrRef.name!)));
+
+                allConfigs = [...allConfigs.filter(e => e.realm !== this.realm), config];
+                manager.console.storeData("OrChartConfig", allConfigs);
+                this.assets = assets.filter((asset) => view.attributeRefs!.find((attrRef) => attrRef.id === asset.id));
+            } catch (e) {
+                console.error("Failed to get assets requested in settings", e);
+            }
+
+            this._loading = false;
+
+            if (this.assets && this.assets.length > 0) {
+                this.assetAttributes = view.attributeRefs.map((attrRef) => {
+                    const assetIndex = this.assets.findIndex((asset) => asset.id === attrRef.id);
+                    const asset = assetIndex >= 0 ? this.assets[assetIndex] : undefined;
+                    return asset && asset.attributes ? [assetIndex!, asset.attributes[attrRef.name!]] : undefined;
+                }).filter((indexAndAttr) => !!indexAndAttr) as [number, Attribute<any>][];
+                this.period = view.period || "day";
+                this.mainValueDecimals = view.decimals || 0;
+                this.deltaFormat = view.deltaFormat || "absolute";
+            }
+        }
+    }
+
+    async saveSettings() {
+
+        if (!this.panelName) {
+            return;
+        }
+
+        const viewSelector = window.location.hash;
+        let allConfigs: OrChartConfig[] = await manager.console.retrieveData("OrChartConfig") || [];
+        let config: OrChartConfig | undefined = allConfigs.find(e => e.realm === this.realm);
+
+        if (!config) {
+            config = {
+                realm: this.realm,
+                views: {
+                }
+            }
+        }
+
+        if (!config.views[viewSelector]) {
+            config.views[viewSelector] = {};
+        }
+
+        if (!this.assets || !this.assetAttributes || this.assets.length === 0 || this.assetAttributes.length === 0) {
+            delete config.views[viewSelector][this.panelName];
+        } else {
+            config.realm = this.realm;
+            config.views[viewSelector][this.panelName] = {
+                attributeRefs: this.assetAttributes.map(([index, attr]) => {
+                    const asset = this.assets[index];
+                    return !!asset ? {id: asset.id, name: attr.name} as AttributeRef : undefined;
+                }).filter((attrRef) => !!attrRef) as AttributeRef[],
+                period: this.period,
+                deltaFormat: this.deltaFormat,
+                decimals: this.mainValueDecimals
+            };
+        }
+
+        allConfigs = [...allConfigs.filter(e => e.realm !== this.realm), config];
+        manager.console.storeData("OrChartConfig", allConfigs);
+    }
+
+    protected async loadData() {
+
+        if (this._loading || this.data || !this.assetAttributes || !this.assets || this.assets.length === 0 || this.assetAttributes.length === 0 || !this.period) {
+            return;
+        }
+
+        this._loading = true;
+
+        let interval: DatapointInterval = DatapointInterval.HOUR;
+        let stepSize = 1;
+
+        switch (this.period) {
+            case "hour":
+                interval = DatapointInterval.MINUTE;
+                stepSize = 5;
+                break;
+            case "day":
+                interval = DatapointInterval.HOUR;
+                stepSize = 1;
+                break;
+            case "week":
+                interval = DatapointInterval.HOUR;
+                stepSize = 6;
+                break;
+            case "month":
+                interval = DatapointInterval.DAY;
+                stepSize = 1;
+                break;
+            case "year":
+                interval = DatapointInterval.MONTH;
+                stepSize = 1;
+                break;
+        }
+
+        const lowerCaseInterval = interval.toLowerCase();
+        const startOfPeriod = moment().startOf(this.period).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime(); moment().clone().subtract(1, this.period).toDate().getTime();
+        const endOfPeriod = moment().endOf(this.period).startOf(lowerCaseInterval as moment.unitOfTime.StartOf).add(1, lowerCaseInterval as moment.unitOfTime.Base).toDate().getTime();
+        this.mainValue = undefined;
+        this.formattedMainValue = undefined;
+        const assetId = this.assets[0].id!;
+        const attributeName = this.assetAttributes[0][1].name!;
+
+        const currentValue: AttributeEvent = await manager.events!.sendEventWithReply({
+            event: {
+                eventType: "read-asset-attribute",
+                ref: {
+                    id: assetId,
+                    name: attributeName
+                }
+            } as ReadAttributeEvent
+        });
+
+        this.mainValue = currentValue.attributeState!.value;
+        this.formattedMainValue = this.getFormattedValue(this.mainValue!);
 
         const response = await manager.rest.api.AssetDatapointResource.getDatapoints(
-            id,
+            assetId,
             attributeName,
             {
-                interval: this._getInterval(),
+                interval: interval,
                 fromTimestamp: startOfPeriod,
                 toTimestamp: endOfPeriod
             }
         );
 
-        if (response.status !== 200 || !response.data) {
-            return [];
+        this._loading = false;
+
+        if (response.status === 200) {
+            this.data = response.data;
+            this.delta = this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data));
+            this.deltaPlus = this.delta && this.delta.val! > 0 ? "+" : "";
+            this.error = false;
         }
-
-        return response.data;
-    }
-
-    protected async getAttributeValue(assetId: string, attributeName: string): Promise<any> {
-
-        const response = await manager.rest.api.AssetResource.queryAssets({
-            ids: [assetId],
-            recursive: false
-        });
-
-        if (response.status !== 200 || !response.data) {
-            return [];
-        }
-
-        return response.data;
-    }
-
-    protected async getData() {
-
-        if (!this.assetId || !this.attributeName) {
-            this.error = true;
-            this.getSettings();
-            return false;
-        }
-
-        const thisMoment = moment(this.now);
-
-        this.asset = await this.getAssetById(this.assetId);
-        this.currentPeriod = {
-            start: thisMoment.clone().subtract(1, this.period).toDate().getTime(),
-            end: thisMoment.clone().toDate().getTime()
-        };
-
-        this.getAttributeValue(this.assetId, this.attributeName)
-            .then((response) => {
-                this.mainValue = response[0].attributes[this.attributeName!].value;
-                this.formattedMainValue = this.getFormattedValue(this.mainValue!);
-
-                return this.getDatapointsByAttribute(this.assetId!, this.attributeName!, this.currentPeriod!.start, this.currentPeriod!.end);
-            })
-            .then((datapoints: ValueDatapoint<any>[]) => {
-                this.data = datapoints || [];
-                this.delta = this.getFormattedDelta(this.getFirstKnownMeasurement(this.data), this.getLastKnownMeasurement(this.data));
-                this.deltaPlus = (this.delta.val && this.delta.val > 0) ? "+" : "";
-
-                this.error = false;
-
-            })
-            .catch((err) => {
-                this.error = true;
-                this.requestUpdate();
-            });
-
     }
 
     protected getTotalValue(data: ValueDatapoint<any>[]): number {
@@ -780,17 +763,16 @@ export class OrAttributeCard extends LitElement {
         return Math.max.apply(Math, data.map((e: ValueDatapoint<any>) => e.y || false ));
     }
 
-    protected getFormattedValue(value: number): {value: number, unit: string} | undefined {
-        if (!this.asset) {
+    protected getFormattedValue(value: number | undefined): {value: number, unit: string} | undefined {
+        if (value === undefined || !this.assets || !this.assetAttributes || this.assets.length === 0 || this.assetAttributes.length === 0) {
             return;
         }
 
-        const attr = this.asset.attributes![this.attributeName!];
+        const attr = this.assetAttributes[0][1];
         const roundedVal = +value.toFixed(this.mainValueDecimals); // + operator prevents str return
-
-        const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(this.attributeName!, this.asset!.type!);
-        const units = Util.resolveUnits(Util.getAttributeUnits(attr, attributeDescriptor, this.asset!.type));
-        this.setMainValueSize(roundedVal.toString());
+        const attributeDescriptor = AssetModelUtil.getAttributeDescriptor(attr.name!, this.assets[0].type!);
+        const units = Util.resolveUnits(Util.getAttributeUnits(attr, attributeDescriptor, this.assets[0].type));
+        this.setLabelSizeByLength(roundedVal.toString());
 
         if (!units) { return {value: roundedVal, unit: "" }; }
         return {
@@ -834,33 +816,17 @@ export class OrAttributeCard extends LitElement {
         return {val: Math.round(lastVal - firstVal), unit: ""};
     }
 
-    protected _getInterval() {
-        let interval: DatapointInterval = DatapointInterval.HOUR;
-        switch (this.period) {
-            case "hour":
-                interval = DatapointInterval.MINUTE;
-                break;
-            case "day":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "week":
-                interval = DatapointInterval.HOUR;
-                break;
-            case "month":
-                interval = DatapointInterval.DAY;
-                break;
-            case "year":
-                interval = DatapointInterval.MONTH;
-                break;
+    protected handleMenuSelect(value: ContextMenuOption) {
+        if (value === "delete") {
+            this.assets = [];
+            this.assetAttributes = [];
+            this.saveSettings();
+        } else {
+            this._openDialog(value);
         }
-        return interval;
     }
 
-    protected handleMenuSelect(value: ContextMenuOptions) {
-        this._openDialog(value);
-    }
-
-    protected setMainValueSize(value: string) {
+    protected setLabelSizeByLength(value: string) {
         if (value.length >= 20) { this.mainValueSize = "xs" }
         if (value.length < 20) { this.mainValueSize = "s" }
         if (value.length < 15) { this.mainValueSize = "m" }
@@ -868,12 +834,16 @@ export class OrAttributeCard extends LitElement {
         if (value.length < 5) { this.mainValueSize = "xl" }
     }
 
+    protected setLabelSizeByWidth(blockSize: number) {
+        if(blockSize < 60) { this.mainValueSize = "s"; }
+        else if(blockSize < 100) { this.mainValueSize = "m"; }
+        else if(blockSize < 200) { this.mainValueSize = "l"; }
+        else { this.mainValueSize = "xl"; }
+    }
+
     protected _setPeriodOption(value: any) {
         this.period = value;
-
         this.saveSettings();
-        this.getData();
-        this.requestUpdate();
     }
 
 }

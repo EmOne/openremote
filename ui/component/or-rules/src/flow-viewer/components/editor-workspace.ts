@@ -1,20 +1,19 @@
-import { LitElement, html, customElement, property } from "lit-element";
-import { repeat } from "lit-html/directives/repeat";
-import { Node, NodeSocket, NodeType } from "@openremote/model";
-import { IdentityDomLink, CopyMachine } from "../node-structure";
+import { LitElement, html } from "lit";
+import {customElement, property} from "lit/decorators.js";
+import { repeat } from "lit/directives/repeat.js";
+import { Node, NodeSocket } from "@openremote/model";
+import { IdentityDomLink } from "../node-structure";
 import { List } from "linqts";
 import { FlowNodeSocket } from "./flow-node-socket";
 import { LightNodeCollection } from "../models/light-node-collection";
 import { EditorWorkspaceStyle } from "../styles/editor-workspace-style";
 import { i18next, translate } from "@openremote/or-translate";
 import { FlowNode } from "./flow-node";
-import { ConnectionLine } from "./connection-line";
-import { ContextMenuButton, ContextMenuSeparator } from "../models/context-menu-button";
 import { ContextMenu } from "./context-menu";
-import { project, input, copyPasteManager, integration, FlowEditor } from "./flow-editor";
+import { project, input, copyPasteManager, FlowEditor } from "./flow-editor";
 import { Camera } from "../models/camera";
-import { Utilities } from "../utils";
 import { createContextMenuButtons } from "./workspace-contextmenu-options";
+import { InputType } from "@openremote/or-mwc-components/or-mwc-input";
 
 @customElement("editor-workspace")
 export class EditorWorkspace extends translate(i18next)(LitElement) {
@@ -75,6 +74,10 @@ export class EditorWorkspace extends translate(i18next)(LitElement) {
             this.removeEventListener("mousemove", project.connectionDragging);
         });
 
+        project.addListener("fitview", () => {
+            this.fitCamera(project.nodes);
+        });
+
         window.addEventListener("resize", () => {
             this.cachedClientRect = this.getBoundingClientRect();
             this.dispatchEvent(new CustomEvent("pan"));
@@ -105,6 +108,9 @@ export class EditorWorkspace extends translate(i18next)(LitElement) {
     public fitCamera(nodes: Node[], padding = 25) {
         const enumerable = new List<Node>();
         enumerable.AddRange(nodes);
+        if (enumerable.Count() == 0)
+            return;
+            
         const XouterleastNode = enumerable.OrderBy((a: Node) => a!.position!.x!).First() as Node;
         const YouterleastNode = enumerable.OrderBy((a: Node) => a!.position!.y!).First() as Node;
 
@@ -209,8 +215,8 @@ export class EditorWorkspace extends translate(i18next)(LitElement) {
         </svg>
         <selection-box .workspace="${this}"></selection-box>
         <div class="view-options" style="z-index: ${this.topNodeZindex + 1}">
-            ${!this.isCameraInDefaultPosition ? html`<or-mwc-input type="button" icon="vector-square" @click="${this.resetCamera}" label="${i18next.t("resetView", "Reset view")!}"></or-mwc-input>` : null}
-            ${project.nodes.length !== 0 ? html`<or-mwc-input type="button" icon="fit-to-page-outline" @click="${() => this.fitCamera(project.nodes)}" label="${i18next.t("fitView", "Fit view")!}"></or-mwc-input>` : null}
+            ${!this.isCameraInDefaultPosition ? html`<or-mwc-input type="${InputType.BUTTON}" icon="vector-square" @or-mwc-input-changed="${this.resetCamera}" label="${i18next.t("resetView", "Reset view")!}"></or-mwc-input>` : null}
+            ${project.nodes.length !== 0 ? html`<or-mwc-input type="button" icon="fit-to-page-outline" @or-mwc-input-changed="${() => this.fitCamera(project.nodes)}" label="${i18next.t("fitView", "Fit view")!}"></or-mwc-input>` : null}
         </div>
         `;
     }

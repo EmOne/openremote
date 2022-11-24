@@ -1,15 +1,16 @@
-import {css, customElement, html, property} from "lit-element";
+import {css, html} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import "@openremote/or-log-viewer";
 import {ViewerConfig} from "@openremote/or-log-viewer";
 import {Page, PageProvider} from "@openremote/or-app";
 import {AppStateKeyed} from "@openremote/or-app";
-import {EnhancedStore} from "@reduxjs/toolkit";
+import {Store} from "@reduxjs/toolkit";
 
 export interface PageLogsConfig {
     viewer?: ViewerConfig
 }
 
-export function pageLogsProvider<S extends AppStateKeyed>(store: EnhancedStore<S>, config?: PageLogsConfig): PageProvider<S> {
+export function pageLogsProvider(store: Store<AppStateKeyed>, config?: PageLogsConfig): PageProvider<AppStateKeyed> {
     return {
         name: "logs",
         routes: [
@@ -24,7 +25,7 @@ export function pageLogsProvider<S extends AppStateKeyed>(store: EnhancedStore<S
 }
 
 @customElement("page-logs")
-class PageLogs<S extends AppStateKeyed> extends Page<S> {
+export class PageLogs extends Page<AppStateKeyed> {
 
     static get styles() {
         // language=CSS
@@ -47,11 +48,11 @@ class PageLogs<S extends AppStateKeyed> extends Page<S> {
         return "logs";
     }
 
-    constructor(store: EnhancedStore<S>) {
+    constructor(store: Store<AppStateKeyed>) {
         super(store);
     }
 
-    public stateChanged(state: S) {
+    public stateChanged(state: AppStateKeyed) {
     }
 
     protected render() {

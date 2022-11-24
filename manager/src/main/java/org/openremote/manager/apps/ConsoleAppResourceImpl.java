@@ -21,14 +21,18 @@ package org.openremote.manager.apps;
 
 import org.openremote.container.web.WebResource;
 import org.openremote.model.apps.ConsoleAppConfig;
-import org.openremote.model.apps.ConsoleAppResource;
+import org.openremote.model.apps.AppResource;
 import org.openremote.model.http.RequestParams;
+import org.openremote.model.util.ValueUtil;
 
 import javax.ws.rs.BeanParam;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.nio.file.Files;
 
-public class ConsoleAppResourceImpl extends WebResource implements ConsoleAppResource {
+public class ConsoleAppResourceImpl extends WebResource implements AppResource {
 
     final protected ConsoleAppService consoleAppService;
 
@@ -37,7 +41,7 @@ public class ConsoleAppResourceImpl extends WebResource implements ConsoleAppRes
     }
 
     @Override
-    public String[] getInstalledApps(@BeanParam RequestParams requestParams) {
+    public String[] getApps(@BeanParam RequestParams requestParams) {
         if (!isSuperUser()) {
             throw new WebApplicationException(Response.Status.FORBIDDEN);
         }
@@ -48,12 +52,25 @@ public class ConsoleAppResourceImpl extends WebResource implements ConsoleAppRes
         }
     }
 
-    @Override
-    public ConsoleAppConfig getAppConfig(RequestParams requestParams) {
+    @Deprecated
+    protected ConsoleAppConfig getAppConfig(String realm) {
         try {
-            return consoleAppService.getAppConfig(getRequestRealm());
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            if (!Files.isDirectory(consoleAppService.consoleAppDocRoot)) {
+                return null;
+            }
+
+            return Files.list(consoleAppService.consoleAppDocRoot)
+                .filter(dir -> dir.getFileName().toString().startsWith(realm))
+                .map(dir -> {
+                    try {
+                        return ValueUtil.JSON.readValue(dir.toFile(), ConsoleAppConfig.class);
+                    } catch (IOException e) {
+                        throw new WebApplicationException(e);
+                    }
+                })
+                .findFirst().orElseThrow(NotFoundException::new);
+        } catch (IOException e) {
+            throw new WebApplicationException(e);
         }
     }
 }

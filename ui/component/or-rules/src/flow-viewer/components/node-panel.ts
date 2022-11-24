@@ -1,4 +1,5 @@
-import { LitElement, html, customElement, css, property, query } from "lit-element";
+import { LitElement, html, css } from "lit";
+import {customElement, property, query} from "lit/decorators.js";
 import { NodeType, Node } from "@openremote/model";
 import { i18next, translate } from "@openremote/or-translate";
 import { OrMwcDrawer } from "@openremote/or-mwc-components/or-mwc-drawer";
@@ -54,7 +55,7 @@ export class NodePanel extends translate(i18next)(LitElement)  {
     @property({ attribute: false }) public application!: FlowEditor;
 
     protected firstUpdated() {
-        this.drawer.open = true;
+        if (this.drawer) this.drawer.open = true;
     }
 
     protected render() {

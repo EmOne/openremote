@@ -29,7 +29,7 @@ import java.util.Arrays;
 
 /**
  * This event is used when an {@link Asset} is created, read, updated or deleted (updates are only fired when one or more top
- * level {@link Asset} properties are changed (excluding {@link Asset#getAttributes}. Attribute changes are handled via
+ * level {@link Asset} properties are changed (including attributes). Attribute changes are handled via
  * the {@link org.openremote.model.attribute.AttributeEvent}. When the cause is {@link Cause#READ} then the asset's
  * {@link org.openremote.model.attribute.Attribute}s will be included in the asset otherwise they are not.
  */
@@ -57,6 +57,10 @@ public class AssetEvent extends SharedEvent implements AssetInfo {
         return asset.id;
     }
 
+    public String getAssetName() {
+        return asset.name;
+    }
+
     @Override
     public String getRealm() {
         return asset.realm;
@@ -68,8 +72,13 @@ public class AssetEvent extends SharedEvent implements AssetInfo {
     }
 
     @Override
+    public String[] getPath() {
+        return asset.getPath();
+    }
+
+    @Override
     public String[] getAttributeNames() {
-        return updatedProperties;
+        return updatedProperties != null && Arrays.asList(updatedProperties).contains("attributes") && asset != null && asset.attributes != null ? asset.attributes.keySet().toArray(new String[0]) : new String[0];
     }
 
     public Cause getCause() {
@@ -82,6 +91,10 @@ public class AssetEvent extends SharedEvent implements AssetInfo {
 
     public String[] getUpdatedProperties() {
         return updatedProperties;
+    }
+
+    public boolean isAccessPublicRead() {
+        return asset.isAccessPublicRead();
     }
 
     @Override

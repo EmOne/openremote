@@ -3,17 +3,14 @@ package org.openremote.test.rules
 import org.openremote.manager.rules.RulesEngine
 import org.openremote.manager.rules.RulesService
 import org.openremote.manager.rules.RulesetStorageService
-import org.openremote.test.setup.KeycloakTestSetup
-import org.openremote.test.setup.ManagerTestSetup
-import org.openremote.model.attribute.MetaItem
-import org.openremote.model.attribute.MetaMap
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.GlobalRuleset
+import org.openremote.model.rules.RealmRuleset
 import org.openremote.model.rules.Ruleset
-import org.openremote.model.rules.TenantRuleset
+import org.openremote.setup.integration.KeycloakTestSetup
+import org.openremote.setup.integration.ManagerTestSetup
 
 import static org.openremote.model.rules.Ruleset.Lang.GROOVY
-import static org.openremote.model.rules.Ruleset.Lang.SHOW_ON_LIST
 import static org.openremote.model.rules.RulesetStatus.DEPLOYED
 
 class BasicRulesImport {
@@ -21,15 +18,15 @@ class BasicRulesImport {
     final Long globalRulesetId
     final Long globalRuleset2Id
     final Long masterRulesetId
-    final Long tenantBuildingRulesetId
-    final Long tenantCityRulesetId
+    final Long realmBuildingRulesetId
+    final Long realmCityRulesetId
     final Long apartment1RulesetId
     final Long apartment2RulesetId
     final Long apartment3RulesetId
 
     RulesEngine globalEngine
     RulesEngine masterEngine
-    RulesEngine tenantBuildingEngine
+    RulesEngine realmBuildingEngine
     RulesEngine apartment1Engine
     RulesEngine apartment2Engine
     RulesEngine apartment3Engine
@@ -49,27 +46,27 @@ class BasicRulesImport {
         ruleset.setEnabled(false)
         globalRuleset2Id = rulesetStorageService.merge(ruleset).id
 
-        ruleset = new TenantRuleset(
-            keycloakTestSetup.masterTenant.realm,
-            "Some master tenant demo rules",
+        ruleset = new RealmRuleset(
+            keycloakTestSetup.realmMaster.name,
+            "Some master realm demo rules",
             GROOVY,
             getClass().getResource("/org/openremote/test/rules/BasicMatchAllAssetStates.groovy").text)
         masterRulesetId = rulesetStorageService.merge(ruleset).id
 
-        ruleset = new TenantRuleset(
-            keycloakTestSetup.tenantBuilding.realm,
-            "Some building tenant demo rules",
+        ruleset = new RealmRuleset(
+            keycloakTestSetup.realmBuilding.name,
+            "Some building realm demo rules",
             GROOVY,
             getClass().getResource("/org/openremote/test/rules/BasicMatchAllAssetStates.groovy").text)
-        tenantBuildingRulesetId = rulesetStorageService.merge(ruleset).id
+        realmBuildingRulesetId = rulesetStorageService.merge(ruleset).id
 
-        ruleset = new TenantRuleset(
-            keycloakTestSetup.tenantCity.realm,
-            "Some smartcity tenant demo rules",
+        ruleset = new RealmRuleset(
+            keycloakTestSetup.realmCity.name,
+            "Some smartcity realm demo rules",
             GROOVY,
             getClass().getResource("/org/openremote/test/rules/BasicMatchAllAssetStates.groovy").text)
         ruleset.setEnabled(false)
-        tenantCityRulesetId = rulesetStorageService.merge(ruleset).id
+        realmCityRulesetId = rulesetStorageService.merge(ruleset).id
 
         ruleset = new AssetRuleset(
             managerTestSetup.apartment1Id,
@@ -84,7 +81,7 @@ class BasicRulesImport {
             "Some apartment 2 demo rules",
             GROOVY,
             getClass().getResource("/org/openremote/test/rules/BasicMatchAllAssetStates.groovy").text)
-        .setMeta(new MetaMap(Collections.singletonList(new MetaItem<>(SHOW_ON_LIST))))
+        .setShowOnList(true)
         apartment2RulesetId = rulesetStorageService.merge(ruleset).id
 
         ruleset = new AssetRuleset(
@@ -107,23 +104,23 @@ class BasicRulesImport {
         assert globalEngine.deployments.size() == 1
         assert globalEngine.deployments.values().any { it -> it.name == "Some global demo rules" && it.status == DEPLOYED }
 
-        assert rulesService.tenantEngines.size() == 2
-        masterEngine = rulesService.tenantEngines.get(keycloakTestSetup.masterTenant.realm)
+        assert rulesService.realmEngines.size() == 2
+        masterEngine = rulesService.realmEngines.get(keycloakTestSetup.realmMaster.name)
         masterEngine.disableTemporaryFactExpiration = true
         assert masterEngine != null
         assert masterEngine.isRunning()
         assert masterEngine.deployments.size() == 1
-        assert masterEngine.deployments.values().iterator().next().name == "Some master tenant demo rules"
+        assert masterEngine.deployments.values().iterator().next().name == "Some master realm demo rules"
         assert masterEngine.deployments.values().iterator().next().status == DEPLOYED
-        tenantBuildingEngine = rulesService.tenantEngines.get(keycloakTestSetup.tenantBuilding.realm)
-        assert tenantBuildingEngine != null
-        tenantBuildingEngine.disableTemporaryFactExpiration = true
-        assert tenantBuildingEngine.isRunning()
-        assert tenantBuildingEngine.deployments.size() == 1
-        assert tenantBuildingEngine.deployments.values().iterator().next().name == "Some building tenant demo rules"
-        assert tenantBuildingEngine.deployments.values().iterator().next().status == DEPLOYED
-        def tenantCityEngine = rulesService.tenantEngines.get(keycloakTestSetup.tenantCity.realm)
-        assert tenantCityEngine == null
+        realmBuildingEngine = rulesService.realmEngines.get(keycloakTestSetup.realmBuilding.name)
+        assert realmBuildingEngine != null
+        realmBuildingEngine.disableTemporaryFactExpiration = true
+        assert realmBuildingEngine.isRunning()
+        assert realmBuildingEngine.deployments.size() == 1
+        assert realmBuildingEngine.deployments.values().iterator().next().name == "Some building realm demo rules"
+        assert realmBuildingEngine.deployments.values().iterator().next().status == DEPLOYED
+        def realmCityEngine = rulesService.realmEngines.get(keycloakTestSetup.realmCity.name)
+        assert realmCityEngine == null
 
         assert rulesService.assetEngines.size() == 2
         apartment1Engine = rulesService.assetEngines.get(managerTestSetup.apartment1Id)
@@ -148,7 +145,7 @@ class BasicRulesImport {
 
     void resetRulesFired(RulesEngine... engine) {
         // Remove all named facts (those are the only ones inserted by basic test rules)
-        Collection<RulesEngine> engines = [globalEngine, masterEngine, tenantBuildingEngine, apartment2Engine, apartment3Engine]
+        Collection<RulesEngine> engines = [globalEngine, masterEngine, realmBuildingEngine, apartment2Engine, apartment3Engine]
         engines.addAll(engine)
         engines.forEach({ e ->
             e.facts.namedFacts.keySet().forEach({ factName ->
@@ -158,7 +155,7 @@ class BasicRulesImport {
     }
 
     void assertNoRulesFired(RulesEngine... engine) {
-        Collection<RulesEngine> engines = [globalEngine, masterEngine, tenantBuildingEngine, apartment2Engine, apartment3Engine]
+        Collection<RulesEngine> engines = [globalEngine, masterEngine, realmBuildingEngine, apartment2Engine, apartment3Engine]
         engines.addAll(engine)
         engines.forEach({ e ->
             assert e.facts.namedFacts.size() == 0

@@ -35,19 +35,19 @@ import java.util.function.Supplier;
     @JsonSubTypes.Type(value = RadialGeofencePredicate.class, name = RadialGeofencePredicate.name),
     @JsonSubTypes.Type(value = RectangularGeofencePredicate.class, name = RectangularGeofencePredicate.name),
     @JsonSubTypes.Type(value = ArrayPredicate.class, name = ArrayPredicate.name),
+    @JsonSubTypes.Type(value = ValueAnyPredicate.class, name = ValueAnyPredicate.name),
     @JsonSubTypes.Type(value = ValueEmptyPredicate.class, name = ValueEmptyPredicate.name),
-    @JsonSubTypes.Type(value = ValueNotEmptyPredicate.class, name = ValueNotEmptyPredicate.name),
     @JsonSubTypes.Type(value = CalendarEventPredicate.class, name = CalendarEventPredicate.name)
 })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     property = "predicateType"
 )
-public interface ValuePredicate extends Serializable {
+public abstract class ValuePredicate implements Serializable {
 
-    static Predicate<Object> asPredicateOrTrue(Supplier<Long> currentMillisSupplier, ValuePredicate valuePredicate) {
+    public static Predicate<Object> asPredicateOrTrue(Supplier<Long> currentMillisSupplier, ValuePredicate valuePredicate) {
         return obj -> Optional.ofNullable(valuePredicate).map(vp -> vp.asPredicate(currentMillisSupplier).test(obj)).orElse(true);
     }
 
-    Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier);
+    public abstract Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier);
 }

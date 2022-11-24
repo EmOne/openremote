@@ -1,16 +1,17 @@
-import {css, customElement, html, TemplateResult} from "lit-element";
+import {css, html, TemplateResult} from "lit";
+import {customElement} from "lit/decorators.js";
 import manager from "@openremote/core";
-import "@openremote/or-panel";
+import "@openremote/or-components/or-panel";
 import "@openremote/or-translate";
-import {EnhancedStore} from "@reduxjs/toolkit";
+import {Store} from "@reduxjs/toolkit";
 import {Page, PageProvider} from "@openremote/or-app";
 import {AppStateKeyed} from "@openremote/or-app";
 
-export function pageAccountProvider<S extends AppStateKeyed>(store: EnhancedStore<S>): PageProvider<S> {
+export function pageAccountProvider(store: Store<AppStateKeyed>): PageProvider<AppStateKeyed> {
     return {
         name: "account",
         routes: [
-            "account"
+            "/account"
         ],
         pageCreator: () => {
             return new PageAccount(store);
@@ -19,7 +20,7 @@ export function pageAccountProvider<S extends AppStateKeyed>(store: EnhancedStor
 }
 
 @customElement("page-account")
-class PageAccount<S extends AppStateKeyed> extends Page<S>  {
+export class PageAccount extends Page<AppStateKeyed>  {
 
     static get styles() {
         // language=CSS
@@ -35,7 +36,7 @@ class PageAccount<S extends AppStateKeyed> extends Page<S>  {
         return "account";
     }
 
-    constructor(store: EnhancedStore<S>) {
+    constructor(store: Store<AppStateKeyed>) {
         super(store);
     }
 
@@ -58,6 +59,6 @@ class PageAccount<S extends AppStateKeyed> extends Page<S>  {
         `;
     }
 
-    public stateChanged(state: S) {
+    public stateChanged(state: AppStateKeyed) {
     }
 }

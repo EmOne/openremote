@@ -19,22 +19,22 @@
  */
 package org.openremote.manager.rules;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.hibernate.Session;
 import org.hibernate.jdbc.AbstractReturningWork;
-import org.openremote.model.Container;
-import org.openremote.model.ContainerService;
 import org.openremote.container.persistence.PersistenceService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebService;
-import org.openremote.model.attribute.MetaMap;
+import org.openremote.model.Container;
+import org.openremote.model.ContainerService;
 import org.openremote.model.query.RulesetQuery;
 import org.openremote.model.rules.AssetRuleset;
 import org.openremote.model.rules.GlobalRuleset;
+import org.openremote.model.rules.RealmRuleset;
 import org.openremote.model.rules.Ruleset;
-import org.openremote.model.rules.TenantRuleset;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -76,7 +76,7 @@ public class RulesetStorageService implements ContainerService {
         persistenceService = container.getService(PersistenceService.class);
         identityService = container.getService(ManagerIdentityService.class);
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
                 new RulesResourceImpl(
                         container.getService(TimerService.class),
                         container.getService(ManagerIdentityService.class),
@@ -172,7 +172,7 @@ public class RulesetStorageService implements ContainerService {
             sb.append(", R.RULES");
         }
 
-        if (rulesetType == TenantRuleset.class) {
+        if (rulesetType == RealmRuleset.class) {
             sb.append(", R.ACCESS_PUBLIC_READ, R.REALM");
         } else if (rulesetType == AssetRuleset.class) {
             sb.append(", R.ACCESS_PUBLIC_READ, R.ASSET_ID, A.REALM AS REALM");
@@ -182,8 +182,8 @@ public class RulesetStorageService implements ContainerService {
     protected <T extends Ruleset> void appendFromString(StringBuilder sb, Class<T> rulesetType, RulesetQuery query) {
         if (rulesetType == GlobalRuleset.class) {
             sb.append(" FROM GLOBAL_RULESET R");
-        }else if (rulesetType == TenantRuleset.class) {
-            sb.append(" FROM TENANT_RULESET R");
+        }else if (rulesetType == RealmRuleset.class) {
+            sb.append(" FROM REALM_RULESET R");
         } else if (rulesetType == AssetRuleset.class) {
             sb.append(" FROM ASSET_RULESET R JOIN ASSET A ON (R.ASSET_ID = A.ID)");
         } else {
@@ -231,7 +231,7 @@ public class RulesetStorageService implements ContainerService {
             // TODO: Add meta filtering support
         }
 
-        if (query.realm != null && (rulesetType == TenantRuleset.class || rulesetType == AssetRuleset.class)) {
+        if (query.realm != null && (rulesetType == RealmRuleset.class || rulesetType == AssetRuleset.class)) {
             sb.append(" AND REALM = ?");
             final int pos = binders.size() + 1;
             binders.add(st -> st.setString(pos, query.realm));
@@ -267,11 +267,11 @@ public class RulesetStorageService implements ContainerService {
 
         if (rulesetType == GlobalRuleset.class) {
             ruleset = (T) new GlobalRuleset();
-        } else if (rulesetType == TenantRuleset.class) {
-            TenantRuleset tenantRuleset = new TenantRuleset();
-            tenantRuleset.setRealm(rs.getString("REALM"));
-            tenantRuleset.setAccessPublicRead(rs.getBoolean("ACCESS_PUBLIC_READ"));
-            ruleset = (T) tenantRuleset;
+        } else if (rulesetType == RealmRuleset.class) {
+            RealmRuleset realmRuleset = new RealmRuleset();
+            realmRuleset.setRealm(rs.getString("REALM"));
+            realmRuleset.setAccessPublicRead(rs.getBoolean("ACCESS_PUBLIC_READ"));
+            ruleset = (T) realmRuleset;
         } else if (rulesetType == AssetRuleset.class) {
             AssetRuleset assetRuleset = new AssetRuleset();
             assetRuleset.setAssetId(rs.getString("ASSET_ID"));
@@ -290,7 +290,7 @@ public class RulesetStorageService implements ContainerService {
         ruleset.setLastModified(rs.getTimestamp("LAST_MODIFIED"));
         ruleset.setCreatedOn(rs.getTimestamp("CREATED_ON"));
         if (rs.getString("META") != null) {
-            ruleset.setMeta(Values.parse(rs.getString("META"), MetaMap.class).orElse(null));
+            ruleset.setMeta(ValueUtil.parse(rs.getString("META"), ObjectNode.class).orElse(null));
         }
         if (query.fullyPopulate) {
             ruleset.setRules(rs.getString("RULES"));

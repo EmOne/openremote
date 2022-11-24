@@ -12,8 +12,8 @@ import org.openremote.manager.rules.RulesService
 import org.openremote.manager.rules.RulesetStorageService
 import org.openremote.manager.rules.geofence.ORConsoleGeofenceAssetAdapter
 import org.openremote.manager.setup.SetupService
-import org.openremote.test.setup.KeycloakTestSetup
-import org.openremote.test.setup.ManagerTestSetup
+import org.openremote.setup.integration.KeycloakTestSetup
+import org.openremote.setup.integration.ManagerTestSetup
 import org.openremote.model.asset.Asset
 import org.openremote.model.asset.AssetResource
 import org.openremote.model.asset.impl.ConsoleAsset
@@ -30,9 +30,8 @@ import org.openremote.model.query.filter.RadialGeofencePredicate
 import org.openremote.model.rules.AssetRuleset
 import org.openremote.model.rules.RulesResource
 import org.openremote.model.rules.Ruleset
-import org.openremote.model.rules.TenantRuleset
+import org.openremote.model.rules.RealmRuleset
 import org.openremote.model.value.MetaItemType
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -41,14 +40,14 @@ import javax.ws.rs.WebApplicationException
 import java.util.concurrent.TimeUnit
 import java.util.stream.IntStream
 
-import static org.openremote.test.setup.ManagerTestSetup.DEMO_RULE_STATES_SMART_BUILDING
-import static org.openremote.test.setup.ManagerTestSetup.SMART_BUILDING_LOCATION
+import static org.openremote.setup.integration.ManagerTestSetup.DEMO_RULE_STATES_SMART_BUILDING
+import static org.openremote.setup.integration.ManagerTestSetup.SMART_BUILDING_LOCATION
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID
 import static org.openremote.model.asset.AssetResource.Util.WRITE_ATTRIBUTE_HTTP_METHOD
 import static org.openremote.model.asset.AssetResource.Util.getWriteAttributeUrl
 import static org.openremote.model.rules.RulesetStatus.DEPLOYED
 import static org.openremote.model.util.TextUtil.isNullOrEmpty
-import static org.openremote.model.value.Values.parse
+import static org.openremote.model.util.ValueUtil.parse
 
 class ConsoleTest extends Specification implements ManagerContainerTrait {
 
@@ -98,37 +97,37 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         Asset testUser3Console1, testUser3Console2, anonymousConsole1
 
         and: "the demo location predicate console rules are loaded"
-        Ruleset ruleset = new TenantRuleset(
-            keycloakTestSetup.tenantBuilding.realm,
-            "Demo Tenant Building - Console Location",
+        Ruleset ruleset = new RealmRuleset(
+            keycloakTestSetup.realmBuilding.name,
+            "Demo Realm Building - Console Location",
             Ruleset.Lang.GROOVY,
             getClass().getResource("/org/openremote/test/rules/ConsoleLocation.groovy").text)
         rulesetStorageService.merge(ruleset)
 
         expect: "the rule engine to become available and be running"
         conditions.eventually {
-            def tenantBuildingEngine = rulesService.tenantEngines.get(keycloakTestSetup.tenantBuilding.realm)
-            assert tenantBuildingEngine != null
-            assert tenantBuildingEngine.isRunning()
-            assert tenantBuildingEngine.assetStates.size() == DEMO_RULE_STATES_SMART_BUILDING
+            def realmBuildingEngine = rulesService.realmEngines.get(keycloakTestSetup.realmBuilding.name)
+            assert realmBuildingEngine != null
+            assert realmBuildingEngine.isRunning()
+            assert realmBuildingEngine.assetStates.size() == DEMO_RULE_STATES_SMART_BUILDING
         }
 
         and: "an authenticated user"
         def accessToken = authenticate(
                 container,
-                keycloakTestSetup.tenantBuilding.realm,
+                keycloakTestSetup.realmBuilding.name,
                 KEYCLOAK_CLIENT_ID,
                 "testuser3",
                 "testuser3"
         ).token
 
         and: "authenticated and anonymous console, rules and asset resources"
-        def authenticatedConsoleResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm, accessToken).proxy(ConsoleResource.class)
-        def authenticatedRulesResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm, accessToken).proxy(RulesResource.class)
-        def authenticatedAssetResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm, accessToken).proxy(AssetResource.class)
-        def anonymousConsoleResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm).proxy(ConsoleResource.class)
-        def anonymousRulesResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm).proxy(RulesResource.class)
-        def anonymousAssetResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm).proxy(AssetResource.class)
+        def authenticatedConsoleResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name, accessToken).proxy(ConsoleResource.class)
+        def authenticatedRulesResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name, accessToken).proxy(RulesResource.class)
+        def authenticatedAssetResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name, accessToken).proxy(AssetResource.class)
+        def anonymousConsoleResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name).proxy(ConsoleResource.class)
+        def anonymousRulesResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name).proxy(RulesResource.class)
+        def anonymousAssetResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name).proxy(AssetResource.class)
 
         when: "a console registers with an authenticated user"
         def consoleRegistration = new ConsoleRegistration(null,
@@ -184,7 +183,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         assert consolePushProvider.data.get("token").asText() == "23123213ad2313b0897efd"
 
         and: "the console should have been linked to the authenticated user"
-        def userAssets = assetStorageService.findUserAssets(keycloakTestSetup.tenantBuilding.realm, keycloakTestSetup.testuser3Id, consoleId)
+        def userAssets = assetStorageService.findUserAssetLinks(keycloakTestSetup.realmBuilding.name, keycloakTestSetup.testuser3Id, consoleId)
         assert userAssets.size() == 1
         assert userAssets.get(0).assetName == "Test Console"
 
@@ -307,7 +306,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         anonymousConsole1 = console
         consoleGeofenceProvider = console.getConsoleProviders().map{it.get("geofence")}.orElse(null)
         consolePushProvider = console.getConsoleProviders().map{it.get("push")}.orElse(null)
-        userAssets = assetStorageService.findUserAssets(null, null, consoleId)
+        userAssets = assetStorageService.findUserAssetLinks(null, null, consoleId)
 
         then: "the console asset should have been created and be correctly configured"
         assert !isNullOrEmpty(consoleId)
@@ -348,7 +347,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         messages.clear()
 
         and: "an authenticated user updates the location of a linked console"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console1.id, Asset.LOCATION.name, Values.asJSON(new GeoJSONPoint(0d, 0d, 0d)).orElse(null))
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console1.id, Asset.LOCATION.name, new GeoJSONPoint(0d, 0d, 0d))
 
         then: "the consoles location should have been updated"
         conditions.eventually {
@@ -369,7 +368,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
 //        ex.response.status == 403
 
         when: "a console's location is updated to be at the Smart Building"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, Values.asJSON(SMART_BUILDING_LOCATION).orElse(null))
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, SMART_BUILDING_LOCATION)
         long timestamp = Long.MAX_VALUE
 
         then: "a welcome home alert should be sent to the console"
@@ -384,7 +383,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "a console's location is updated to be at the Smart Building again"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, Values.asJSON(SMART_BUILDING_LOCATION).orElse(null))
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, SMART_BUILDING_LOCATION)
 
         then: "no more alerts should have been sent"
         conditions.eventually {
@@ -401,23 +400,23 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         and: "a console's location is updated to be null"
         authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, null)
 
-        then: "no more alerts should have been sent and the welcome reset rule should have fired on the tenant rule engine"
+        then: "no more alerts should have been sent and the welcome reset rule should have fired on the realm rule engine"
         conditions.eventually {
             def asset = assetStorageService.find(testUser3Console2.id, true)
             assert asset != null
             assert asset.getAttribute(Asset.LOCATION.name).flatMap { it.timestamp }.orElse(Long.MIN_VALUE) > timestamp
             assert notificationIds.size() == 1
-            def tenantBuildingEngine = rulesService.tenantEngines.get(keycloakTestSetup.tenantBuilding.realm)
-            assert tenantBuildingEngine != null
-            assert tenantBuildingEngine.isRunning()
-            assert !tenantBuildingEngine.facts.getOptional("welcomeHome_${testUser3Console2.id}").isPresent()
+            def realmBuildingEngine = rulesService.realmEngines.get(keycloakTestSetup.realmBuilding.name)
+            assert realmBuildingEngine != null
+            assert realmBuildingEngine.isRunning()
+            assert !realmBuildingEngine.facts.getOptional("welcomeHome_${testUser3Console2.id}").isPresent()
         }
 
         when: "time advances"
         advancePseudoClock(1, TimeUnit.SECONDS, container)
 
         and: "a console's location is updated to be at the Smart Building again"
-        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, Values.asJSON(SMART_BUILDING_LOCATION).orElse(null))
+        authenticatedAssetResource.writeAttributeValue(null, testUser3Console2.id, Asset.LOCATION.name, SMART_BUILDING_LOCATION)
 
         then: "another alert should have been sent"
         conditions.eventually {
@@ -429,6 +428,8 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         ///////////////////////////////////////
 
         when: "the geofences of a user linked console are requested by the authenticated user"
+        notificationIds.clear()
+        messages.clear()
         def geofences = authenticatedRulesResource.getAssetGeofences(null, testUser3Console1.id)
         def expectedLocationPredicate = new RadialGeofencePredicate(100, SMART_BUILDING_LOCATION.y, SMART_BUILDING_LOCATION.x)
 
@@ -562,7 +563,7 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         newRuleset = rulesetStorageService.merge(newRuleset)
         newLocationPredicate = new RadialGeofencePredicate(150, 10, 40)
 
-        then: "a push notification should have been sent to the two remaining consoles telling them to refresh their geofences (from the tenant engine and asset engine)"
+        then: "a push notification should have been sent to the two remaining consoles telling them to refresh their geofences (from the realm engine and asset engine)"
         conditions.eventually {
             assert messages.stream()
                     .filter({ it instanceof PushNotificationMessage })
@@ -630,13 +631,13 @@ class ConsoleTest extends Specification implements ManagerContainerTrait {
         messages.clear()
 
         and: "another 10 consoles are added to the system"
-        def id = testUser3Console1.id
+        def testUser3Console1Id = testUser3Console1.id
         def extraConsoles = IntStream.rangeClosed(3, 12).mapToObj({
             testUser3Console1.id = null
             testUser3Console1.name = "Test Console $it"
             return assetStorageService.merge(testUser3Console1)
         }).collect({ it })
-        testUser3Console1.id = id
+        testUser3Console1.id = testUser3Console1Id
 
         then: "the extra consoles should have been added"
         assert extraConsoles.size() == 10

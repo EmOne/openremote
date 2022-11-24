@@ -19,48 +19,59 @@
  */
 package org.openremote.container.persistence;
 
+import org.apache.camel.ExchangePattern;
+import org.apache.camel.FluentProducerTemplate;
+import org.apache.camel.Predicate;
+import org.apache.camel.ProducerTemplate;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.output.MigrateResult;
 import org.hibernate.Session;
+import org.hibernate.annotations.Formula;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl;
 import org.hibernate.jpa.boot.internal.PersistenceUnitInfoDescriptor;
 import org.openremote.container.message.MessageBrokerService;
-import org.openremote.model.Container;
-import org.openremote.model.ContainerService;
-import org.openremote.model.EntityClassProvider;
+import org.openremote.model.*;
 import org.openremote.model.apps.ConsoleAppConfig;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetDescriptor;
-import org.openremote.model.asset.UserAsset;
+import org.openremote.model.asset.UserAssetLink;
+import org.openremote.model.dashboard.Dashboard;
 import org.openremote.model.datapoint.AssetDatapoint;
 import org.openremote.model.gateway.GatewayConnection;
 import org.openremote.model.notification.SentNotification;
 import org.openremote.model.datapoint.AssetPredictedDatapoint;
+import org.openremote.model.provisioning.ProvisioningConfig;
+import org.openremote.model.provisioning.X509ProvisioningConfig;
 import org.openremote.model.rules.AssetRuleset;
 import org.openremote.model.rules.GlobalRuleset;
-import org.openremote.model.rules.TenantRuleset;
-import org.openremote.model.security.Tenant;
+import org.openremote.model.rules.RealmRuleset;
+import org.openremote.model.security.Realm;
+import org.openremote.model.security.RealmRole;
 import org.openremote.model.security.User;
+import org.openremote.model.security.UserAttribute;
 import org.openremote.model.syslog.SyslogEvent;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.ValueUtil;
 
 import javax.persistence.*;
 import javax.persistence.spi.ClassTransformer;
 import javax.persistence.spi.PersistenceUnitTransactionType;
 import javax.sql.DataSource;
 import javax.ws.rs.core.UriBuilder;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.IntStream;
 
 import static org.openremote.container.util.MapAccess.*;
 
-public class PersistenceService implements ContainerService {
+public class PersistenceService implements ContainerService, Consumer<PersistenceEvent<?>> {
 
     /**
      * Programmatic definition of OpenRemotePU for hibernate
@@ -174,6 +185,11 @@ public class PersistenceService implements ContainerService {
         }
     }
 
+    // TODO: Make configurable
+    public static final String PERSISTENCE_TOPIC =
+        "seda://PersistenceTopic?multipleConsumers=true&concurrentConsumers=1&waitForTaskToComplete=NEVER&purgeWhenStopping=true&discardIfNoConsumers=true&limitConcurrentConsumers=false&size=25000";
+    public static final String HEADER_ENTITY_TYPE = PersistenceEvent.class.getSimpleName() + ".ENTITY_TYPE";
+
     private static final Logger LOG = Logger.getLogger(PersistenceService.class.getName());
 
     /**
@@ -183,29 +199,29 @@ public class PersistenceService implements ContainerService {
      * database artifacts from wipe/migrate in FlywayDB...) you must have it in the 'public'
      * schema. Hence we need a different schema here.
      */
-    public static final String SETUP_WIPE_CLEAN_INSTALL = "SETUP_WIPE_CLEAN_INSTALL";
+    public static final String OR_SETUP_RUN_ON_RESTART = "OR_SETUP_RUN_ON_RESTART";
     public static final String PERSISTENCE_UNIT_NAME = "PERSISTENCE_UNIT_NAME";
     public static final String PERSISTENCE_UNIT_NAME_DEFAULT = "OpenRemotePU";
-    public static final String DB_VENDOR = "DB_VENDOR";
-    public static final String DB_VENDOR_DEFAULT = Database.Product.POSTGRES.name();
-    public static final String DB_HOST = "DB_HOST";
-    public static final String DB_HOST_DEFAULT = "localhost";
-    public static final String DB_PORT = "DB_PORT";
-    public static final int DB_PORT_DEFAULT = 5432;
-    public static final String DB_NAME = "DB_NAME";
-    public static final String DB_NAME_DEFAULT = "openremote";
-    public static final String DB_SCHEMA = "DB_SCHEMA";
-    public static final String DB_SCHEMA_DEFAULT = "openremote";
-    public static final String DB_USERNAME = "DB_USERNAME";
-    public static final String DB_USERNAME_DEFAULT = "postgres";
-    public static final String DB_PASSWORD = "DB_PASSWORD";
-    public static final String DB_PASSWORD_DEFAULT = "postgres";
-    public static final String DB_MIN_POOL_SIZE = "DB_MIN_POOL_SIZE";
-    public static final int DB_MIN_POOL_SIZE_DEFAULT = 5;
-    public static final String DB_MAX_POOL_SIZE = "DB_MAX_POOL_SIZE";
-    public static final int DB_MAX_POOL_SIZE_DEFAULT = 20;
-    public static final String DB_CONNECTION_TIMEOUT_SECONDS = "DB_CONNECTION_TIMEOUT_SECONDS";
-    public static final int DB_CONNECTION_TIMEOUT_SECONDS_DEFAULT = 300;
+    public static final String OR_DB_VENDOR = "OR_DB_VENDOR";
+    public static final String OR_DB_VENDOR_DEFAULT = Database.Product.POSTGRES.name();
+    public static final String OR_DB_HOST = "OR_DB_HOST";
+    public static final String OR_DB_HOST_DEFAULT = "localhost";
+    public static final String OR_DB_PORT = "OR_DB_PORT";
+    public static final int OR_DB_PORT_DEFAULT = 5432;
+    public static final String OR_DB_NAME = "OR_DB_NAME";
+    public static final String OR_DB_NAME_DEFAULT = "openremote";
+    public static final String OR_DB_SCHEMA = "OR_DB_SCHEMA";
+    public static final String OR_DB_SCHEMA_DEFAULT = "openremote";
+    public static final String OR_DB_USER = "OR_DB_USER";
+    public static final String OR_DB_USER_DEFAULT = "postgres";
+    public static final String OR_DB_PASSWORD = "OR_DB_PASSWORD";
+    public static final String OR_DB_PASSWORD_DEFAULT = "postgres";
+    public static final String OR_DB_MIN_POOL_SIZE = "OR_DB_MIN_POOL_SIZE";
+    public static final int OR_DB_MIN_POOL_SIZE_DEFAULT = 5;
+    public static final String OR_DB_MAX_POOL_SIZE = "OR_DB_MAX_POOL_SIZE";
+    public static final int OR_DB_MAX_POOL_SIZE_DEFAULT = 20;
+    public static final String OR_DB_CONNECTION_TIMEOUT_SECONDS = "OR_DB_CONNECTION_TIMEOUT_SECONDS";
+    public static final int OR_DB_CONNECTION_TIMEOUT_SECONDS_DEFAULT = 300;
     public static final int PRIORITY = Integer.MIN_VALUE + 100;
 
     protected MessageBrokerService messageBrokerService;
@@ -213,11 +229,17 @@ public class PersistenceService implements ContainerService {
     protected String persistenceUnitName;
     protected Properties persistenceUnitProperties;
     protected EntityManagerFactory entityManagerFactory;
-
     protected Flyway flyway;
     protected boolean forceClean;
     protected Set<String> defaultSchemaLocations = new HashSet<>();
     protected Set<String> schemas = new HashSet<>();
+
+    public static Predicate isPersistenceEventForEntityType(Class<?> type) {
+        return exchange -> {
+            Class<?> entityType = exchange.getIn().getHeader(HEADER_ENTITY_TYPE, Class.class);
+            return type.isAssignableFrom(entityType);
+        };
+    }
 
     @Override
     public int getPriority() {
@@ -230,22 +252,22 @@ public class PersistenceService implements ContainerService {
             ? container.getService(MessageBrokerService.class)
             : null;
 
-        String dbVendor = getString(container.getConfig(), DB_VENDOR, DB_VENDOR_DEFAULT).toUpperCase(Locale.ROOT);
+        String dbVendor = getString(container.getConfig(), OR_DB_VENDOR, OR_DB_VENDOR_DEFAULT).toUpperCase(Locale.ROOT);
         LOG.info("Preparing persistence service for database: " + dbVendor);
 
         try {
             database = Database.Product.valueOf(dbVendor);
         } catch (Exception e) {
-            LOG.severe("Requested DB_VENDOR is not supported: " + dbVendor);
-            throw new UnsupportedOperationException("Requested DB_VENDOR is not supported: " + dbVendor);
+            LOG.severe("Requested OR_DB_VENDOR is not supported: " + dbVendor);
+            throw new UnsupportedOperationException("Requested OR_DB_VENDOR is not supported: " + dbVendor);
         }
 
-        String dbHost = getString(container.getConfig(), DB_HOST, DB_HOST_DEFAULT);
-        int dbPort = getInteger(container.getConfig(), DB_PORT, DB_PORT_DEFAULT);
-        String dbName = getString(container.getConfig(), DB_NAME, DB_NAME_DEFAULT);
-        String dbSchema = getString(container.getConfig(), DB_SCHEMA, DB_SCHEMA_DEFAULT);
-        String dbUsername = getString(container.getConfig(), DB_USERNAME, DB_USERNAME_DEFAULT);
-        String dbPassword = getString(container.getConfig(), DB_PASSWORD, DB_PASSWORD_DEFAULT);
+        String dbHost = getString(container.getConfig(), OR_DB_HOST, OR_DB_HOST_DEFAULT);
+        int dbPort = getInteger(container.getConfig(), OR_DB_PORT, OR_DB_PORT_DEFAULT);
+        String dbName = getString(container.getConfig(), OR_DB_NAME, OR_DB_NAME_DEFAULT);
+        String dbSchema = getString(container.getConfig(), OR_DB_SCHEMA, OR_DB_SCHEMA_DEFAULT);
+        String dbUsername = getString(container.getConfig(), OR_DB_USER, OR_DB_USER_DEFAULT);
+        String dbPassword = getString(container.getConfig(), OR_DB_PASSWORD, OR_DB_PASSWORD_DEFAULT);
         String connectionUrl = "jdbc:" + database.getConnectorName() + "://" + dbHost + ":" + dbPort + "/" + dbName;
         connectionUrl = UriBuilder.fromUri(connectionUrl).replaceQueryParam("currentSchema", dbSchema).build().toString();
 
@@ -253,16 +275,19 @@ public class PersistenceService implements ContainerService {
 
         if (messageBrokerService != null) {
             persistenceUnitProperties.put(
-                org.hibernate.cfg.AvailableSettings.SESSION_SCOPED_INTERCEPTOR,
+                AvailableSettings.SESSION_SCOPED_INTERCEPTOR,
                 PersistenceEventInterceptor.class.getName()
             );
         }
 
         persistenceUnitProperties.put(AvailableSettings.DEFAULT_SCHEMA, dbSchema);
 
+        // Add custom integrator so we can register a custom flush entity event listener
+        persistenceUnitProperties.put(EntityManagerFactoryBuilderImpl.INTEGRATOR_PROVIDER, IntegratorProvider.class.getName());
+
         persistenceUnitName = getString(container.getConfig(), PERSISTENCE_UNIT_NAME, PERSISTENCE_UNIT_NAME_DEFAULT);
 
-        forceClean = getBoolean(container.getConfig(), SETUP_WIPE_CLEAN_INSTALL, container.isDevMode());
+        forceClean = getBoolean(container.getConfig(), OR_SETUP_RUN_ON_RESTART, container.isDevMode());
 
         openDatabase(container, database, dbUsername, dbPassword, connectionUrl);
         prepareSchema(connectionUrl, dbUsername, dbPassword, dbSchema);
@@ -270,25 +295,30 @@ public class PersistenceService implements ContainerService {
         // Register standard entity classes and also any Entity ClassProviders
         List<String> entityClasses = new ArrayList<>(50);
         entityClasses.add(Asset.class.getName());
-        entityClasses.add(UserAsset.class.getName());
+        entityClasses.add(UserAssetLink.class.getName());
         entityClasses.add(AssetDatapoint.class.getName());
         entityClasses.add(SentNotification.class.getName());
         entityClasses.add(AssetPredictedDatapoint.class.getName());
-        entityClasses.add(Tenant.class.getName());
+        entityClasses.add(Realm.class.getName());
         entityClasses.add(User.class.getName());
+        entityClasses.add(UserAttribute.class.getName());
+        entityClasses.add(RealmRole.class.getName());
         entityClasses.add(GlobalRuleset.class.getName());
         entityClasses.add(AssetRuleset.class.getName());
-        entityClasses.add(TenantRuleset.class.getName());
+        entityClasses.add(RealmRuleset.class.getName());
         entityClasses.add(SyslogEvent.class.getName());
         entityClasses.add(GatewayConnection.class.getName());
         entityClasses.add(ConsoleAppConfig.class.getName());
+        entityClasses.add(Dashboard.class.getName());
+        entityClasses.add(ProvisioningConfig.class.getName());
+        entityClasses.add(X509ProvisioningConfig.class.getName());
 
         // Add packages with package-info (don't think this is JPA spec but hibernate specific)
         entityClasses.add("org.openremote.container.persistence");
         entityClasses.add("org.openremote.container.util");
 
         // Get asset sub type entities from asset model
-        Arrays.stream(AssetModelUtil.getAssetDescriptors(null))
+        Arrays.stream(ValueUtil.getAssetDescriptors(null))
             .map(AssetDescriptor::getType)
             .filter(assetClass -> assetClass.getAnnotation(Entity.class) != null)
             .map(Class::getName)
@@ -328,7 +358,7 @@ public class PersistenceService implements ContainerService {
         }
     }
 
-    public boolean isSetupWipeCleanInstall() {
+    public boolean isCleanInstall() {
         return forceClean;
     }
 
@@ -341,7 +371,7 @@ public class PersistenceService implements ContainerService {
             Session session = entityManager.unwrap(Session.class);
             PersistenceEventInterceptor persistenceEventInterceptor =
                 (PersistenceEventInterceptor) ((SharedSessionContractImplementor) session).getInterceptor();
-            persistenceEventInterceptor.setMessageBrokerService(messageBrokerService);
+            persistenceEventInterceptor.setEventConsumer(this);
         }
 
         return entityManager;
@@ -389,11 +419,59 @@ public class PersistenceService implements ContainerService {
         return schemas;
     }
 
+    /**
+     * Generate {@link PersistenceEvent}s for entities not managed by JPA (i.e. Keycloak entities)
+     */
+    public void publishPersistenceEvent(PersistenceEvent.Cause cause, Object currentEntity, Object previousEntity, Class<?> clazz, List<String> includeFields, List<String> excludeFields) {
+
+        Field[] propertyFields = getEntityPropertyFields(clazz, includeFields, excludeFields);
+
+        switch (cause) {
+            case CREATE:
+                publishPersistenceEvent(cause, currentEntity, null, null, null);
+                break;
+            case DELETE:
+                publishPersistenceEvent(cause, previousEntity, null, null, null);
+                break;
+            case UPDATE:
+                List<String> propertyNames = new ArrayList<>(propertyFields.length);
+                List<Object> currentState = new ArrayList<>(propertyFields.length);
+                List<Object> previousState = new ArrayList<>(propertyFields.length);
+                IntStream.range(0, propertyFields.length).forEach(i -> {
+                    Object currentValue = ValueUtil.getObjectFieldValue(currentEntity, propertyFields[i]);
+                    Object previousValue = ValueUtil.getObjectFieldValue(previousEntity, propertyFields[i]);
+                    if (!ValueUtil.objectsEquals(currentValue, previousValue)) {
+                        propertyNames.add(propertyFields[i].getName());
+                        currentState.add(currentValue);
+                        previousState.add(previousValue);
+                    }
+                });
+                publishPersistenceEvent(cause, currentEntity, propertyNames.toArray(new String[0]), currentState.toArray(), previousState.toArray());
+                break;
+        }
+    }
+
+    /**
+     * Generate {@link PersistenceEvent}s for entities not managed by JPA (i.e. Keycloak entities)
+     */
+    public void publishPersistenceEvent(PersistenceEvent.Cause cause, Object entity, String[] propertyNames, Object[] currentState, Object[] previousState) {
+        // Fire persistence event although we don't use database for Realm CUD but call Keycloak API
+        PersistenceEvent<?> persistenceEvent = new PersistenceEvent<>(cause, entity, propertyNames, currentState, previousState);
+
+        if (messageBrokerService.getFluentProducerTemplate() != null) {
+            messageBrokerService.getFluentProducerTemplate()
+                .withBody(persistenceEvent)
+                .withHeader(HEADER_ENTITY_TYPE, persistenceEvent.getEntity().getClass())
+                .to(PERSISTENCE_TOPIC)
+                .asyncSend();
+        }
+    }
+
     protected void openDatabase(Container container, Database database, String username, String password, String connectionUrl) {
 
-        int databaseMinPoolSize = getInteger(container.getConfig(), DB_MIN_POOL_SIZE, DB_MIN_POOL_SIZE_DEFAULT);
-        int databaseMaxPoolSize = getInteger(container.getConfig(), DB_MAX_POOL_SIZE, DB_MAX_POOL_SIZE_DEFAULT);
-        int connectionTimeoutSeconds = getInteger(container.getConfig(), DB_CONNECTION_TIMEOUT_SECONDS, DB_CONNECTION_TIMEOUT_SECONDS_DEFAULT);
+        int databaseMinPoolSize = getInteger(container.getConfig(), OR_DB_MIN_POOL_SIZE, OR_DB_MIN_POOL_SIZE_DEFAULT);
+        int databaseMaxPoolSize = getInteger(container.getConfig(), OR_DB_MAX_POOL_SIZE, OR_DB_MAX_POOL_SIZE_DEFAULT);
+        int connectionTimeoutSeconds = getInteger(container.getConfig(), OR_DB_CONNECTION_TIMEOUT_SECONDS, OR_DB_CONNECTION_TIMEOUT_SECONDS_DEFAULT);
         LOG.info("Opening database connection: " + connectionUrl);
         database.open(persistenceUnitProperties, connectionUrl, username, password, connectionTimeoutSeconds, databaseMinPoolSize, databaseMaxPoolSize);
     }
@@ -407,6 +485,7 @@ public class PersistenceService implements ContainerService {
         appendSchemaLocations(locations);
 
         flyway = Flyway.configure()
+            .cleanDisabled(false)
             .dataSource(connectionUrl, databaseUsername, databasePassword)
             .schemas(schemas.toArray(new String[0]))
             .locations(locations.toArray(new String[0]))
@@ -430,8 +509,8 @@ public class PersistenceService implements ContainerService {
         for (MigrationInfo i : flyway.info().pending()) {
             LOG.info("Pending task: " + i.getVersion() + ", " + i.getDescription() + ", " + i.getScript());
         }
-        int applied = flyway.migrate();
-        LOG.info("Applied database schema migrations: " + applied);
+        MigrateResult result = flyway.migrate();
+        LOG.info("Applied database schema migrations: " + result.migrationsExecuted);
         flyway.validate();
     }
 
@@ -444,10 +523,31 @@ public class PersistenceService implements ContainerService {
     }
 
     @Override
+    public void accept(PersistenceEvent<?> persistenceEvent) {
+
+        FluentProducerTemplate producerTemplate = messageBrokerService.getFluentProducerTemplate();
+
+        if (producerTemplate != null) {
+            producerTemplate
+                .withBody(persistenceEvent)
+                .withHeader(HEADER_ENTITY_TYPE, persistenceEvent.getEntity().getClass())
+                .to(PERSISTENCE_TOPIC)
+                .asyncSend();
+        }
+    }
+
+    @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
             "database=" + database +
             ", persistenceUnitName='" + persistenceUnitName + '\'' +
             '}';
+    }
+
+    public static Field[] getEntityPropertyFields(Class<?> clazz, List<String> includeFields, List<String> excludeFields) {
+        return Arrays.stream(clazz.getDeclaredFields())
+            .filter(field -> ((field.isAnnotationPresent(Column.class) || field.isAnnotationPresent(EmbeddedId.class) || field.isAnnotationPresent(JoinColumn.class) || field.isAnnotationPresent(Formula.class)) && (excludeFields == null || !excludeFields.contains(field.getName())))
+                || (includeFields != null && includeFields.contains(field.getName())))
+            .toArray(Field[]::new);
     }
 }

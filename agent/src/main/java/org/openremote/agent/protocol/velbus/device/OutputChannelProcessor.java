@@ -19,6 +19,10 @@
  */
 package org.openremote.agent.protocol.velbus.device;
 
+import org.openremote.model.util.EnumUtil;
+
+import java.util.Optional;
+
 /**
  * Abstract processor for channel related operations
  */
@@ -54,6 +58,14 @@ public abstract class OutputChannelProcessor extends ChannelProcessor {
                 }
 
                 return NORMAL;
+            }
+
+            public static Optional<ChannelSetting> fromValue(Object value) {
+                if (value == null) {
+                    return Optional.empty();
+                }
+
+                return EnumUtil.enumFromValue(ChannelSetting.class, value);
             }
     }
 

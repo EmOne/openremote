@@ -30,11 +30,12 @@ import io.undertow.websockets.jsr.UndertowContainerProvider;
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo;
 import org.keycloak.KeycloakPrincipal;
 import org.openremote.container.security.AuthContext;
-import org.openremote.container.security.IdentityService;
 import org.openremote.container.security.basic.BasicAuthContext;
 import org.openremote.container.security.keycloak.AccessTokenAuthContext;
 import org.openremote.container.web.socket.WebsocketAdapter;
 import org.openremote.container.web.socket.WebsocketComponent;
+import org.openremote.model.Constants;
+import org.openremote.model.Container;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Xnio;
@@ -42,12 +43,10 @@ import org.xnio.Xnio;
 import javax.websocket.HandshakeResponse;
 import javax.websocket.server.HandshakeRequest;
 import javax.websocket.server.ServerEndpointConfig;
-import javax.ws.rs.WebApplicationException;
 import java.security.Principal;
+import java.util.Optional;
 import java.util.logging.Logger;
 
-import static javax.ws.rs.core.Response.Status.FORBIDDEN;
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static org.openremote.container.web.WebService.pathStartsWithHandler;
 
 public class DefaultWebsocketComponent extends WebsocketComponent {
@@ -59,15 +58,15 @@ public class DefaultWebsocketComponent extends WebsocketComponent {
         UndertowContainerProvider.disableDefaultContainer();
     }
 
-    final protected IdentityService identityService;
+    final protected Container container;
     final protected WebService webService;
     final protected String allowedOrigin;
     protected DeploymentInfo deploymentInfo;
     protected WebService.RequestHandler websocketHttpHandler;
 
-    public DefaultWebsocketComponent(IdentityService identityService, WebService webService, String allowedOrigin) {
-        this.identityService = identityService;
-        this.webService = webService;
+    public DefaultWebsocketComponent(Container container, String allowedOrigin) {
+        this.container = container;
+        this.webService = container.getService(WebService.class);
         this.allowedOrigin = allowedOrigin;
     }
 
@@ -90,13 +89,11 @@ public class DefaultWebsocketComponent extends WebsocketComponent {
 
                         @Override
                         public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
+                            String realm = Optional.ofNullable(request.getHeaders().get(Constants.REALM_PARAM_NAME))
+                                .map(realms -> realms.isEmpty() ? null : realms.get(0)).orElse(null);
 
                             Principal principal = request.getUserPrincipal();
-                            if (principal == null) {
-                                throw new WebApplicationException("Request is not authenticated, can't access user principal", FORBIDDEN);
-                            }
-
-                            AuthContext authContext;
+                            AuthContext authContext = null;
 
                             if (principal instanceof KeycloakPrincipal) {
                                 KeycloakPrincipal<?> keycloakPrincipal = (KeycloakPrincipal<?>) principal;
@@ -106,11 +103,12 @@ public class DefaultWebsocketComponent extends WebsocketComponent {
                                 );
                             } else if (principal instanceof BasicAuthContext) {
                                 authContext = (BasicAuthContext) principal;
-                            } else {
-                                throw new WebApplicationException("Unsupported user principal type: " + principal, INTERNAL_SERVER_ERROR);
+                            } else if (principal != null) {
+                                LOG.info("Unsupported user principal type: " + principal);
                             }
 
                             config.getUserProperties().put(ConnectionConstants.HANDSHAKE_AUTH, authContext);
+                            config.getUserProperties().put(ConnectionConstants.HANDSHAKE_REALM, realm);
 
                             super.modifyHandshake(config, request, response);
                         }
@@ -143,20 +141,17 @@ public class DefaultWebsocketComponent extends WebsocketComponent {
             .addServletContextAttribute(WebSocketDeploymentInfo.ATTRIBUTE_NAME, webSocketDeploymentInfo)
             .setClassLoader(WebsocketComponent.class.getClassLoader());
 
+        // Require authentication, but authorize specific roles later in Camel
         WebResourceCollection resourceCollection = new WebResourceCollection();
         resourceCollection.addUrlPattern("/*");
-        // Require authentication, but authorize specific roles later in Camel
         SecurityConstraint constraint = new SecurityConstraint();
-        constraint.setEmptyRoleSemantic(SecurityInfo.EmptyRoleSemantic.AUTHENTICATE);
+        constraint.setEmptyRoleSemantic(SecurityInfo.EmptyRoleSemantic.PERMIT);
         constraint.addWebResourceCollection(resourceCollection);
         deploymentInfo.addSecurityConstraints(constraint);
 
-        HttpHandler handler = webService.addServletDeployment(identityService, deploymentInfo, true);
+        HttpHandler handler = WebService.addServletDeployment(container, deploymentInfo, true);
 
-        HttpHandler tempHandler = (exchange) -> {
-            handler.handleRequest(exchange);
-        };
-        websocketHttpHandler = pathStartsWithHandler(deploymentName, WEBSOCKET_PATH, tempHandler);
+        websocketHttpHandler = pathStartsWithHandler(deploymentName, WEBSOCKET_PATH, handler);
 
         // Give web socket handler higher priority than any other handlers already added
         webService.getRequestHandlers().add(0, websocketHttpHandler);

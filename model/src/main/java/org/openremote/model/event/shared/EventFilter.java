@@ -23,20 +23,18 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.openremote.model.asset.AssetFilter;
-import org.openremote.model.simulator.SimulatorState;
 import org.openremote.model.syslog.SyslogEvent;
 
 /**
  * Filters {@link SharedEvent} by arbitrary criteria.
  */
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = TenantFilter.class, name = TenantFilter.FILTER_TYPE),
+    @JsonSubTypes.Type(value = RealmFilter.class, name = RealmFilter.FILTER_TYPE),
     @JsonSubTypes.Type(value = SyslogEvent.LevelCategoryFilter.class, name = SyslogEvent.LevelCategoryFilter.FILTER_TYPE),
     @JsonSubTypes.Type(value = AssetFilter.class, name = AssetFilter.FILTER_TYPE)
 })
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
     property = "filterType"
 )
 @JsonAutoDetect(
@@ -52,7 +50,7 @@ public abstract class EventFilter<E extends SharedEvent> {
 
     /**
      *
-     * @return <code>false</code> if the filter doesn't match the given event.
+     * @return the event or a filtered copy of it if the filter matches; do not modify the supplied event.
      */
-    public abstract boolean apply(E event);
+    public abstract E apply(E event);
 }

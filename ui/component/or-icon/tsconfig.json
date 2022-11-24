@@ -1,15 +1,13 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src"
   },
   "include": [
     "./src"
   ],
   "references": [
-    { "path": "../core" },
     { "path": "../model" }
   ]
 }

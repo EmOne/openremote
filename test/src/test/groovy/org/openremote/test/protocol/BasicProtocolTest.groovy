@@ -32,6 +32,9 @@ import org.openremote.model.value.ValueFilter
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
+import org.openremote.setup.integration.protocol.MockAgent
+import org.openremote.setup.integration.protocol.MockAgentLink
+import org.openremote.setup.integration.protocol.MockProtocol
 
 import java.util.regex.Pattern
 
@@ -100,7 +103,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -108,7 +111,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -116,14 +119,14 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                     )
                 ),
             new Attribute<>("lightToggle2", BOOLEAN)
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent2.id)
+                        new MockAgentLink(mockAgent2.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -131,7 +134,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent2.id)
+                        new MockAgentLink(mockAgent2.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -139,7 +142,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent3.id)
+                        new MockAgentLink(mockAgent3.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -147,7 +150,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent3.id)
+                        new MockAgentLink(mockAgent3.id)
                             .setRequiredValue("true")
                     )
                 ),
@@ -155,7 +158,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink("invalid id")
+                        new MockAgentLink("invalid id")
                             .setRequiredValue("true")
                     )
                 ),
@@ -167,7 +170,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                             .setRequiredValue("true")
                             .setValueFilters(
                                 [
@@ -180,7 +183,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                             .setRequiredValue("true")
                         .setValueFilters(
                             [
@@ -193,7 +196,7 @@ class BasicProtocolTest extends Specification implements ManagerContainerTrait {
                 .addOrReplaceMeta(
                     new MetaItem<>(
                         AGENT_LINK,
-                        new MockAgent.MockAgentLink(mockAgent1.id)
+                        new MockAgentLink(mockAgent1.id)
                             .setRequiredValue("true")
                             .setValueFilters(
                                 [

@@ -3,43 +3,73 @@ const path = require("path");
 const webpack = require("webpack");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const ForkTsCheckerNotifierWebpackPlugin = require("fork-ts-checker-notifier-webpack-plugin");
+const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 
-function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
+function getStandardModuleRules() {
+    return {
+        rules: [
+            {
+                test: /(maplibre|mapbox|@material|gridstack|@mdi).*\.css$/, //output css as strings
+                type: "asset/source"
+            },
+            {
+                test: /\.css$/, //
+                exclude: /(maplibre|mapbox|@material|gridstack|@mdi).*\.css$/,
+                use: [
+                    { loader: "css-loader" }
+                ]
+            },
+            {
+                test: /\.(png|jpg|ico|gif|svg|eot|ttf|woff|woff2)$/,
+                type: "asset",
+                generator: {
+                    filename: 'images/[hash][ext][query]'
+                }
+            },
+            {
+                test: /\.tsx?$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: "ts-loader",
+                    options: {
+                        projectReferences: true
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl, port) {
     const production = mode === "production";
-    managerUrl = managerUrl || (production ? undefined : "http://localhost:8080");
+    port = port || 9000;
+    managerUrl = managerUrl || (production && !isDevServer ? undefined : "http://localhost:8080");
     const OUTPUT_PATH = isDevServer ? 'src' : 'dist';
+
+    if (isDevServer) {
+        console.log("");
+        console.log("To customise the URL of the manager and/or keycloak use the managerUrl and/or keycloakUrl");
+        console.log(" environment arguments e.g: ");
+        console.log("");
+        console.log("npm run serve -- --env managerUrl=https://localhost");
+        console.log("npm run serve -- --env keycloakUrl=https://localhost/auth");
+        console.log("");
+        console.log("MANAGER URL: " + managerUrl || "");
+        console.log("KEYCLOAK URL: " + keycloakUrl || (managerUrl + "/auth"));
+        console.log("");
+    }
 
     const config = {
         entry: {
-            'bundle': './src/index.js'
+            'bundle': './src/index.ts'
         },
         output: {
             path: dirname + "/dist",
-            publicPath: "",
+            publicPath: "/" + dirname.split(path.sep).slice(-1)[0] + "/",
             filename: "[name].[contenthash].js"
         },
-        module: {
-            rules: [
-                {
-                    test: /(mapbox|@material).*\.css$/, //output mapbox and material css as strings
-                    type: "asset/source"
-                },
-                {
-                    test: /\.css$/, //
-                    exclude: /(mapbox|@material).*\.css$/,
-                    use: [
-                        { loader: "css-loader" }
-                    ]
-                },
-                {
-                    test: /\.(png|jpg|ico|gif|svg|eot|ttf|woff|woff2)$/,
-                    type: "asset",
-                    generator: {
-                        filename: 'images/[hash][ext][query]'
-                    }
-                }
-            ]
-        },
+        module: {...getStandardModuleRules()},
         // optimization: {
         //     minimize: true,
         //     minimizer: [
@@ -49,11 +79,40 @@ function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
         //     ],
         // },
         resolve: {
+            extensions: [".ts", ".tsx", "..."],
             fallback: { "vm": false }
         }
     };
 
+    config.plugins = [
+        // Conditional compilation variables
+        new webpack.DefinePlugin({
+            PRODUCTION: JSON.stringify(production),
+            MANAGER_URL: JSON.stringify(managerUrl),
+            KEYCLOAK_URL: JSON.stringify(keycloakUrl),
+            "process.env":   {
+                BABEL_ENV: JSON.stringify(mode)
+            }
+        }),
+        // Generate our index page
+        new HtmlWebpackPlugin({
+            chunksSortMode: 'none',
+            inject: false,
+            template: 'index.html'
+        })
+    ];
+
     if (production) {
+        config.plugins = [
+            // new ForkTsCheckerWebpackPlugin({
+            //     async: false,
+            //     typescript: {
+            //         memoryLimit: 4096
+            //     }
+            // }),
+            ...config.plugins
+        ];
+
         // Only use babel for production otherwise source maps don't work
         config.module.rules.push(
             {
@@ -69,7 +128,20 @@ function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
             },
         );
     } else {
+        config.plugins = [
+            // new ForkTsCheckerWebpackPlugin({
+            //     typescript: {
+            //         memoryLimit: 4096
+            //     }
+            // }),
+            // new ForkTsCheckerNotifierWebpackPlugin({ title: 'TypeScript', excludeWarnings: false }),
+            ...config.plugins
+        ];
+    }
+
+    if (isDevServer) {
         // Load source maps generated by typescript
+        // config.devtool = 'inline-source-map';
         config.module.rules.push(
             {
                 test: /\.js$/,
@@ -81,29 +153,6 @@ function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
             },
         );
     }
-
-    config.plugins = [];
-
-    // Conditional compilation variables
-    config.plugins.push(
-        new webpack.DefinePlugin({
-            PRODUCTION: JSON.stringify(production),
-            MANAGER_URL: JSON.stringify(managerUrl),
-            KEYCLOAK_URL: JSON.stringify(keycloakUrl),
-            "process.env":   {
-                BABEL_ENV: JSON.stringify(mode)
-            }
-        })
-    );
-
-    // Generate our index page
-    config.plugins.push(
-        new HtmlWebpackPlugin({
-            chunksSortMode: 'none',
-            inject: false,
-            template: 'index.html'
-        })
-    );
 
     // Build list of resources to copy
     const patterns = [
@@ -151,18 +200,19 @@ function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl) {
         })
     );
 
-    config.devtool = production ? false : "inline-source-map";
+    config.devtool = !isDevServer ? false : "inline-source-map";
     config.devServer = {
         historyApiFallback: {
             index: "/" + dirname.split(path.sep).slice(-1)[0] + "/",
         },
-        port: 9000,
-        publicPath: "/" + dirname.split(path.sep).slice(-1)[0] + "/",
-        contentBase: OUTPUT_PATH,
-        disableHostCheck: true
+        port: port,
+        open: false,
+        hot: false, // HMR doesn't work with webcomponents at present
+        liveReload: true,
+        static: OUTPUT_PATH
     };
     config.watchOptions = {
-        ignored: ['**/*.ts', 'node_modules']
+        ignored: ['node_modules']
     }
 
     return config;
@@ -209,7 +259,7 @@ function generateExports(dirname) {
 
     return Object.entries(bundles).map(([name, bundle]) => {
         const entry = {};
-        entry[name] = "./dist/index.js";
+        entry[name] = "./src/index.ts";
 
         return {
             entry: entry,
@@ -220,6 +270,7 @@ function generateExports(dirname) {
                 library: libName,
                 libraryTarget: "umd"
             },
+            module: {...getStandardModuleRules()},
             externals: generateExternals(bundle)
         };
     });

@@ -19,13 +19,16 @@
  */
 package org.openremote.manager.setup;
 
+import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.model.Container;
+import org.openremote.model.auth.OAuthPasswordGrant;
 import org.openremote.model.security.ClientRole;
-import org.openremote.model.security.Tenant;
+import org.openremote.model.security.Realm;
 import org.openremote.model.security.User;
 
 import java.util.logging.Logger;
 
+import static org.openremote.container.security.keycloak.KeycloakIdentityProvider.MANAGER_CLIENT_ID;
 import static org.openremote.model.Constants.*;
 
 public class KeycloakInitSetup extends AbstractKeycloakSetup {
@@ -43,20 +46,38 @@ public class KeycloakInitSetup extends AbstractKeycloakSetup {
         // Update the master realm which is auto created by Keycloak itself
         // This will cause the keycloak provider to configure it appropriately
         // e.g. Set SMTP server, theme, timeouts, etc.
-        Tenant masterRealm = keycloakProvider.getTenant(MASTER_REALM);
+        Realm masterRealm = keycloakProvider.getRealm(MASTER_REALM);
         masterRealm.setDisplayName("Master");
-        keycloakProvider.updateTenant(masterRealm);
+        masterRealm.setRealmRoles(masterRealm.getNormalisedRealmRoles());
+        keycloakProvider.updateRealm(masterRealm);
 
-        // Create our client application with its default roles
-        keycloakProvider.createOpenRemoteClientApplication(masterRealm.getRealm());
+        // Create our client application with its default roles in the master realm
+        keycloakProvider.createUpdateClient(masterRealm.getName(), keycloakProvider.generateOpenRemoteClientRepresentation());
 
         // Update master user name
         User adminUser = keycloakProvider.getUserByUsername(MASTER_REALM, MASTER_REALM_ADMIN_USER);
         adminUser.setFirstName("System");
         adminUser.setLastName("Administrator");
-        keycloakProvider.updateUser(MASTER_REALM, adminUser);
+        keycloakProvider.createUpdateUser(MASTER_REALM, adminUser, null);
 
         // Give admin all roles on application client level
         keycloakProvider.updateUserRoles(MASTER_REALM, adminUser.getId(), KEYCLOAK_CLIENT_ID, ClientRole.READ.getValue(), ClientRole.WRITE.getValue());
+
+        // Create a new super user for the keycloak proxy so admin user can be modified if desired
+        User keycloakProxyUser = new User()
+            .setUsername(MANAGER_CLIENT_ID)
+            .setEnabled(true)
+            .setSystemAccount(true);
+        String password = UniqueIdentifierGenerator.generateId();
+        keycloakProxyUser = keycloakProvider.createUpdateUser(MASTER_REALM, keycloakProxyUser, password);
+
+        // Make this proxy user a super user by giving them admin realm role
+        keycloakProvider.updateUserRealmRoles(MASTER_REALM, keycloakProxyUser.getId(), keycloakProvider.addRealmRoles(MASTER_REALM, keycloakProxyUser.getId(), REALM_ADMIN_ROLE));
+
+        // Update the grant to match the proxy user and make this grant active
+        OAuthPasswordGrant grant = keycloakProvider.getDefaultKeycloakGrant(container);
+        grant.setUsername(keycloakProxyUser.getUsername()).setPassword(password);
+        keycloakProvider.setActiveCredentials(grant);
+        keycloakProvider.saveCredentials(grant);
     }
 }

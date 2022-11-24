@@ -61,9 +61,9 @@ public class ValueFormat implements Serializable {
     public static ValueFormat NUMBER_1_DP() { return new ValueFormat().setMinimumFractionDigits(1).setMaximumFractionDigits(1); }
     public static ValueFormat NUMBER_2_DP() { return new ValueFormat().setMinimumFractionDigits(2).setMaximumFractionDigits(2); }
     public static ValueFormat NUMBER_3_DP() { return new ValueFormat().setMinimumFractionDigits(3).setMaximumFractionDigits(3); }
-    public static ValueFormat NUMBER_1_DP_MAX() { return new ValueFormat().setMaximumFractionDigits(2); }
+    public static ValueFormat NUMBER_1_DP_MAX() { return new ValueFormat().setMaximumFractionDigits(1); }
     public static ValueFormat NUMBER_2_DP_MAX() { return new ValueFormat().setMaximumFractionDigits(2); }
-    public static ValueFormat NUMBER_3_DP_MAX() { return new ValueFormat().setMaximumFractionDigits(2); }
+    public static ValueFormat NUMBER_3_DP_MAX() { return new ValueFormat().setMaximumFractionDigits(3); }
     public static ValueFormat DATE_DAY_MONTH_YEAR() { return new ValueFormat(); }
     public static ValueFormat DATE_WEEK_NUMBER() { return new ValueFormat().setWeek(StyleRepresentation.NUMERIC); }
     public static ValueFormat DATE_DAY_MONTH_YEAR_TIME_WITHOUT_SECOND() { return new ValueFormat(); }
@@ -75,6 +75,7 @@ public class ValueFormat implements Serializable {
     public static ValueFormat BOOLEAN_AS_0_1() { return new ValueFormat().setAsNumber(true); }
     public static ValueFormat BOOLEAN_AS_OPEN_CLOSED() { return new ValueFormat().setAsOpenClosed(true); }
     public static ValueFormat BOOLEAN_AS_PRESSED_RELEASED() { return new ValueFormat().setAsPressedReleased(true); }
+    public static ValueFormat TEXT_MULTILINE() { return new ValueFormat().setMultiline(true); }
 
     /* NUMBER FORMATS */
     protected Boolean useGrouping;
@@ -113,6 +114,9 @@ public class ValueFormat implements Serializable {
     protected Boolean asPressedReleased;
     protected Boolean asOpenClosed;
     protected Boolean asMomentary;
+
+    /* TEXT FORMATS */
+    protected Boolean multiline;
 
     public Boolean getUseGrouping() {
         return useGrouping;
@@ -399,6 +403,15 @@ public class ValueFormat implements Serializable {
 
     public ValueFormat setAsSlider(Boolean asSlider) {
         this.asSlider = asSlider;
+        return this;
+    }
+
+    public Boolean getMultiine() {
+        return multiline;
+    }
+
+    public ValueFormat setMultiline(Boolean multiline) {
+        this.multiline = multiline;
         return this;
     }
 }

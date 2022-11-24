@@ -19,9 +19,10 @@
  */
 package org.openremote.model.query.filter;
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -40,7 +41,8 @@ import java.util.function.Supplier;
  * There is an implicit 'and' between each specified condition; the negation is applied once all the criteria are
  * evaluated.
  */
-public class ArrayPredicate implements ValuePredicate {
+@JsonSchemaDescription("Predicate for array values; will match based on configured options.")
+public class ArrayPredicate extends ValuePredicate {
 
     public static final String name = "array";
     public boolean negated;
@@ -98,12 +100,12 @@ public class ArrayPredicate implements ValuePredicate {
     @Override
     public Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier) {
         return obj -> {
-            if (obj == null || !Values.isArray(obj.getClass())) {
+            if (obj == null || !ValueUtil.isArray(obj.getClass())) {
                 return false;
             }
 
             @SuppressWarnings("OptionalGetWithoutIsPresent")
-            Object[] arrayValue = Values.getValueCoerced(obj, Object[].class).get();
+            Object[] arrayValue = ValueUtil.getValueCoerced(obj, Object[].class).get();
             boolean result = true;
 
             if (value != null) {

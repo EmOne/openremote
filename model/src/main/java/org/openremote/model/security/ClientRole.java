@@ -33,20 +33,21 @@ import java.util.Set;
  */
 public enum ClientRole {
 
-    READ_ADMIN(Constants.READ_ADMIN_ROLE, "Read system settings, tenants, and users"),
+    READ_ADMIN(Constants.READ_ADMIN_ROLE, "Read system settings, realms, and users"),
     READ_LOGS(Constants.READ_LOGS_ROLE, "Read logs and log settings"),
     READ_USERS(Constants.READ_USERS_ROLE, "Read limited set of user details for use in rules etc."),
     READ_MAP(Constants.READ_MAP_ROLE, "View map"),
     READ_ASSETS(Constants.READ_ASSETS_ROLE, "Read asset data"),
     READ_RULES(Constants.READ_RULES_ROLE, "Read rulesets"),
-    READ_APPS(Constants.READ_APPS_ROLE, "Read installed applications"),
+    READ_INSIGHTS(Constants.READ_INSIGHTS_ROLE, "Read dashboards"),
 
     WRITE_USER(Constants.WRITE_USER_ROLE, "Write data of the authenticated user"),
-    WRITE_ADMIN(Constants.WRITE_ADMIN_ROLE, "Write system settings, tenants, and users"),
+    WRITE_ADMIN(Constants.WRITE_ADMIN_ROLE, "Write system settings, realms, and users"),
     WRITE_LOGS(Constants.WRITE_LOGS_ROLE, "Write log settings"),
     WRITE_ASSETS(Constants.WRITE_ASSETS_ROLE, "Write asset data"),
     WRITE_ATTRIBUTES(Constants.WRITE_ATTRIBUTES_ROLE, "Write attribute data"),
     WRITE_RULES(Constants.WRITE_RULES_ROLE, "Write rulesets (NOTE: effectively super-user access!)"),
+    WRITE_INSIGHTS(Constants.WRITE_INSIGHTS_ROLE, "Write dashboard data"),
 
     READ("read", "Read all data", new ClientRole[]{
         READ_ADMIN,
@@ -55,7 +56,7 @@ public enum ClientRole {
         READ_MAP,
         READ_ASSETS,
         READ_RULES,
-        READ_APPS
+        READ_INSIGHTS
     }),
 
     WRITE("write", "Write all data", new ClientRole[]{
@@ -65,13 +66,14 @@ public enum ClientRole {
         READ_MAP,
         READ_ASSETS,
         READ_RULES,
-        READ_APPS,
+        READ_INSIGHTS,
         WRITE_USER,
         WRITE_ADMIN,
         WRITE_LOGS,
         WRITE_ASSETS,
         WRITE_ATTRIBUTES,
-        WRITE_RULES
+        WRITE_RULES,
+        WRITE_INSIGHTS
     });
 
     // Only individual roles, not composites

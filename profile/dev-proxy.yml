@@ -6,9 +6,7 @@
 # Your changes will be visible live on browser reload or after restart:
 #
 # - Run the manager in an IDE with the following required environment variables:
-#       WEBSERVER_LISTEN_HOST=0.0.0.0
-#       IDENTITY_NETWORK_WEBSERVER_PORT=443
-#       IDENTITY_NETWORK_SECURE=true
+#       OR_WEBSERVER_LISTEN_HOST=0.0.0.0
 #
 # Please see deploy.yml for configuration details for each service.
 #
@@ -25,5 +23,27 @@ services:
       service: proxy
     environment:
       MANAGER_HOST: 'host.docker.internal'
-      KEYCLOAK_HOST: 'host.docker.internal'
-      KEYCLOAK_PORT: 8081
+
+  keycloak:
+    extends:
+      file: deploy.yml
+      service: keycloak
+    #volumes:
+    #   Map custom themes
+    #  - ../deployment:/deployment
+    # Access directly if needed on localhost
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  postgresql:
+    extends:
+      file: deploy.yml
+      service: postgresql
+    volumes:
+      - ./tmp:/tmp
+    # Access directly if needed on localhost
+    ports:
+      - "5432:5432"

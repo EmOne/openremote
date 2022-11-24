@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "compilerOptions": {
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "outDir": "./lib",
     "rootDir": "src"
   },
   "include": [
@@ -10,7 +9,7 @@
   ],
   "references": [
     { "path": "../core" },
-    { "path": "../or-panel" },
+    { "path": "../or-components" },
     { "path": "../or-mwc-components" },
     { "path": "../or-translate" }
 

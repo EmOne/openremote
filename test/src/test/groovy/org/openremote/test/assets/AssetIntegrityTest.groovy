@@ -2,8 +2,8 @@ package org.openremote.test.assets
 
 import org.openremote.container.util.UniqueIdentifierGenerator
 import org.openremote.manager.setup.SetupService
-import org.openremote.test.setup.KeycloakTestSetup
-import org.openremote.test.setup.ManagerTestSetup
+import org.openremote.setup.integration.KeycloakTestSetup
+import org.openremote.setup.integration.ManagerTestSetup
 import org.openremote.model.asset.AssetResource
 import org.openremote.model.asset.impl.RoomAsset
 import org.openremote.model.asset.impl.ThingAsset
@@ -16,8 +16,8 @@ import spock.util.concurrent.PollingConditions
 import javax.ws.rs.WebApplicationException
 
 import static org.openremote.container.util.MapAccess.getString
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
 
 class AssetIntegrityTest extends Specification implements ManagerContainerTrait {
@@ -34,7 +34,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
                 MASTER_REALM,
                 KEYCLOAK_CLIENT_ID,
                 MASTER_REALM_ADMIN_USER,
-                getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)
+                getString(container.getConfig(), OR_ADMIN_PASSWORD, OR_ADMIN_PASSWORD_DEFAULT)
         ).token
 
         and: "the asset resource"
@@ -43,13 +43,13 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
 
         when: "an asset is created in the authenticated realm"
         RoomAsset testAsset = new RoomAsset("Test Room")
-            .setRealm(keycloakTestSetup.masterTenant.realm)
+            .setRealm(keycloakTestSetup.realmMaster.name)
         testAsset = assetResource.create(null, testAsset)
 
         then: "the asset should exist"
         testAsset.name == "Test Room"
         testAsset.type == RoomAsset.DESCRIPTOR.getName()
-        testAsset.realm == keycloakTestSetup.masterTenant.realm
+        testAsset.realm == keycloakTestSetup.realmMaster.name
         testAsset.parentId == null
 
         when: "an asset is stored with an illegal attribute name"
@@ -77,7 +77,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         testAsset.getAttribute("foo").get().getValue().get() == "bar"
 
         when: "an asset attribute value is written directly"
-        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", "bar2")
+        assetResource.writeAttributeValue(null, testAsset.getId(), "foo", '"bar2"')
 
         then: "the attribute value should match"
         new PollingConditions(timeout: 5, delay: 0.2).eventually {
@@ -109,7 +109,7 @@ class AssetIntegrityTest extends Specification implements ManagerContainerTrait 
         ex.response.status == 403
 
         when: "an asset is updated with a new realm"
-        testAsset.setRealm(keycloakTestSetup.tenantBuilding.realm)
+        testAsset.setRealm(keycloakTestSetup.realmBuilding.name)
         assetResource.update(null, testAsset.id, testAsset)
 
         then: "the request should be forbidden"

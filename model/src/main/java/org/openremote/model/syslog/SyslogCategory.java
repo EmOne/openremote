@@ -66,6 +66,14 @@ public enum SyslogCategory {
     MODEL_AND_VALUES(
         "Model and Value",
         true
+    ),
+    API(
+            "API",
+            true
+    ),
+    DATA(
+            "DATA",
+            true
     );
 
     protected final String categoryLabel;

@@ -20,6 +20,7 @@
 package org.openremote.manager.asset;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.FluentProducerTemplate;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.openremote.container.message.MessageBrokerService;
@@ -39,30 +40,23 @@ import org.openremote.model.ContainerService;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.asset.AssetResource;
 import org.openremote.model.asset.agent.Protocol;
-import org.openremote.model.attribute.Attribute;
-import org.openremote.model.attribute.AttributeEvent;
+import org.openremote.model.attribute.*;
 import org.openremote.model.attribute.AttributeEvent.Source;
-import org.openremote.model.attribute.AttributeExecuteStatus;
-import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.security.ClientRole;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.MetaItemType;
 import org.openremote.model.value.ValueType;
-import org.openremote.model.value.Values;
 
 import javax.persistence.EntityManager;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.openremote.container.concurrent.GlobalLock.withLock;
-import static org.openremote.manager.asset.AssetProcessingException.Reason.*;
 import static org.openremote.manager.event.ClientEventService.CLIENT_EVENT_TOPIC;
 import static org.openremote.model.attribute.AttributeEvent.HEADER_SOURCE;
 import static org.openremote.model.attribute.AttributeEvent.Source.*;
-import static org.openremote.model.value.MetaItemType.AGENT_LINK;
+import static org.openremote.model.attribute.AttributeWriteFailure.*;
 
 /**
  * Receives {@link AttributeEvent} from {@link Source} and processes them.
@@ -81,7 +75,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * <p>
  * The {@link AttributeEvent}s are first validated depending on their source, and if validation fails
  * at any point then an {@link AssetProcessingException} will be logged as a warning with an
- * {@link AssetProcessingException.Reason}.
+ * {@link AttributeWriteFailure}.
  * <p>
  * Once successfully validated a chain of {@link AssetUpdateProcessor}s is handling the update message:
  * <ul>
@@ -152,7 +146,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
 
             StringBuilder error = new StringBuilder();
 
-            Source source = exchange.getIn().getHeader(HEADER_SOURCE, "unknown source", Source.class);
+            Source source = exchange.getIn().getHeader(HEADER_SOURCE, CLIENT, Source.class);
             if (source != null) {
                 error.append("Error processing from ").append(source);
             }
@@ -174,7 +168,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
             }
 
             // Make the exception available if MEP is InOut
-            exchange.getOut().setBody(exception);
+            exchange.getMessage().setBody(exception);
         };
     }
 
@@ -198,11 +192,76 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
         clientEventService = container.getService(ClientEventService.class);
         EventSubscriptionAuthorizer assetEventAuthorizer = AssetStorageService.assetInfoAuthorizer(identityService, assetStorageService);
 
-        clientEventService.addSubscriptionAuthorizer((auth, subscription) -> {
+        clientEventService.addSubscriptionAuthorizer((requestedRealm, auth, subscription) -> {
             if (!subscription.isEventType(AttributeEvent.class)) {
                 return false;
             }
-            return assetEventAuthorizer.apply(auth, subscription);
+            return assetEventAuthorizer.authorise(requestedRealm, auth, subscription);
+        });
+
+        // TODO: Introduce caching here similar to ActiveMQ auth caching
+        clientEventService.addEventAuthorizer((requestedRealm, authContext, event) -> {
+
+            if (!(event instanceof AttributeEvent attributeEvent)) {
+                return false;
+            }
+
+            if (authContext != null && authContext.isSuperUser()) {
+                return true;
+            }
+
+            // Check realm against user
+            if (!identityService.getIdentityProvider().isRealmActiveAndAccessible(authContext,
+                requestedRealm)) {
+                LOG.fine("Realm is inactive, inaccessible or nonexistent: " + requestedRealm);
+                return false;
+            }
+
+            // Users must have write attributes role
+            if (authContext != null && !authContext.hasResourceRoleOrIsSuperUser(ClientRole.WRITE_ATTRIBUTES.getValue(),
+                Constants.KEYCLOAK_CLIENT_ID)) {
+                LOG.finer("User doesn't have required role '" + ClientRole.WRITE_ATTRIBUTES + "': username=" + authContext.getUsername() + ", userRealm=" + authContext.getAuthenticatedRealmName());
+                return false;
+            }
+
+            // Have to load the asset and attribute to perform additional checks - should permissions be moved out of the
+            // asset model (possibly if the performance is determined to be not good enough)
+            // TODO: Use a targeted query to retrieve just the info we need
+            Asset<?> asset = assetStorageService.find(attributeEvent.getAssetId());
+            Attribute<?> attribute = asset != null ? asset.getAttribute(attributeEvent.getAttributeName()).orElse(null) : null;
+
+            if (asset == null || !asset.hasAttribute(attributeEvent.getAttributeName())) {
+                LOG.finer("Cannot authorize asset event as asset and/or attribute doesn't exist: " + attributeEvent.getAssetId());
+                return false;
+            } else if (!Objects.equals(requestedRealm, asset.getRealm())) {
+                LOG.finer("Asset is not in the requested realm: requestedRealm=" + requestedRealm + ", ref=" + attributeEvent.getAttributeRef());
+                return false;
+            }
+
+            if (authContext != null) {
+                // Check restricted user
+                if (identityService.getIdentityProvider().isRestrictedUser(authContext)) {
+                    // Must be asset linked to user
+                    if (!assetStorageService.isUserAsset(authContext.getUserId(),
+                        attributeEvent.getAssetId())) {
+                        LOG.finer("User is not linked to asset '" + attributeEvent.getAssetId() + "': username=" + authContext.getUsername() + ", userRealm=" + authContext.getAuthenticatedRealmName());
+                        return false;
+                    }
+
+                    if (attribute == null || !attribute.getMetaValue(MetaItemType.ACCESS_RESTRICTED_WRITE).orElse(false)) {
+                        LOG.finer("Asset attribute doesn't support restricted write on '" + attributeEvent.getAttributeRef() + "': username=" + authContext.getUsername() + ", userRealm=" + authContext.getAuthenticatedRealmName());
+                        return false;
+                    }
+                }
+            } else {
+                // Check attribute has public write flag for anonymous write
+                if (attribute == null || !attribute.hasMeta(MetaItemType.ACCESS_PUBLIC_WRITE)) {
+                    LOG.finer("Asset doesn't support public write on '" + attributeEvent.getAttributeRef() + "': username=null");
+                    return false;
+                }
+            }
+
+            return true;
         });
 
         processors.add(gatewayService);
@@ -224,6 +283,7 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
 
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     public void configure() throws Exception {
 
@@ -248,7 +308,6 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
          - Make AssetUpdateProcessor transactional with a two-phase commit API
          - Replace at-most-once ClientEventService with at-least-once capable, embeddable message broker/protocol
          - See pseudocode here: http://activemq.apache.org/should-i-use-xa.html
-         - Do we want JMS/AMQP/WSS or SOME_API/MQTT/WSS? ActiveMQ or Moquette?
         */
         from(ASSET_QUEUE)
             .routeId("AssetQueueProcessor")
@@ -295,67 +354,10 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                         throw new AssetProcessingException(ATTRIBUTE_NOT_FOUND);
                     }
 
-                    switch (source) {
-                        case CLIENT:
-
-                            AuthContext authContext = exchange.getIn().getHeader(Constants.AUTH_CONTEXT, AuthContext.class);
-                            if (authContext == null) {
-                                // Check attribute has public write flag
-                                if (!oldAttribute.hasMeta(MetaItemType.ACCESS_PUBLIC_WRITE)) {
-                                    throw new AssetProcessingException(NO_AUTH_CONTEXT);
-                                }
-                                // Check read-only
-                                if (oldAttribute.hasMeta(MetaItemType.READ_ONLY)) {
-                                    throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                }
-                            } else {
-                                // Check realm, must be accessible
-                                if (!identityService.getIdentityProvider().isTenantActiveAndAccessible(authContext,
-                                    asset.getRealm())) {
-                                    throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                }
-
-                                // Check read-only
-                                if (oldAttribute.hasMeta(MetaItemType.READ_ONLY) && !authContext.isSuperUser()) {
-                                    throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                }
-
-                                // Regular user must have write attributes role
-                                if (!authContext.hasResourceRoleOrIsSuperUser(ClientRole.WRITE_ATTRIBUTES.getValue(),
-                                    Constants.KEYCLOAK_CLIENT_ID)) {
-                                    throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                }
-
-                                // Check restricted user
-                                if (identityService.getIdentityProvider().isRestrictedUser(authContext.getUserId())) {
-                                    // Must be asset linked to user
-                                    if (!assetStorageService.isUserAsset(authContext.getUserId(),
-                                        event.getAssetId())) {
-                                        throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                    }
-                                    // Must be writable by restricted client
-                                    if (!oldAttribute.getMetaValue(MetaItemType.ACCESS_RESTRICTED_WRITE).orElse(false)) {
-                                        throw new AssetProcessingException(INSUFFICIENT_ACCESS);
-                                    }
-                                }
-                            }
-                            break;
-
-                        case SENSOR:
-                            Optional<Protocol<?>> protocol = oldAttribute.getMetaValue(AGENT_LINK)
-                                .map(agentLink -> agentService.getProtocolInstance(agentLink.getId()));
-
-                            // Sensor event must be for an attribute linked to an agent
-                            if (!protocol.isPresent()) {
-                                throw new AssetProcessingException(INVALID_AGENT_LINK);
-                            }
-                            break;
-                    }
-
                     // For executable attributes, non-sensor sources can set a writable attribute execute status
                     if (oldAttribute.getType() == ValueType.EXECUTION_STATUS && source != SENSOR) {
                         Optional<AttributeExecuteStatus> status = event.getValue()
-                            .flatMap(Values::getString)
+                            .flatMap(ValueUtil::getString)
                             .flatMap(AttributeExecuteStatus::fromString);
 
                         if (status.isPresent() && !status.get().isWrite()) {
@@ -366,8 +368,8 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
                     // Type coercion
                     Object value = event.getValue().map(eventValue -> {
                         Class<?> attributeValueType = oldAttribute.getType().getType();
-                        return Values.getValueCoerced(eventValue, attributeValueType).orElseThrow(() -> {
-                            LOG.info("Failed to coerce attribute event value into the correct value type: event value type=" + eventValue.getClass() + ", attribute value type=" + attributeValueType);
+                        return ValueUtil.getValueCoerced(eventValue, attributeValueType).orElseThrow(() -> {
+                            LOG.fine("Failed to coerce attribute event value into the correct value type: event value type=" + eventValue.getClass() + ", attribute value type=" + attributeValueType);
                             return new AssetProcessingException(INVALID_VALUE_FOR_WELL_KNOWN_ATTRIBUTE);
                         });
 
@@ -387,45 +389,38 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
 //                            });
 //                    });
 
-                    // Either use the timestamp of the event or set event time to processing time
+                    // Either use the timestamp of the event or set event time to processing time or (old event time + 1)
+                    // We need a different timestamp for Attribute.equals() check
+                    long oldEventTime = oldAttribute.getTimestamp().orElse(0L);
+                    long eventTime = event.getTimestamp();
                     long processingTime = timerService.getCurrentTimeMillis();
-                    long eventTime = event.getTimestamp() > 0 ? event.getTimestamp() : processingTime;
 
-                    // Ensure timestamp of event is not in the future as that would essentially block access to
-                    // the attribute until after that time (maybe that is desirable behaviour)
-                    if (eventTime - processingTime > 0) {
-                        // TODO: Decide how to handle update events in the future - ignore or change timestamp
-                        throw new AssetProcessingException(
-                            EVENT_IN_FUTURE,
-                            "current time: " + new Date(processingTime) + "/" + processingTime
-                                + ", event time: " + new Date(eventTime) + "/" + eventTime
-                        );
+                    if (eventTime > 0) {
+                        // If it's less than previous event but within 10ms then just bump the time to old+1
+                        if (oldEventTime - eventTime > 0 && oldEventTime - eventTime < 10) {
+                            eventTime = oldEventTime + 1;
+                        }
+                    } else {
+                        eventTime = Math.max(oldEventTime + 1, processingTime);
                     }
 
                     // Check the last update timestamp of the attribute, ignoring any event that is older than last update
-                    // TODO This means we drop out-of-sequence events but accept events with the same source timestamp
-                    // TODO Several attribute events can occur in the same millisecond, then order of application is undefined
-                    oldAttribute.getTimestamp().filter(t -> t >= 0 && eventTime < t).ifPresent(
+                    long finalEventTime = eventTime;
+                    oldAttribute.getTimestamp().filter(t -> t >= 0 && finalEventTime < t).ifPresent(
                         lastStateTime -> {
                             throw new AssetProcessingException(
                                 EVENT_OUTDATED,
                                 "last asset state time: " + new Date(lastStateTime) + "/" + lastStateTime
-                                    + ", event time: " + new Date(eventTime) + "/" + eventTime);
+                                    + ", event time: " + new Date(finalEventTime) + "/" + finalEventTime);
                         }
                     );
 
                     // Create a copy of the attribute and set the new value and timestamp
-                    @SuppressWarnings("rawtypes")
-                    Attribute updatedAttribute = Values.clone(oldAttribute);
+                    Attribute updatedAttribute = ValueUtil.clone(oldAttribute);
                     updatedAttribute.setValue(value, eventTime);
 
                     // Push through all processors
-                    boolean consumedCompletely = processAssetUpdate(em, asset, updatedAttribute, source);
-
-                    // Publish a new event for clients if no processor consumed the update completely
-                    if (!consumedCompletely) {
-                        publishClientEvent(asset, updatedAttribute);
-                    }
+                    processAssetUpdate(em, asset, updatedAttribute, source);
                 });
             }))
             .endDoTry()
@@ -445,7 +440,11 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
         if (attributeEvent.getTimestamp() <= 0) {
             attributeEvent.setTimestamp(timerService.getCurrentTimeMillis());
         }
-        messageBrokerService.getProducerTemplate().sendBodyAndHeader(ASSET_QUEUE, attributeEvent, HEADER_SOURCE, source);
+        messageBrokerService.getFluentProducerTemplate()
+                .withHeader(HEADER_SOURCE, source)
+                .withBody(attributeEvent)
+                .to(ASSET_QUEUE)
+                .asyncSend();
     }
 
     /**
@@ -491,33 +490,15 @@ public class AssetProcessingService extends RouteBuilder implements ContainerSer
 
         if (!complete) {
             LOG.fine("No processor consumed the update completely, storing: " + attributeStr);
-            storeAttributeValue(em, asset, attribute);
+            if (!assetStorageService.updateAttributeValue(em, asset, attribute)) {
+                throw new AssetProcessingException(
+                    STATE_STORAGE_FAILED, "database update failed, no rows updated"
+                );
+            }
         }
 
         LOG.fine("<<< Processing complete: " + attributeStr);
         return complete;
-    }
-
-    protected void storeAttributeValue(EntityManager em, Asset<?> asset, Attribute<?> attribute) throws AssetProcessingException {
-
-        if (!assetStorageService.updateAttributeValue(em, asset, attribute)) {
-            throw new AssetProcessingException(
-                STATE_STORAGE_FAILED, "database update failed, no rows updated"
-            );
-        }
-    }
-
-    protected void publishClientEvent(Asset<?> asset, Attribute<?> attribute) {
-        // TODO Catch "queue full" exception (e.g. when producing thousands of INFO messages in rules)?
-        clientEventService.publishEvent(
-            attribute.getMetaValue(MetaItemType.ACCESS_RESTRICTED_READ).orElse(false),
-            new AttributeEvent(
-                asset.getId(),
-                attribute.getName(),
-                attribute.getValue().orElse(null),
-                timerService.getCurrentTimeMillis()
-            ).setParentId(asset.getParentId()).setRealm(asset.getRealm())
-        );
     }
 
     @Override

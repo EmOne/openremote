@@ -21,8 +21,8 @@ package org.openremote.agent.protocol;
 
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.impl.DefaultCamelContext;
 import org.openremote.container.concurrent.GlobalLock;
-import org.openremote.container.message.MessageBrokerContext;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.timer.TimerService;
 import org.openremote.model.Container;
@@ -37,7 +37,6 @@ import org.openremote.model.attribute.AttributeState;
 import org.openremote.model.protocol.ProtocolUtil;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.Pair;
-import org.openremote.model.value.MetaItemType;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -77,13 +76,13 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
     private static final Logger LOG = SyslogCategory.getLogger(PROTOCOL, AbstractProtocol.class);
     protected final Map<AttributeRef, Attribute<?>> linkedAttributes = new HashMap<>();
     protected final Set<AttributeRef> dynamicAttributes = new HashSet<>();
-    protected MessageBrokerContext messageBrokerContext;
+    protected DefaultCamelContext messageBrokerContext;
     protected ProducerTemplate producerTemplate;
     protected TimerService timerService;
     protected ScheduledExecutorService executorService;
     protected ProtocolAssetService assetService;
-    protected ProtocolPredictedAssetService predictedAssetService;
-    protected ProtocolClientEventService protocolClientEventService;
+    protected ProtocolPredictedDatapointService predictedDatapointService;
+    protected ProtocolDatapointService datapointService;
     protected T agent;
 
     public AbstractProtocol(T agent) {
@@ -95,8 +94,8 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
         timerService = container.getService(TimerService.class);
         executorService = container.getExecutorService();
         assetService = container.getService(ProtocolAssetService.class);
-        predictedAssetService = container.getService(ProtocolPredictedAssetService.class);
-        protocolClientEventService = container.getService(ProtocolClientEventService.class);
+        predictedDatapointService = container.getService(ProtocolPredictedDatapointService.class);
+        datapointService = container.getService(ProtocolDatapointService.class);
         messageBrokerContext = container.getService(MessageBrokerService.class).getContext();
 
         withLock(getProtocolName() + "::start", () -> {
@@ -117,10 +116,6 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
 
                                 if (linkedAttribute == null) {
                                     LOG.info("Attempt to write to attribute that is not actually linked to this protocol '" + AbstractProtocol.this + "': " + linkedAttribute);
-                                    return;
-                                }
-                                if (linkedAttribute.getMetaValue(MetaItemType.READ_ONLY).orElse(false)) {
-                                    LOG.info("Attempt to write to readonly attribute: " + linkedAttribute);
                                     return;
                                 }
 
@@ -219,10 +214,12 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
                 LOG.warning("Attribute not linked to protocol '" + this + "':" + event);
             } else {
 
+                AgentLink<?> agentLink = agent.getAgentLink(attribute);
+
                 Pair<Boolean, Object> ignoreAndConverted = ProtocolUtil.doOutboundValueProcessing(
                     event.getAssetId(),
                     attribute,
-                    agent.getAgentLink(attribute),
+                    agentLink,
                     event.getValue().orElse(null),
                     dynamicAttributes.contains(event.getAttributeRef()));
 
@@ -232,6 +229,10 @@ public abstract class AbstractProtocol<T extends Agent<T, ?, U>, U extends Agent
                 }
 
                 doLinkedAttributeWrite(attribute, agent.getAgentLink(attribute), event, ignoreAndConverted.value);
+
+                if (agent.isUpdateOnWrite().orElse(false) || agentLink.getUpdateOnWrite().orElse(false)) {
+                    updateLinkedAttribute(new AttributeState(event.getAttributeRef(), ignoreAndConverted.value));
+                }
             }
         });
     }

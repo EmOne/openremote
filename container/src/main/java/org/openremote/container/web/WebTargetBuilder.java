@@ -153,8 +153,7 @@ public class WebTargetBuilder {
         }
 
         if (oAuthGrant != null) {
-            WebTarget authTarget = client.target(oAuthGrant.getTokenEndpointUri());
-            OAuthFilter oAuthFilter = new OAuthFilter(authTarget, oAuthGrant);
+            OAuthFilter oAuthFilter = new OAuthFilter(client, oAuthGrant);
             target.register(oAuthFilter, Priorities.AUTHENTICATION);
         } else if (basicAuthentication != null) {
             target.register(basicAuthentication, Priorities.AUTHENTICATION);
@@ -184,9 +183,9 @@ public class WebTargetBuilder {
         //Create all of this config code in order to deal with expires cookies in responses
         RequestConfig requestConfig = RequestConfig.custom()
             .setCookieSpec(CookieSpecs.STANDARD)
-            .setConnectionRequestTimeout(new Long(CONNECTION_CHECKOUT_TIMEOUT_MILLISECONDS).intValue())
-            .setConnectTimeout(new Long(CONNECTION_CHECKOUT_TIMEOUT_MILLISECONDS).intValue())
-            .setSocketTimeout(new Long(overrideSocketTimeout).intValue())
+            .setConnectionRequestTimeout(Long.valueOf(CONNECTION_CHECKOUT_TIMEOUT_MILLISECONDS).intValue())
+            .setConnectTimeout(Long.valueOf(CONNECTION_CHECKOUT_TIMEOUT_MILLISECONDS).intValue())
+            .setSocketTimeout(Long.valueOf(overrideSocketTimeout).intValue())
             .build();
         HttpClient apacheClient = HttpClientBuilder.create()
             .setDefaultRequestConfig(requestConfig)

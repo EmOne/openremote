@@ -20,6 +20,8 @@
 package org.openremote.manager.setup;
 
 import org.openremote.model.Container;
+import org.openremote.model.query.UserQuery;
+import org.openremote.model.query.filter.RealmPredicate;
 
 import java.util.Arrays;
 import java.util.logging.Logger;
@@ -40,16 +42,22 @@ public class KeycloakCleanSetup extends AbstractKeycloakSetup {
     public void onStart() throws Exception {
         super.onStart();
 
+        // Switch keycloak proxy back to admin cli
+        keycloakProvider.setActiveCredentials(keycloakProvider.getDefaultKeycloakGrant(container));
+        doClean();
+    }
+
+    protected void doClean() throws Exception {
         // Delete all realms that are not the master realm
         LOG.info("Deleting all non-master realms");
-        Arrays.stream(keycloakProvider.getTenants()).forEach(tenant -> {
-            if (!tenant.getRealm().equals(MASTER_REALM)) {
-                LOG.info("Deleting tenant: " + tenant);
-                keycloakProvider.deleteTenant(tenant.getRealm());
+        Arrays.stream(keycloakProvider.getRealms()).forEach(realm -> {
+            if (!realm.getName().equals(MASTER_REALM)) {
+                keycloakProvider.deleteRealm(realm.getName());
             }
         });
 
-        Arrays.stream(keycloakProvider.getUsers(MASTER_REALM)).forEach(user -> {
+        LOG.info("Deleting all non-master admin users");
+        Arrays.stream(keycloakProvider.queryUsers(new UserQuery().realm(new RealmPredicate(MASTER_REALM)))).forEach(user -> {
             if (!user.getUsername().equals(MASTER_REALM_ADMIN_USER)) {
                 LOG.info("Deleting user: " + user);
                 keycloakProvider.deleteUser(MASTER_REALM, user.getId());
@@ -57,10 +65,11 @@ public class KeycloakCleanSetup extends AbstractKeycloakSetup {
         });
 
         // Delete all non built in clients
+        LOG.info("Deleting all non default clients");
         Arrays.stream(keycloakProvider.getClients(MASTER_REALM)).forEach(client -> {
             if (!DEFAULT_CLIENTS.contains(client.getClientId())) {
                 LOG.info("Deleting client: " + client.getClientId());
-                keycloakProvider.deleteClient(MASTER_REALM, client);
+                keycloakProvider.deleteClient(MASTER_REALM, client.getClientId());
             }
         });
     }

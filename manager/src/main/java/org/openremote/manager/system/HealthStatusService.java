@@ -52,8 +52,8 @@ public class HealthStatusService implements ContainerService {
             }
         }
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
-                new StatusResourceImpl(healthStatusProviderList)
+        container.getService(ManagerWebService.class).addApiSingleton(
+                new StatusResourceImpl(container, healthStatusProviderList)
         );
     }
 

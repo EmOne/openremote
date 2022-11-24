@@ -19,12 +19,18 @@
  */
 package org.openremote.model.query.filter;
 
-import org.openremote.model.value.Values;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
+import org.openremote.model.util.ValueUtil;
 
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class BooleanPredicate implements ValuePredicate {
+/**
+ * Predicate for boolean values; will evaluate the value as a boolean and match against this predicates value, any value
+ * that is not a boolean will not match.
+ */
+@JsonSchemaDescription("Predicate for boolean values; will evaluate the value as a boolean and match against this predicates value, any value that is not a boolean will not match")
+public class BooleanPredicate extends ValuePredicate {
 
     public static final String name = "boolean";
     public boolean value;
@@ -44,7 +50,7 @@ public class BooleanPredicate implements ValuePredicate {
     @Override
     public Predicate<Object> asPredicate(Supplier<Long> currentMillisSupplier) {
         return obj -> {
-            Boolean bool = Values.getValueCoerced(obj, Boolean.class).orElse(null);
+            Boolean bool = ValueUtil.getValueCoerced(obj, Boolean.class).orElse(null);
             if (bool == null) {
                 return false;
             }

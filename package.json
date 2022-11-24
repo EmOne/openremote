@@ -1,4 +1,6 @@
 {
+  "name": "openremote",
+  "packageManager": "yarn@3.2.0",
   "private": true,
   "workspaces": [
     "ui/util",
@@ -7,9 +9,6 @@
     "ui/demo/*"
   ],
   "devDependencies": {
-    "lerna": "^3.18.1"
-  },
-  "resolutions": {
-
+    "@openremote/util": "workspace:*"
   }
 }

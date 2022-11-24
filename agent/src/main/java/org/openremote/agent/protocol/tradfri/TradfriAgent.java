@@ -21,18 +21,20 @@ package org.openremote.agent.protocol.tradfri;
 
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentDescriptor;
-import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.model.asset.agent.DefaultAgentLink;
+import org.openremote.model.util.ModelIgnore;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.Entity;
 import java.util.Optional;
 
+@ModelIgnore
 @Entity
-public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, AgentLink.Default> {
+public class TradfriAgent extends Agent<TradfriAgent, TradfriProtocol, DefaultAgentLink> {
 
-    public static final AgentDescriptor<TradfriAgent, TradfriProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
-        TradfriAgent.class, TradfriProtocol.class, AgentLink.Default.class
+    public static final AgentDescriptor<TradfriAgent, TradfriProtocol, DefaultAgentLink> DESCRIPTOR = new AgentDescriptor<>(
+        TradfriAgent.class, TradfriProtocol.class, DefaultAgentLink.class
     );
 
     /**

@@ -22,8 +22,10 @@ package org.openremote.test.protocol.http
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.jboss.resteasy.spi.ResteasyUriInfo
 import org.jboss.resteasy.util.BasicAuthHelper
-import org.openremote.agent.protocol.http.HttpClientAgent
-import org.openremote.agent.protocol.http.HttpClientProtocol
+import org.openremote.agent.protocol.http.HTTPAgent
+import org.openremote.agent.protocol.http.HTTPAgentLink
+import org.openremote.agent.protocol.http.HTTPMethod
+import org.openremote.agent.protocol.http.HTTPProtocol
 import org.openremote.container.web.OAuthServerResponse
 import org.openremote.manager.agent.AgentService
 import org.openremote.manager.asset.AssetProcessingService
@@ -37,9 +39,10 @@ import org.openremote.model.attribute.MetaItem
 import org.openremote.model.auth.OAuthGrant
 import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.auth.OAuthRefreshTokenGrant
+import org.openremote.model.util.ValueUtil
 import org.openremote.model.value.RegexValueFilter
+import org.openremote.model.value.SubStringValueFilter
 import org.openremote.model.value.ValueFilter
-import org.openremote.model.value.Values
 import org.openremote.test.ManagerContainerTrait
 import spock.lang.Shared
 import spock.lang.Specification
@@ -164,7 +167,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                         && requestContext.getHeaderString("Content-type") == MediaType.APPLICATION_JSON) {
 
                         String bodyStr = (String)requestContext.getEntity()
-                        ObjectNode body = Values.parse(bodyStr).orElse(null)
+                        ObjectNode body = ValueUtil.parse(bodyStr).orElse(null)
                         if (body.has("prop1")
                             && body.get("prop1").get("myProp1").asInt() == 123
                             && body.get("prop1").get("myProp2").asBoolean()
@@ -211,6 +214,13 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                 case "https://mockapi/redirect":
                     requestContext.abortWith(Response.temporaryRedirect(new URI("https://redirected.mockapi/get_success_200")).build())
                     return
+                case "https://mockapi/binary":
+                    requestContext.abortWith(
+                            Response.ok(
+                                    new byte[] {(byte)0x1F & 0xFF, (byte)0x56 & 0xFF, (byte)0x01 & 0xFF, (byte)0xAE & 0xFF, (byte)0x12 & 0xFF}, MediaType.APPLICATION_OCTET_STREAM_TYPE
+                            ).build()
+                    )
+                    return
             }
 
             requestContext.abortWith(Response.serverError().build())
@@ -236,7 +246,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
         def conditions = new PollingConditions(timeout: 10, initialDelay: 1)
 
         and: "the HTTP client protocol min times are adjusted for testing"
-        HttpClientProtocol.MIN_POLLING_MILLIS = 10
+        HTTPProtocol.MIN_POLLING_MILLIS = 10
 
         and: "the container starts"
         def container = startContainer(defaultConfig(), defaultServices())
@@ -245,12 +255,12 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
         def agentService = container.getService(AgentService.class)
 
         when: "the web target builder is configured to use the mock server"
-        if (!HttpClientProtocol.client.configuration.isRegistered(mockServer)) {
-            HttpClientProtocol.client.register(mockServer, Integer.MAX_VALUE)
+        if (!HTTPProtocol.client.configuration.isRegistered(mockServer)) {
+            HTTPProtocol.client.register(mockServer, Integer.MAX_VALUE)
         }
 
         and: "a HTTP client agent is created"
-        HttpClientAgent agent = new HttpClientAgent("Test agent")
+        HTTPAgent agent = new HTTPAgent("Test agent")
             .setRealm(Constants.MASTER_REALM)
             .setBaseURI("https://mockapi")
             .setOAuthGrant(
@@ -263,10 +273,10 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             )
         .setFollowRedirects(true)
         .setRequestHeaders(
-            Values.parse(/{"header1": ["header1Value1"], "header2": ["header2Value1","header2Value2"]}/, MultivaluedStringMap.class).orElseThrow()
+            ValueUtil.parse(/{"header1": ["header1Value1"], "header2": ["header2Value1","header2Value2"]}/, MultivaluedStringMap.class).orElseThrow()
         )
         .setRequestQueryParameters(
-            Values.parse(/{"param1": ["param1Value1"], "param2": ["param2Value1","param2Value2"]}/, MultivaluedStringMap.class).orElseThrow()
+            ValueUtil.parse(/{"param1": ["param1Value1"], "param2": ["param2Value1","param2Value2"]}/, MultivaluedStringMap.class).orElseThrow()
         )
 
         and: "the agent is added to the asset service"
@@ -274,7 +284,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
 
         then: "the protocol should authenticate and the connection status should become CONNECTED"
         conditions.eventually {
-            agent = assetStorageService.find(agent.id, HttpClientAgent.class)
+            agent = assetStorageService.find(agent.id, HTTPAgent.class)
             assert agent.getAgentStatus().orElse(ConnectionStatus.DISCONNECTED) == ConnectionStatus.CONNECTED
         }
 
@@ -285,9 +295,9 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                 // attribute that sends requests to the server using PUT with dynamic body and custom header to override parent
                 new Attribute<>("putRequestWithHeaders", JSON_OBJECT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
                             .setPath("put_request_with_headers")
-                            .setMethod(org.openremote.agent.protocol.http.HttpMethod.PUT)
+                            .setMethod(HTTPMethod.PUT)
                             .setWriteValue('{"prop1": {$value}, "prop2": "prop2Value"}')
                             .setContentType(MediaType.APPLICATION_JSON)
                             .setHeaders(new MultivaluedStringMap(
@@ -306,9 +316,9 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                 // attribute that sends requests to the server using GET with dynamic path
                 new Attribute<>("getRequestWithDynamicPath", BOOLEAN)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
                             .setPath('value/{$value}/set')
-                            .setWriteValueConverter((ObjectNode)Values.parse("{\n" +
+                            .setWriteValueConverter((ObjectNode)ValueUtil.parse("{\n" +
                                 "    \"TRUE\": \"on\",\n" +
                                 "    \"FALSE\": \"off\"\n" +
                                 "}").get())
@@ -317,9 +327,9 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                 // attribute that polls the server using GET and uses regex filter on response
                 new Attribute<>("getPollSlow", INTEGER)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
                             .setPath("get_poll_slow")
-                        .setPollingMillis(50)
+                        .setPollingMillis(200)
                             .setValueFilters(
                                 [
                                     new RegexValueFilter(Pattern.compile("\\d+"))
@@ -330,13 +340,49 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
                 // attribute that polls the server using GET and uses regex filter on response
                 new Attribute<>("getPollFast", INTEGER)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
                             .setPath("get_poll_fast")
-                            .setPollingMillis(40)
+                            .setPollingMillis(100)
                             .setValueFilters(
                                 [
                                     new RegexValueFilter(Pattern.compile("\\d+")).setMatchIndex(1)
                                 ] as ValueFilter[]
+                            )
+                        )
+                    ),
+                // attribute that expects binary data using GET and uses sub string on response
+                new Attribute<>("getBinary", TEXT)
+                    .addMeta(
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
+                            .setPath("binary")
+                            .setPollingMillis(100)
+                            .setMessageConvertBinary(true)
+                            .setValueFilters(
+                                [
+                                    new SubStringValueFilter(22, 24)
+                                ] as ValueFilter[]
+                            )
+                            .setValueConverter(ValueUtil.JSON.createObjectNode()
+                                    .put("00", "OFF")
+                                    .put("01", "ON")
+                            )
+                        )
+                    ),
+                // attribute that expects HEX data using GET and uses sub string on response
+                new Attribute<>("getHex", TEXT)
+                    .addMeta(
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent.id)
+                            .setPath("binary")
+                            .setPollingMillis(100)
+                            .setMessageConvertHex(true)
+                            .setValueFilters(
+                                [
+                                    new SubStringValueFilter(4, 6)
+                                ] as ValueFilter[]
+                            )
+                            .setValueConverter(ValueUtil.JSON.createObjectNode()
+                                    .put("00", "OFF")
+                                    .put("01", "ON")
                             )
                         )
                     )
@@ -347,7 +393,7 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
 
         then: "new request maps should be created in the HTTP client protocol for the linked attributes"
         conditions.eventually {
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent.id)).requestMap.size() == 4
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent.id)).requestMap.size() == 6
         }
 
         and: "the polling attributes should be polling the server"
@@ -362,12 +408,14 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             asset = assetStorageService.find(asset.getId(), true)
             assert asset.getAttribute("getPollSlow").flatMap({it.value}).orElse(null) == 100
             assert asset.getAttribute("getPollFast").flatMap({it.value}).orElse(null) == 60
+            assert asset.getAttribute("getBinary").flatMap({it.value}).orElse(null) == "ON"
+            assert asset.getAttribute("getHex").flatMap({it.value}).orElse(null) == "ON"
         }
 
         when: "a linked attribute value is updated"
         def attributeEvent = new AttributeEvent(asset.id,
             "putRequestWithHeaders",
-            Values.parse('{"myProp1": 123,"myProp2": true}').get())
+                ValueUtil.parse('{"myProp1": 123,"myProp2": true}').get())
         assetProcessingService.sendAttributeEvent(attributeEvent)
 
         then: "the server should have received the request"
@@ -403,9 +451,9 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             .setFollowRedirects(null)
             .setRequestHeaders(null)
             .setRequestQueryParameters(null)
-        def agent3 = Values.clone(agent2)
+        def agent3 = ValueUtil.clone(agent2)
             .setId(null)
-        def agent4 = Values.clone(agent2)
+        def agent4 = ValueUtil.clone(agent2)
             .setId(null)
             .setFollowRedirects(true)
 
@@ -429,38 +477,38 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
             .addOrReplaceAttributes(
                 new Attribute<>("getSuccess", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent2.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent2.id)
                             .setPath("get_success_200")
                         )
                     ),
                 new Attribute<>("getFailure", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent2.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent2.id)
                             .setPath("get_failure_401")
                         )
                     ),
                 new Attribute<>("pollFailure", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent3.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent3.id)
                             .setPath("get_failure_401")
-                            .setPollingMillis(50)
+                            .setPollingMillis(100)
                         )
                     ),
                 new Attribute<>("getSuccess2", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent4.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent4.id)
                             .setPath("get_success_200")
                         )
                     ),
                 new Attribute<>("getFailure2", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent4.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent4.id)
                             .setPath("get_failure_401")
                         )
                     ),
                 new Attribute<>("getRedirect", TEXT)
                     .addMeta(
-                        new MetaItem<>(AGENT_LINK, new HttpClientAgent.HttpClientAgentLink(agent4.id)
+                        new MetaItem<>(AGENT_LINK, new HTTPAgentLink(agent4.id)
                             .setPath("redirect")
                         )
                     )
@@ -471,12 +519,12 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
 
         then: "new request maps should be created in the HTTP client protocol for the linked attributes"
         conditions.eventually {
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent2.id)) != null
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent2.id)).requestMap.size() == 2
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent3.id)) != null
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent3.id)).requestMap.size() == 1
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent4.id)) != null
-            assert ((HttpClientProtocol)agentService.getProtocolInstance(agent4.id)).requestMap.size() == 3
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent2.id)) != null
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent2.id)).requestMap.size() == 2
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent3.id)) != null
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent3.id)).requestMap.size() == 1
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent4.id)) != null
+            assert ((HTTPProtocol)agentService.getProtocolInstance(agent4.id)).requestMap.size() == 3
         }
 
         and: "the polling attribute should be polling the server"

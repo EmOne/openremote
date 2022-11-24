@@ -19,17 +19,20 @@
  */
 package org.openremote.agent.protocol.artnet;
 
-import org.openremote.agent.protocol.io.IoAgent;
+import org.openremote.agent.protocol.io.IOAgent;
 import org.openremote.model.asset.agent.AgentDescriptor;
-import org.openremote.model.asset.agent.AgentLink;
+import org.openremote.model.asset.agent.DefaultAgentLink;
+import org.openremote.model.util.ModelIgnore;
 
 import javax.persistence.Entity;
 
-@Entity
-public class ArtnetAgent extends IoAgent<ArtnetAgent, ArtnetProtocol, AgentLink.Default> {
 
-    public static final AgentDescriptor<ArtnetAgent, ArtnetProtocol, AgentLink.Default> DESCRIPTOR = new AgentDescriptor<>(
-        ArtnetAgent.class, ArtnetProtocol.class, AgentLink.Default.class
+@ModelIgnore
+@Entity
+public class ArtnetAgent extends IOAgent<ArtnetAgent, ArtnetProtocol, DefaultAgentLink> {
+
+    public static final AgentDescriptor<ArtnetAgent, ArtnetProtocol, DefaultAgentLink> DESCRIPTOR = new AgentDescriptor<>(
+        ArtnetAgent.class, ArtnetProtocol.class, DefaultAgentLink.class
     );
 
     /**

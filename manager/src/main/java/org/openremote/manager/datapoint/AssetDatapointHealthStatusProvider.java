@@ -23,12 +23,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.system.HealthStatusProvider;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 public class AssetDatapointHealthStatusProvider implements HealthStatusProvider, ContainerService {
 
     public static final String NAME = "datapoints";
-    public static final String VERSION = "1.0";
     protected AssetDatapointService assetDatapointService;
 
     @Override
@@ -57,13 +56,8 @@ public class AssetDatapointHealthStatusProvider implements HealthStatusProvider,
     }
 
     @Override
-    public String getHealthStatusVersion() {
-        return VERSION;
-    }
-
-    @Override
     public Object getHealthStatus() {
-        ObjectNode value = Values.JSON.createObjectNode();
+        ObjectNode value = ValueUtil.JSON.createObjectNode();
         value.put("totalDatapoints", assetDatapointService.getDatapointsCount());
         return value;
     }

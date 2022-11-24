@@ -24,7 +24,7 @@ import com.zaxxer.hikari.HikariPoolMXBean;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.system.HealthStatusProvider;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import javax.management.JMX;
 import javax.management.MBeanServer;
@@ -40,7 +40,6 @@ public class PersistenceHealthStatusProvider implements HealthStatusProvider, Co
 
     private static final Logger LOG = Logger.getLogger(PersistenceHealthStatusProvider.class.getName());
     public static final String NAME = "db";
-    public static final String VERSION = "1.0";
     protected PersistenceService persistenceService;
 
     @Override
@@ -69,11 +68,6 @@ public class PersistenceHealthStatusProvider implements HealthStatusProvider, Co
     }
 
     @Override
-    public String getHealthStatusVersion() {
-        return VERSION;
-    }
-
-    @Override
     public Object getHealthStatus() {
         if (persistenceService.persistenceUnitProperties == null) {
             return null;
@@ -93,7 +87,7 @@ public class PersistenceHealthStatusProvider implements HealthStatusProvider, Co
             int totalConnections = poolMBean.getTotalConnections();
             int threadsWaiting = poolMBean.getThreadsAwaitingConnection();
 
-            ObjectNode value = Values.JSON.createObjectNode();
+            ObjectNode value = ValueUtil.JSON.createObjectNode();
             value.put("idleConnections", idleConnections);
             value.put("activeConnections", activeConnections);
             value.put("totalConnections", totalConnections);

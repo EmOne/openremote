@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import org.openremote.model.asset.Asset;
-import org.openremote.model.util.AssetModelUtil;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.*;
 
 import javax.validation.Valid;
@@ -57,9 +57,9 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public Attribute<?> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-
             // Need to find the type field to know how to deserialise the value
-            TokenBuffer tokenBuffer = TokenBuffer.asCopyOfValue(jp);
+            TokenBuffer tokenBuffer = new TokenBuffer(jp);
+            tokenBuffer.copyCurrentStructure(jp);
             JsonParser jp2 = tokenBuffer.asParser();
             JsonParser jp3 = tokenBuffer.asParser();
             String attributeValueType = null;
@@ -91,7 +91,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
             }
 
             // Get inner attribute type or fallback to primitive/JSON type
-            Optional<ValueDescriptor<?>> valueDescriptor = AssetModelUtil.getValueDescriptor(attributeValueType);
+            Optional<ValueDescriptor<?>> valueDescriptor = ValueUtil.getValueDescriptor(attributeValueType);
             Attribute attribute = new Attribute<>();
 
             while (jp3.nextToken() != JsonToken.END_OBJECT) {
@@ -127,7 +127,7 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
                     return ValueDescriptor.UNKNOWN;
                 }
                 Object value = attribute.value;
-                return AssetModelUtil.getValueDescriptorForValue(value);
+                return ValueUtil.getValueDescriptorForValue(value);
             });
 
             return (Attribute<?>) attribute;
@@ -323,7 +323,15 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
             "name='" + name + '\'' +
             ", value='" + value + '\'' +
             ", timestamp='" + getTimestamp().orElse(0L) + '\'' +
-            ", meta='" + getMeta().values().stream().map(MetaItem::toString).collect(Collectors.joining(",")) + '\'' +
+            "} ";
+    }
+
+    public String toStringAll() {
+        return getClass().getSimpleName() + "{" +
+            "name='" + name + '\'' +
+            ", value='" + value + '\'' +
+            ", timestamp='" + getTimestamp().orElse(0L) + '\'' +
+            ", meta='" + (meta == null ? "" : getMeta().values().stream().map(MetaItem::toString).collect(Collectors.joining(","))) + '\'' +
             "} ";
     }
 
@@ -366,9 +374,11 @@ public class Attribute<T> extends AbstractNameValueHolder<T> implements MetaHold
             return false;
         Attribute<?> that = (Attribute<?>) obj;
 
-        return Objects.equals(timestamp, that.timestamp)
-            && Objects.equals(meta, that.meta)
-            && super.equals(obj);
+        boolean timestampMatches = Objects.equals(timestamp, that.timestamp);
+        boolean metaMatches = (meta == null && that.meta != null && that.meta.isEmpty()) || (that.meta == null && meta != null && meta.isEmpty()) || Objects.equals(meta, that.meta);
+        boolean superMatches = super.equals(obj);
+        boolean result = timestampMatches && metaMatches && superMatches;
+        return result;
     }
 
     public boolean equals(Object obj, Comparator<Attribute<?>> comparator) {

@@ -1,7 +1,8 @@
-import {customElement, html, LitElement, property, PropertyValues} from "lit-element";
+import {html, LitElement, PropertyValues} from "lit";
+import {customElement, property} from "lit/decorators.js";
 import {Asset, AssetQuery} from "@openremote/model";
 import {surveyResultStyle} from "./style";
-import manager, { OREvent, EventCallback } from "@openremote/core";
+import manager from "@openremote/core";
 
 export interface ProcessedResultAnswer {
     name: string,
@@ -35,24 +36,6 @@ class OrSurveyResults extends LitElement {
 
     @property({type: Number})
     public maxAmount?: number;
-
-    protected _initCallback?: EventCallback;
-
-    protected firstUpdated(_changedProperties: PropertyValues): void {
-        super.firstUpdated(_changedProperties);
-
-        if (!manager.ready) {
-            // Defer until openremote is initialised
-            this._initCallback = (initEvent: OREvent) => {
-                if (initEvent === OREvent.READY) {
-                    this.getSurvey();
-                    manager.removeListener(this._initCallback!);
-                }
-            };
-            manager.addListener(this._initCallback);
-        } else {
-        }
-    }
 
     updated(_changedProperties: PropertyValues) {
         if(_changedProperties.has('surveyId')) {
@@ -160,7 +143,7 @@ class OrSurveyResults extends LitElement {
             ids: [surveyId]
         };
 
-        manager.rest.api.AssetResource.queryPublicAssets(surveyQuery).then((response) => {
+        manager.rest.api.AssetResource.queryAssets(surveyQuery).then((response) => {
             if (response && response.data) {
                 this.survey = response.data[0];
                 this.requestUpdate();
@@ -173,7 +156,7 @@ class OrSurveyResults extends LitElement {
             parents: [{id:surveyId}]
         };
 
-        manager.rest.api.AssetResource.queryPublicAssets(surveyQuestQuery).then((response) => {
+        manager.rest.api.AssetResource.queryAssets(surveyQuestQuery).then((response) => {
             if (response && response.data) {
                 this.questions = response.data;
                 this.requestUpdate();

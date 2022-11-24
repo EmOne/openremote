@@ -21,31 +21,33 @@ package org.openremote.model.asset;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
-import org.hibernate.annotations.Check;
-import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.*;
 import org.openremote.model.Constants;
 import org.openremote.model.IdentifiableEntity;
 import org.openremote.model.asset.impl.ThingAsset;
 import org.openremote.model.asset.impl.UnknownAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeMap;
+import org.openremote.model.attribute.MetaMap;
 import org.openremote.model.geo.GeoJSONPoint;
 import org.openremote.model.jackson.AssetTypeIdResolver;
-import org.openremote.model.util.AssetModelUtil;
 import org.openremote.model.util.TsIgnore;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.validation.AssetValid;
 import org.openremote.model.value.AttributeDescriptor;
+import org.openremote.model.value.ValueFormat;
 import org.openremote.model.value.ValueType;
 
 import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.Table;
 import javax.validation.Valid;
 import javax.validation.constraints.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static javax.persistence.DiscriminatorType.STRING;
-import static org.openremote.model.Constants.PERSISTENCE_JSON_VALUE_TYPE;
-import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
+import static org.openremote.model.Constants.*;
 
 // @formatter:off
 
@@ -55,9 +57,6 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * An asset is an identifiable item in a composite relationship with other assets. This tree of assets can be managed
  * through a <code>null</code> {@link #parentId} property for root assets, and a valid parent identifier for
  * sub-assets.
- * <p>
- * The properties {@link #parentName} and {@link #parentType} are transient, not required for storing assets, and only
- * resolved and usable when the asset is loaded from storage.
  * <p>
  * An asset is stored in and therefore access-controlled through a {@link #realm}.
  * <p>
@@ -76,7 +75,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * obviously no validation can be performed on such dynamic {@link Attribute}s. Use the {@link Attribute} etc. class to
  * work with this API. This property can be empty when certain optimized loading operations are used.
  * <p>
- * For more details on restricted access of user-assigned assets, see {@link UserAsset}.
+ * For more details on restricted access of user-assigned assets, see {@link UserAssetLink}.
  * </p>
  * <p>
  * Example JSON representation of an asset tree:
@@ -110,9 +109,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * "parentId": "0oI7Gf_kTh6WyRJFUTr8Lg",
  * "parentName": "Smart building",
  * "parentType": "urn:openremote:asset:building",
- * "realm": "c38a3fdf-9d74-4dac-940c-50d3dce1d248",
- * "tenantRealm": "building",
- * "tenantDisplayName": "Building",
+ * "realm": "building",
  * "path": [
  * "B0x8ZOqZQHGjq_l0RxAJBA",
  * "0oI7Gf_kTh6WyRJFUTr8Lg"
@@ -134,9 +131,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * "parentId": "B0x8ZOqZQHGjq_l0RxAJBA",
  * "parentName": "Apartment 1",
  * "parentType": "urn:openremote:asset:residence",
- * "realm": "c38a3fdf-9d74-4dac-940c-50d3dce1d248",
- * "tenantRealm": "building",
- * "tenantDisplayName": "Building",
+ * "realm": "building",
  * "path": [
  * "bzlRiJmSSMCl8HIUt9-lMg",
  * "B0x8ZOqZQHGjq_l0RxAJBA",
@@ -159,9 +154,7 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * "parentId": "bzlRiJmSSMCl8HIUt9-lMg",
  * "parentName": "Living Room",
  * "parentType": "urn:openremote:asset:room",
- * "realm": "c38a3fdf-9d74-4dac-940c-50d3dce1d248",
- * "tenantRealm": "building",
- * "tenantDisplayName": "Building",
+ * "realm": "building",
  * "path": [
  * "W7GV_lFeQVyHLlgHgE3dEQ",
  * "bzlRiJmSSMCl8HIUt9-lMg",
@@ -210,26 +203,6 @@ import static org.openremote.model.Constants.PERSISTENCE_UNIQUE_ID_GENERATOR;
  * }</pre></blockquote>
  */
 // @formatter:on
-@SqlResultSetMapping(
-    name = "AssetMapping",
-    entities = @EntityResult(
-        entityClass = Asset.class,
-        discriminatorColumn = "type",
-        fields = {
-            @FieldResult(name = "id", column = "id"),
-            @FieldResult(name = "type", column = "type"),
-            @FieldResult(name = "version", column = "version"),
-            @FieldResult(name = "accessPublicRead", column = "access_public_read"),
-            @FieldResult(name = "attributes", column = "attributes"),
-            @FieldResult(name = "createdOn", column = "created_on"),
-            @FieldResult(name = "parentId", column = "parent_id"),
-            @FieldResult(name = "realm", column = "realm"),
-            @FieldResult(name = "path", column = "path"),
-            @FieldResult(name = "name", column = "name")}),
-    columns = {
-        @ColumnResult(name = "parent_name", type = String.class),
-        @ColumnResult(name = "parent_type", type = String.class)
-    })
 @Entity
 @Table(name = "ASSET")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -256,7 +229,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
 
     public static final AttributeDescriptor<String[]> TAGS = new AttributeDescriptor<>("tags", ValueType.TEXT.asArray()).withOptional(true);
 
-    public static final AttributeDescriptor<String> NOTES = new AttributeDescriptor<>("notes", ValueType.TEXT);
+    public static final AttributeDescriptor<String> NOTES = new AttributeDescriptor<>("notes", ValueType.TEXT).withFormat(ValueFormat.TEXT_MULTILINE());
     public static final AttributeDescriptor<String> MANUFACTURER = new AttributeDescriptor<>("manufacturer", ValueType.TEXT).withOptional(true);
     public static final AttributeDescriptor<String> MODEL = new AttributeDescriptor<>("model", ValueType.TEXT).withOptional(true);
 
@@ -290,24 +263,18 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
 
     @NotBlank(message = "{Asset.realm.NotBlank}")
     @Size(min = 1, max = 255, message = "{Asset.realm.Size}")
-    @Column(name = "REALM", nullable = false)
+    @Column(name = "REALM", nullable = false, updatable = false)
     protected String realm;
-
-    @Transient
-    protected String parentName;
-
-    @Transient
-    protected String parentType;
 
     @Column(name = "TYPE", nullable = false, updatable = false, insertable = false)
     protected String type = getClass().getSimpleName();
 
-    // The following are expensive to query, so if they are null, they might not have been loaded
-    @Formula("get_asset_tree_path(ID)")
-    @org.hibernate.annotations.Type(type = Constants.PERSISTENCE_STRING_ARRAY_TYPE)
+    @Column(name = "PATH", updatable = false, insertable = false, columnDefinition = PERSISTENCE_LTREE_TYPE)
+    @Type(type = PERSISTENCE_LTREE_TYPE)
+    @Generated(GenerationTime.ALWAYS)
     protected String[] path;
 
-    @Column(name = "ATTRIBUTES", columnDefinition = "jsonb")
+    @Column(name = "ATTRIBUTES", columnDefinition = PERSISTENCE_JSON_VALUE_TYPE)
     @org.hibernate.annotations.Type(type = PERSISTENCE_JSON_VALUE_TYPE)
     @Valid
     protected AttributeMap attributes;
@@ -322,7 +289,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
         setName(name);
 
         // Initialise required attributes
-        AssetModelUtil.initialiseAssetAttributes(this);
+        ValueUtil.initialiseAssetAttributes(this);
     }
 
     public String getId() {
@@ -357,7 +324,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
         return name;
     }
 
-
     public T setName(@NotNull String name) throws IllegalArgumentException {
         Objects.requireNonNull(name);
         this.name = name;
@@ -380,12 +346,8 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     public T setParent(Asset<?> parent) {
         if (parent == null) {
             parentId = null;
-            parentName = null;
-            parentType = null;
         } else {
             parentId = parent.id;
-            parentName = parent.name;
-            parentType = parent.getType();
             realm = parent.realm;
         }
         return (T) this;
@@ -401,19 +363,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
         return (T) this;
     }
 
-    /**
-     * NOTE: This is a transient and optional property, set only in database query results.
-     */
-    public String getParentName() {
-        return parentName;
-    }
-
-    /**
-     * NOTE: This is a transient and optional property, set only in database query results.
-     */
-    public String getParentType() {
-        return parentType;
-    }
 
     public String getRealm() {
         return realm;
@@ -432,30 +381,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
      */
     public String[] getPath() {
         return path;
-    }
-
-    protected T setPath(String[] path) {
-        this.path = path;
-        return (T) this;
-    }
-
-    /**
-     * NOTE: This is a transient and optional property, set only in database query results.
-     * <p>
-     * The identifiers of all parents representing the path in the tree. The first element is the root asset without a
-     * parent, the last is the identifier of this instance.
-     */
-    public String[] getReversePath() {
-        if (path == null)
-            return null;
-
-        String[] newArray = new String[path.length];
-        int j = 0;
-        for (int i = path.length; i > 0; i--) {
-            newArray[j] = path[i - 1];
-            j++;
-        }
-        return newArray;
     }
 
     public boolean pathContains(String assetId) {
@@ -543,12 +468,31 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
             ", type='" + type + '\'' +
             ", accessPublicRead='" + accessPublicRead + '\'' +
             ", parentId='" + parentId + '\'' +
-            ", parentName='" + parentName + '\'' +
-            ", parentType='" + parentType + '\'' +
             ", realm='" + realm + '\'' +
             ", path=" + Arrays.toString(path) +
-            ", attributes=" + attributes +
+            ", attributes=" + getAttributesString() +
             '}';
+    }
+
+    protected String getAttributesString() {
+        if (attributes == null || attributes.isEmpty()) {
+            return "";
+        }
+        return "[" +
+            attributes.values().stream().map(attr ->
+                "attr=" + attr.getName() + ",timestamp=" + attr.getTimestamp().orElse(null) + ",meta=" + getMetaString(attr.getMeta())).collect(Collectors.joining("; ")) +
+        "]";
+    }
+
+    protected String getMetaString(MetaMap meta) {
+        if (meta == null || meta.isEmpty()) {
+            return "[]";
+        }
+
+        return "[" +
+            meta.entrySet().stream().map(nameAndValue ->
+                "meta=" + nameAndValue.getKey() + ",value=" + ValueUtil.asJSON(nameAndValue.getValue().getValue()).orElse(null)).collect(Collectors.joining("; ")) +
+        "]";
     }
 
     /* WELL KNNOWN ATTRIBUTE GETTER / SETTERS */
@@ -560,7 +504,7 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
 
 
     public T setLocation(GeoJSONPoint location) {
-        getAttributes().addOrReplace(new Attribute<>(LOCATION, location));
+        getAttributes().getOrCreate(LOCATION).setValue(location);
         return (T) this;
     }
 
@@ -598,7 +542,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
         return getAttributes().getValue(MANUFACTURER);
     }
 
-
     public T setManufacturer(String manufacturer) {
         getAttributes().getOrCreate(MANUFACTURER).setValue(manufacturer);
         return (T) this;
@@ -607,7 +550,6 @@ public abstract class Asset<T extends Asset<?>> implements IdentifiableEntity<T>
     public Optional<String> getModel() {
         return getAttributes().getValue(MODEL);
     }
-
 
     public T setModel(String model) {
         getAttributes().getOrCreate(MODEL).setValue(model);

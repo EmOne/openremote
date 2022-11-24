@@ -19,12 +19,6 @@
  */
 package org.openremote.manager.setup;
 
-import org.openremote.agent.protocol.macro.MacroAction;
-import org.openremote.agent.protocol.macro.MacroAgent;
-import org.openremote.agent.protocol.timer.CronExpressionParser;
-import org.openremote.agent.protocol.timer.TimerAgent;
-import org.openremote.agent.protocol.timer.TimerValue;
-import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.manager.asset.AssetProcessingService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.datapoint.AssetDatapointService;
@@ -34,16 +28,15 @@ import org.openremote.manager.rules.RulesetStorageService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.model.Constants;
 import org.openremote.model.Container;
-import org.openremote.model.apps.ConsoleAppConfig;
 import org.openremote.model.asset.Asset;
-import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.asset.impl.*;
 import org.openremote.model.attribute.*;
 import org.openremote.model.geo.GeoJSONPoint;
+import org.openremote.model.setup.Setup;
+import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.ValueFormat;
 import org.openremote.model.value.ValueType;
-import org.openremote.model.value.Values;
 
 import jline.internal.Log;
 
@@ -51,10 +44,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.DayOfWeek;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -66,8 +55,8 @@ import static org.openremote.container.util.MapAccess.getString;
 
 public class ManagerSetup implements Setup {
 
-    public static final String PROVISIONING_DOCROOT = "PROVISIONING_DOCROOT";
-    public static final String PROVISIONING_DOCROOT_DEFAULT = "deployment/manager/provisioning";
+    public static final String OR_PROVISIONING_DOCROOT = "OR_PROVISIONING_DOCROOT";
+    public static final String OR_PROVISIONING_DOCROOT_DEFAULT = "deployment/manager/provisioning";
 
     protected Path provisionDocRoot;
 
@@ -93,7 +82,7 @@ public class ManagerSetup implements Setup {
         this.rulesetStorageService = container.getService(RulesetStorageService.class);
         this.setupService = container.getService(SetupService.class);
 
-        provisionDocRoot = Paths.get(getString(container.getConfig(), PROVISIONING_DOCROOT, PROVISIONING_DOCROOT_DEFAULT));
+        provisionDocRoot = Paths.get(getString(container.getConfig(), OR_PROVISIONING_DOCROOT, OR_PROVISIONING_DOCROOT_DEFAULT));
     }
 
     @Override
@@ -103,7 +92,6 @@ public class ManagerSetup implements Setup {
             return;
         }
 
-        provisionConsoleAppConfig();
         provisionAssets();
     }
 
@@ -158,7 +146,8 @@ public class ManagerSetup implements Setup {
         room.getAttributes().addOrReplace(
                 new Attribute<>("motionSensor", INTEGER).addMeta(new MetaItem<>(LABEL, "Motion sensor"),
                         new MetaItem<>(READ_ONLY, true), new MetaItem<>(RULE_STATE, true),
-                        new MetaItem<>(STORE_DATA_POINTS)),
+                        new MetaItem<>(STORE_DATA_POINTS),
+                        new MetaItem<>(ACCESS_RESTRICTED_WRITE)),
                 new Attribute<>("presenceDetected", BOOLEAN).addMeta(new MetaItem<>(LABEL, "Presence detected"),
                         new MetaItem<>(RULE_STATE, true), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
                         new MetaItem<>(READ_ONLY, true), new MetaItem<>(STORE_DATA_POINTS, true)),
@@ -298,182 +287,6 @@ public class ManagerSetup implements Setup {
         }
     }
 
-    public static class Scene {
-
-        final String attributeName;
-        final String sceneName;
-        final String internalName;
-        final String startTime;
-        final boolean alarmEnabled;
-        final double targetTemperature;
-
-        public Scene(String attributeName, String sceneName, String internalName, String startTime,
-                boolean alarmEnabled, double targetTemperature) {
-            this.attributeName = attributeName;
-            this.sceneName = sceneName;
-            this.internalName = internalName;
-            this.startTime = startTime;
-            this.alarmEnabled = alarmEnabled;
-            this.targetTemperature = targetTemperature;
-        }
-
-        MacroAgent createSceneAgent(BuildingAsset apartment, RoomAsset... rooms) {
-            MacroAgent sceneAgent = new MacroAgent("Scene agent " + sceneName);
-            sceneAgent.setId(UniqueIdentifierGenerator.generateId());
-            sceneAgent.setParent(apartment);
-
-            List<MacroAction> actions = new ArrayList<>();
-            actions.add(new MacroAction(
-                    new AttributeState(new AttributeRef(apartment.getId(), "alarmEnabled"), alarmEnabled)));
-
-            for (RoomAsset room : rooms) {
-                if (room.hasAttribute("targetTemperature")) {
-                    actions.add(new MacroAction(new AttributeState(new AttributeRef(room.getId(), "targetTemperature"),
-                            targetTemperature)));
-                }
-            }
-
-            actions.add(new MacroAction(
-                    new AttributeState(new AttributeRef(apartment.getId(), "lastExecutedScene"), internalName)));
-
-            sceneAgent.setMacroActions(actions.toArray(new MacroAction[0]));
-
-            return sceneAgent;
-        }
-
-        List<TimerAgent> createTimerAgents(String macroAgentId, BuildingAsset apartment) {
-            List<TimerAgent> agents = new ArrayList<>();
-
-            for (DayOfWeek dayOfWeek : DayOfWeek.values()) {
-                // "MONDAY" => "Monday"
-                String dayOfWeekLabel = dayOfWeek.name().substring(0, 1)
-                        + dayOfWeek.name().substring(1).toLowerCase(Locale.ROOT);
-                // "0 0 7 ? *" => "0 0 7 ? * MON *"
-                String timePattern = startTime + " " + dayOfWeek.name().substring(0, 3).toUpperCase(Locale.ROOT) + " *";
-                TimerAgent timerAgent = new TimerAgent("Timer agent " + sceneName + " " + dayOfWeek.name());
-                timerAgent.setParent(apartment);
-                timerAgent.setId(UniqueIdentifierGenerator.generateId());
-                timerAgent.setTimerAction(new AttributeState(apartment.getId(), attributeName, "REQUEST_START"));
-                timerAgent.setTimerCronExpression(new CronExpressionParser(timePattern));
-                agents.add(timerAgent);
-            }
-            return agents;
-        }
-    }
-
-    public static List<Agent<?, ?, ?>> createDemoApartmentScenes(AssetStorageService assetStorageService,
-            BuildingAsset apartment, Scene[] scenes, RoomAsset... rooms) {
-
-        List<Agent<?, ?, ?>> agents = new ArrayList<>();
-
-        for (Scene scene : scenes) {
-            MacroAgent sceneAgent = scene.createSceneAgent(apartment, rooms);
-            agents.add(sceneAgent);
-            agents.addAll(scene.createTimerAgents(sceneAgent.getId(), apartment));
-        }
-
-        addDemoApartmentSceneEnableDisableTimer(apartment, agents, scenes);
-        linkDemoApartmentWithSceneAgent(apartment, agents, scenes);
-        agents.forEach(assetStorageService::merge);
-        apartment = assetStorageService.merge(apartment);
-        return agents;
-    }
-
-    protected static void addDemoApartmentSceneEnableDisableTimer(BuildingAsset apartment, List<Agent<?, ?, ?>> agents,
-            Scene[] scenes) {
-
-        MacroAgent enableSceneAgent = new MacroAgent("Scene agent enable");
-        MacroAgent disableSceneAgent = new MacroAgent("Scene agent disable");
-        List<MacroAction> enableActions = new ArrayList<>();
-        List<MacroAction> disableActions = new ArrayList<>();
-
-        enableSceneAgent.setParent(apartment);
-        enableSceneAgent.setId(UniqueIdentifierGenerator.generateId());
-        disableSceneAgent.setParent(apartment);
-        disableSceneAgent.setId(UniqueIdentifierGenerator.generateId());
-
-        for (Scene scene : scenes) {
-            for (DayOfWeek dayOfWeek : DayOfWeek.values()) {
-                String sceneAttributeName = scene.attributeName + "Enabled" + dayOfWeek;
-                enableActions.add(new MacroAction(
-                        new AttributeState(new AttributeRef(apartment.getId(), sceneAttributeName), true)));
-                disableActions.add(new MacroAction(
-                        new AttributeState(new AttributeRef(apartment.getId(), sceneAttributeName), false)));
-            }
-        }
-        enableActions.add(
-                new MacroAction(new AttributeState(new AttributeRef(apartment.getId(), "sceneTimerEnabled"), true)));
-        disableActions.add(
-                new MacroAction(new AttributeState(new AttributeRef(apartment.getId(), "sceneTimerEnabled"), false)));
-        enableSceneAgent.setMacroActions(enableActions.toArray(new MacroAction[0]));
-        disableSceneAgent.setMacroActions(disableActions.toArray(new MacroAction[0]));
-
-        agents.add(enableSceneAgent);
-        agents.add(disableSceneAgent);
-    }
-
-    protected static void linkDemoApartmentWithSceneAgent(Asset<?> apartment, List<Agent<?, ?, ?>> agents,
-            Scene[] scenes) {
-
-        MacroAgent enableSceneAgent = (MacroAgent) agents.get(agents.size() - 2);
-        MacroAgent disableSceneAgent = (MacroAgent) agents.get(agents.size() - 1);
-        int i = 0;
-        for (Scene scene : scenes) {
-            MacroAgent sceneAgent = (MacroAgent) agents.get(i);
-
-            apartment.getAttributes().addOrReplace(
-                    new Attribute<>(scene.attributeName, EXECUTION_STATUS, AttributeExecuteStatus.READY).addMeta(
-                            new MetaItem<>(LABEL, scene.sceneName), new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                            new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                            new MetaItem<>(AGENT_LINK, new MacroAgent.MacroAgentLink(sceneAgent.getId()))),
-                    new Attribute<>(scene.attributeName + "AlarmEnabled", BOOLEAN).addMeta(
-                            new MetaItem<>(LABEL, scene.sceneName + " alarm enabled"),
-                            new MetaItem<>(ACCESS_RESTRICTED_WRITE, true), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                            new MetaItem<>(AGENT_LINK,
-                                    new MacroAgent.MacroAgentLink(sceneAgent.getId()).setActionIndex(0))),
-                    new Attribute<>(scene.attributeName + "TargetTemperature", ValueType.NUMBER).addMeta(
-                            new MetaItem<>(LABEL, scene.sceneName + " target temperature"),
-                            new MetaItem<>(ACCESS_RESTRICTED_WRITE, true), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                            new MetaItem<>(AGENT_LINK,
-                                    new MacroAgent.MacroAgentLink(sceneAgent.getId()).setActionIndex(1))));
-            int j = 1;
-            for (DayOfWeek dayOfWeek : DayOfWeek.values()) {
-                // "MONDAY" => "Monday"
-                String dayOfWeekLabel = dayOfWeek.name().substring(0, 1)
-                        + dayOfWeek.name().substring(1).toLowerCase(Locale.ROOT);
-                apartment.getAttributes().addOrReplace(
-                        new Attribute<>(scene.attributeName + "Time" + dayOfWeek.name(), ValueType.TEXT).addMeta(
-                                new MetaItem<>(LABEL, scene.sceneName + " time " + dayOfWeekLabel),
-                                new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                                new MetaItem<>(ACCESS_RESTRICTED_WRITE, true), new MetaItem<>(RULE_STATE, true),
-                                new MetaItem<>(AGENT_LINK,
-                                        new TimerAgent.TimerAgentLink(agents.get(i + j).getId())
-                                                .setTimerValue(TimerValue.TIME))),
-                        new Attribute<>(scene.attributeName + "Enabled" + dayOfWeek.name(), BOOLEAN).addMeta(
-                                new MetaItem<>(LABEL, scene.sceneName + " enabled " + dayOfWeekLabel),
-                                new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                                new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                                new MetaItem<>(AGENT_LINK, new TimerAgent.TimerAgentLink(agents.get(i + j).getId())
-                                        .setTimerValue(TimerValue.ACTIVE))));
-                j++;
-            }
-            i = i + 8; // 1 scene agent + 7 timer agents
-        }
-        apartment.getAttributes().addOrReplace(new Attribute<>("sceneTimerEnabled", BOOLEAN, true) // The scene timer is
-                                                                                                   // enabled when the
-                                                                                                   // timer protocol
-                                                                                                   // starts
-                .addMeta(new MetaItem<>(LABEL, "Scene timer enabled"), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                        new MetaItem<>(READ_ONLY, true)),
-                new Attribute<>("enableSceneTimer", EXECUTION_STATUS).addMeta(
-                        new MetaItem<>(LABEL, "Enable scene timer"), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                        new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                        new MetaItem<>(AGENT_LINK, new MacroAgent.MacroAgentLink(enableSceneAgent.getId()))),
-                new Attribute<>("disableSceneTimer", EXECUTION_STATUS).addMeta(
-                        new MetaItem<>(LABEL, "Disable scene timer"), new MetaItem<>(ACCESS_RESTRICTED_READ, true),
-                        new MetaItem<>(ACCESS_RESTRICTED_WRITE, true),
-                        new MetaItem<>(AGENT_LINK, new MacroAgent.MacroAgentLink(disableSceneAgent.getId()))));
-    }
 
     protected PeopleCounterAsset createDemoPeopleCounterAsset(String name, Asset<?> area, GeoJSONPoint location,
             Supplier<AgentLink<?>> agentLinker) {
@@ -643,28 +456,6 @@ public class ManagerSetup implements Setup {
         return shipAsset;
     }
 
-    protected void provisionConsoleAppConfig() throws IOException {
-
-        if (!Files.exists(Paths.get(provisionDocRoot.toString(), "consoleappconfig"))) {
-            return;
-        }
-
-        Log.info("Provisioning console app configs");
-
-        Files.list(Paths.get(provisionDocRoot.toString(), "consoleappconfig")).filter(Files::isRegularFile)
-                .forEach(file -> {
-                    try {
-                        ConsoleAppConfig config = Values.JSON.readValue(file.toFile(), ConsoleAppConfig.class);
-                        persistenceService.doTransaction(entityManager -> entityManager.merge(config));
-
-                        Log.info("Console app config added for realm: " + config.getRealm());
-                    } catch (IOException e) {
-                        Log.warn("Processing of file " + file.getFileName() + " went wrong", e);
-                    }
-                });
-
-    }
-
     protected void provisionAssets() throws IOException {
 
         if (!Files.exists(Paths.get(provisionDocRoot.toString(), "assets"))) {
@@ -673,10 +464,10 @@ public class ManagerSetup implements Setup {
 
         Log.info("Provisioning assets");
 
-        Files.list(Paths.get(provisionDocRoot.toString(), "assets")).filter(Files::isRegularFile)
+        Files.list(Paths.get(provisionDocRoot.toString(), "assets")).sorted()
                 .forEach(file -> {
                     try {
-                        Asset<?> asset =  Values.JSON.readValue(file.toFile(), Asset.class);
+                        Asset<?> asset =  ValueUtil.JSON.readValue(file.toFile(), Asset.class);
                         asset = assetStorageService.merge(asset);
 
                         Log.info("Asset merged: " + asset.toString());

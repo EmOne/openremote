@@ -95,11 +95,18 @@ public class RulesBuilder {
 
     public Rule[] build() {
         List<Rule> rules = new ArrayList<>();
+
+        // Maintain rule order by adjusting priority for each rule within the ruleset
+        int i = 1;
         for (Builder builder : builders) {
+
+            int priority = (builder.priority < Integer.MAX_VALUE - 1) ? builder.priority : Integer.MAX_VALUE - 10000 + i;
+            i++;
+
             Rule rule = new RuleBuilder()
                 .name(builder.name)
                 .description(builder.description)
-                .priority(builder.priority)
+                .priority(priority)
                 .when(facts -> {
                     Object result;
                     try {
@@ -113,9 +120,9 @@ public class RulesBuilder {
                         throw new IllegalArgumentException("Error evaluating condition of rule '" + builder.name + "': result is not boolean but " + result);
                     }
                 })
-                .then(facts -> {
-                    builder.action.execute((RulesFacts) facts);
-                }).build();
+                .then(facts -> builder.action.execute((RulesFacts) facts))
+                .build();
+
             rules.add(rule);
         }
         return rules.toArray(new Rule[rules.size()]);

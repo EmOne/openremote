@@ -19,13 +19,17 @@
  */
 package org.openremote.model.datapoint;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.openremote.model.Constants;
 import org.openremote.model.http.RequestParams;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+@Tag(name = "Asset Datapoint")
 @Path("asset/datapoint")
 public interface AssetDatapointResource {
 
@@ -44,7 +48,24 @@ public interface AssetDatapointResource {
                                    @PathParam("assetId") String assetId,
                                    @PathParam("attributeName") String attributeName,
                                    @QueryParam("interval") DatapointInterval datapointInterval,
+                                   @QueryParam("step") Integer stepSize,
                                    @QueryParam("fromTimestamp") long fromTimestamp,
                                    @QueryParam("toTimestamp") long toTimestamp);
 
+    @GET
+    @Path("periods")
+    @Produces(APPLICATION_JSON)
+    @RolesAllowed({Constants.READ_ASSETS_ROLE})
+    DatapointPeriod getDatapointPeriod(@BeanParam RequestParams requestParams,
+                                          @QueryParam("assetId") String assetId,
+                                          @QueryParam("attributeName") String attributeName);
+
+    @GET
+    @Path("export")
+    @Produces("application/zip")
+    @RolesAllowed({Constants.READ_ASSETS_ROLE})
+    void getDatapointExport(@Suspended AsyncResponse asyncResponse,
+                            @QueryParam("attributeRefs") String attributeRefsString,
+                            @QueryParam("fromTimestamp") long fromTimestamp,
+                            @QueryParam("toTimestamp") long toTimestamp);
 }

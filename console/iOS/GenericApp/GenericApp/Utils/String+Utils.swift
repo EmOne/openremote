@@ -2,24 +2,18 @@
 //  String+Utils.swift
 //  GenericApp
 //
-//  Created by Michael Rademaker on 26/10/2020.
-//  Copyright © 2020 OpenRemote. All rights reserved.
+//  Created by Michael Rademaker on 26/01/2022.
+//  Copyright © 2022 OpenRemote. All rights reserved.
 //
 
 import Foundation
+import UIKit
 
 extension String {
-
-  func stringByURLEncoding() -> String? {
-
-    let characters = CharacterSet.urlQueryAllowed.union(CharacterSet(charactersIn: "#"))
-
-    guard let encodedString = self.addingPercentEncoding(withAllowedCharacters: characters) else {
-      return nil
+    func isUrl () -> Bool {
+        if let url = NSURL(string: self) {
+            return UIApplication.shared.canOpenURL(url as URL)
+        }
+        return false
     }
-
-    return encodedString
-
-  }
-
 }

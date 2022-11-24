@@ -1,37 +1,48 @@
-import manager, {EventCallback, MapType, OREvent} from "@openremote/core";
+import manager, {EventCallback, MapType} from "@openremote/core";
 import {FlattenedNodesObserver} from "@polymer/polymer/lib/utils/flattened-nodes-observer.js";
-import {CSSResult, customElement, html, LitElement, property, PropertyValues, query} from "lit-element";
-import {Control, IControl, LngLat, LngLatBoundsLike, LngLatLike, Map as MapGL} from "mapbox-gl";
+import {CSSResult, html, LitElement, PropertyValues} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
+import {Control, IControl, LngLat, LngLatBoundsLike, LngLatLike, Map as MapGL, GeolocateControl} from "maplibre-gl";
 import {MapWidget} from "./mapwidget";
 import {style} from "./style";
+import "./markers/or-map-marker";
+import "./markers/or-map-marker-asset";
 import {OrMapMarker, OrMapMarkerChangedEvent} from "./markers/or-map-marker";
 import * as Util from "./util";
-import { OrInput, InputType, ValueInputProviderGenerator, ValueInputTemplateFunction } from "@openremote/or-mwc-components/or-mwc-input";
-import {showDialog, OrMwcDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
-import {getMarkerIconAndColorFromAssetType} from "./markers/or-map-marker-asset";
-import { i18next } from "@openremote/or-translate";
+import {
+    InputType,
+    OrMwcInput,
+    ValueInputProviderGenerator,
+    ValueInputTemplateFunction
+} from "@openremote/or-mwc-components/or-mwc-input";
+import {OrMwcDialog, showDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
+import {getMarkerIconAndColorFromAssetType} from "./util";
+import {i18next} from "@openremote/or-translate";
 
 // Re-exports
 export {Util, LngLatLike};
 export * from "./markers/or-map-marker";
 export * from "./markers/or-map-marker-asset";
-export {Control, IControl} from "mapbox-gl";
+export {Control, IControl} from "maplibre-gl";
 export * from "./or-map-asset-card";
 
 export interface ViewSettings {
-    "center": LngLatLike;
-    "bounds": LngLatBoundsLike;
-    "zoom": number;
-    "maxZoom": number;
-    "minZoom": number;
-    "boxZoom": boolean;
+    center: LngLatLike;
+    bounds: LngLatBoundsLike;
+    zoom: number;
+    maxZoom: number;
+    minZoom: number;
+    boxZoom: boolean;
+    geocodeUrl: String;
 }
 
 export interface MapEventDetail {
     lngLat: LngLat;
     doubleClick: boolean;
 }
-
+export interface MapGeocoderEventDetail {
+    geocode: any;
+}
 export class OrMapLoadedEvent extends CustomEvent<void> {
 
     public static readonly NAME = "or-map-loaded";
@@ -60,10 +71,43 @@ export class OrMapClickedEvent extends CustomEvent<MapEventDetail> {
     }
 }
 
+export class OrMapLongPressEvent extends CustomEvent<MapEventDetail> {
+
+    public static readonly NAME = "or-map-long-press";
+
+    constructor(lngLat: LngLat) {
+        super(OrMapLongPressEvent.NAME, {
+            detail: {
+                doubleClick: false,
+                lngLat: lngLat
+            },
+            bubbles: true,
+            composed: true
+        });
+    }
+}
+
+export class OrMapGeocoderChangeEvent extends CustomEvent<MapGeocoderEventDetail> {
+
+    public static readonly NAME = "or-map-geocoder-change";
+
+    constructor(geocode: any) {
+        super(OrMapGeocoderChangeEvent.NAME, {
+            detail: {
+                geocode
+            },
+            bubbles: true,
+            composed: true
+        });
+    }
+}
+
 declare global {
     export interface HTMLElementEventMap {
         [OrMapClickedEvent.NAME]: OrMapClickedEvent;
         [OrMapLoadedEvent.NAME]: OrMapLoadedEvent;
+        [OrMapLongPressEvent.NAME]: OrMapLongPressEvent;
+        [OrMapGeocoderChangeEvent.NAME]: OrMapGeocoderChangeEvent;
     }
 }
 
@@ -77,16 +121,16 @@ export class CenterControl {
     onAdd(map: MapGL): HTMLElement {
         this.map = map;
         const control = document.createElement("div");
-        control.classList.add("mapboxgl-ctrl");
-        control.classList.add("mapboxgl-ctrl-group");
+        control.classList.add("maplibregl-ctrl");
+        control.classList.add("maplibregl-ctrl-group");
         const button = document.createElement("button");
-        button.className = "mapboxgl-ctrl-geolocate";
+        button.className = "maplibregl-ctrl-compass";
         button.addEventListener("click", (ev) => map.flyTo({
             center: this.pos,
             zoom: map.getZoom()
         }));
         const buttonIcon = document.createElement("span");
-        buttonIcon.className = "mapboxgl-ctrl-icon";
+        buttonIcon.className = "maplibregl-ctrl-icon";
         button.appendChild(buttonIcon);
         control.appendChild(button);
         this.elem = control;
@@ -104,8 +148,8 @@ const CoordinatesRegexPattern = "^[ ]*(?:Lat: )?(-?\\d+\\.?\\d*)[, ]+(?:Lng: )?(
 function getCoordinatesInputKeyHandler(valueChangedHandler: (value: LngLat | undefined) => void) {
     return (e: KeyboardEvent) => {
         if (e.code === "Enter" || e.code === "NumpadEnter") {
-            const valStr = (e.target as OrInput).value as string;
-            let value: LngLat | undefined;
+            const valStr = (e.target as OrMwcInput).value as string;
+            let value: LngLat | undefined = !valStr ? undefined : {} as LngLat;
 
             if (valStr) {
                 const lngLatArr = valStr.split(/[ ,]/).filter(v => !!v);
@@ -125,7 +169,7 @@ export class CoordinatesControl {
 
     protected map?: MapGL;
     protected elem?: HTMLElement;
-    protected input!: OrInput;
+    protected input!: OrMwcInput;
     protected _readonly = false;
     protected _value: any;
     protected _valueChangedHandler: (value: LngLat | undefined) => void;
@@ -138,10 +182,10 @@ export class CoordinatesControl {
     onAdd(map: MapGL): HTMLElement {
         this.map = map;
         const control = document.createElement("div");
-        control.classList.add("mapboxgl-ctrl");
-        control.classList.add("mapboxgl-ctrl-group");
+        control.classList.add("maplibregl-ctrl");
+        control.classList.add("maplibregl-ctrl-group");
 
-        const input = new OrInput();
+        const input = new OrMwcInput();
         input.type = InputType.TEXT;
         input.outlined = true;
         input.compact = true;
@@ -182,11 +226,26 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
     const disabled = !!(options && options.disabled);
     const readonly = !!(options && options.readonly);
     const compact = !!(options && options.compact);
+    const comfortable = !!(options && options.comfortable);
     const centerControl = new CenterControl();
-    const coordinatesControl = new CoordinatesControl(disabled, valueChangeNotifier);
+
+    const valueChangeHandler = (value: LngLatLike | undefined) => {
+        if (!valueChangeNotifier) {
+            return;
+        }
+        if (value !== undefined) {
+            valueChangeNotifier({
+                value: value ? Util.getGeoJSONPoint(value) : null
+            });
+        } else {
+            valueChangeNotifier(undefined);
+        }
+    };
+
+    const coordinatesControl = new CoordinatesControl(disabled, valueChangeHandler);
+    let pos: { lng: number, lat: number } | null | undefined;
 
     const templateFunction: ValueInputTemplateFunction = (value, focused, loading, sending, error, helperText) => {
-        let pos: { lng: number, lat: number } | undefined;
         let center: number[] | undefined;
 
         if (value) {
@@ -195,7 +254,7 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
         }
 
         const centerStr = center ? center.join(", ") : undefined;
-        centerControl.pos = pos;
+        centerControl.pos = pos || undefined;
         coordinatesControl.readonly = disabled || readonly || sending || loading;
         coordinatesControl.value = centerStr;
 
@@ -203,18 +262,12 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
 
         let dialog: OrMwcDialog | undefined;
 
-        const updateHandler = () => {
-            if (valueChangeNotifier) {
-                valueChangeNotifier(Util.getGeoJSONPoint(pos));
-            }
-        };
-
-        const setPos = (lngLat: LngLatLike | undefined) => {
+        const setPos = (lngLat: LngLatLike | null) => {
             if (readonly || disabled) {
                 return;
             }
 
-            pos = Util.getLngLat(lngLat);
+            pos = lngLat ? Util.getLngLat(lngLat) : null;
 
             if (dialog) {
                 // We're in compact mode modal
@@ -225,51 +278,75 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
                 const centerStr = center ? center.join(", ") : undefined;
                 coordinatesControl.value = centerStr;
             } else {
-                updateHandler();
+                valueChangeHandler(pos as LngLatLike);
             }
         };
 
+        const controls = [[centerControl, "bottom-left"], [coordinatesControl, "top-right"]]
+
+        if (!readonly) {
+
+            const userLocationControl = new GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                showAccuracyCircle: false,
+                showUserLocation: false
+            });
+        
+            userLocationControl.on('geolocate', (currentLocation: GeolocationPosition) => {
+                setPos(new LngLat(currentLocation.coords.longitude, currentLocation.coords.latitude));
+            });
+            userLocationControl.on('outofmaxbounds', (currentLocation: GeolocationPosition) => {
+                setPos(new LngLat(currentLocation.coords.longitude, currentLocation.coords.latitude));
+            });
+            controls.push([userLocationControl, "bottom-left"]);
+        }
+
         let content = html`
-            <style>
-                or-map {
-                    border: #e5e5e5 1px solid;
-                    margin: 3px 0;
-                }
-            </style>
-            <or-map id="geo-json-point-map" class="or-map" @or-map-clicked="${(ev: OrMapClickedEvent) => {if (ev.detail.doubleClick) {setPos(ev.detail.lngLat);}}}" .center="${center}" .controls="${[centerControl, [coordinatesControl, "top-left"]]}">
+            <or-map id="geo-json-point-map" class="or-map" @or-map-long-press="${(ev: OrMapLongPressEvent) => {setPos(ev.detail.lngLat);}}" .center="${center}" .controls="${controls}" .showGeoCodingControl=${!readonly}>
                 <or-map-marker id="geo-json-point-marker" active .lng="${pos ? pos.lng : undefined}" .lat="${pos ? pos.lat : undefined}" .icon="${iconAndColor ? iconAndColor.icon : undefined}" .activeColor="${iconAndColor ? "#" + iconAndColor.color : undefined}" .colour="${iconAndColor ? "#" + iconAndColor.color : undefined}"></or-map-marker>
             </or-map>
+            <span class="long-press-msg">${i18next.t('longPressSetLoc')}</span>
         `;
 
         if (compact) {
             const mapContent = content;
 
+
             const onClick = () => {
                 dialog = showDialog(
-                    {
-                        content: mapContent,
-                        styles: html`
+                    new OrMwcDialog()
+                        .setContent(mapContent)
+                        .setStyles(html`
                             <style>
+                                .dialog-container {
+                                    flex-direction: column !important;
+                                }
+                                .dialog-container .long-press-msg {
+                                    display: block;
+                                    text-align: center;
+                                }
                                 or-map {
                                     width: 600px !important;
-                                    height: 600px !important;
+                                    min-height: 600px !important;
                                 }
                             </style>
-                        `,
-                        actions: [
+                        `)
+                        .setActions([
                             {
                                 actionName: "none",
                                 content: i18next.t("none"),
                                 action: () => {
-                                    setPos(undefined);
-                                    updateHandler();
+                                    setPos(null);
+                                    valueChangeHandler(pos as LngLatLike);
                                 }
                             },
                             {
                                 actionName: "ok",
                                 content: i18next.t("ok"),
                                 action: () => {
-                                    updateHandler();
+                                    valueChangeHandler(pos as LngLatLike);
                                 }
                             },
                             {
@@ -277,8 +354,7 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
                                 actionName: "cancel",
                                 content: i18next.t("cancel")
                             }
-                        ]
-                    });
+                        ]));
             };
 
             content = html`
@@ -291,8 +367,8 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
                     }
                 </style>
                 <div id="geo-json-point-input-compact-wrapper">
-                    <or-mwc-input .type="${InputType.TEXT}" .value="${centerStr}" .pattern="${CoordinatesRegexPattern}" @keyup="${(e: KeyboardEvent) => getCoordinatesInputKeyHandler(valueChangeNotifier)(e)}"></or-mwc-input>
-                    <or-mwc-input style="width: auto;" .type="${InputType.BUTTON}" compact icon="crosshairs-gps" @click="${onClick}"></or-mwc-input>
+                    <or-mwc-input style="width: auto;" .comfortable="${comfortable}" .type="${InputType.TEXT}" .value="${centerStr}" .pattern="${CoordinatesRegexPattern}" @keyup="${(e: KeyboardEvent) => getCoordinatesInputKeyHandler(valueChangeHandler)(e)}"></or-mwc-input>
+                    <or-mwc-input style="width: auto;" .type="${InputType.BUTTON}" compact icon="crosshairs-gps" @or-mwc-input-changed="${onClick}"></or-mwc-input>
                 </div>
             `;
         }
@@ -304,7 +380,8 @@ export const geoJsonPointInputTemplateProvider: ValueInputProviderGenerator = (a
         templateFunction: templateFunction,
         supportsHelperText: false,
         supportsLabel: false,
-        supportsSendButton: false
+        supportsSendButton: false,
+        validator: () => !pos || (pos.lat !== undefined && pos.lat !== null && pos.lng !== undefined && pos.lng !== null)
     };
 }
 
@@ -349,6 +426,9 @@ export class OrMap extends LitElement {
     @property({type: Number})
     public zoom?: number;
 
+    @property({type: Boolean})
+    public showGeoCodingControl: boolean = false;
+
     public controls?: (Control | IControl | [Control | IControl, ControlPosition?])[];
 
     protected _initCallback?: EventCallback;
@@ -374,25 +454,6 @@ export class OrMap extends LitElement {
             this.loadMap();
         }
     }
-    
-    protected onManagerEvent = (event: OREvent) => {
-        switch (event) {
-            case OREvent.READY:
-                if (manager.ready) {
-                    this.loadMap();
-                }
-                break;
-            case OREvent.DISPLAY_REALM_CHANGED:
-                if(this._map){
-                    this._map.loadViewSettings().then(()=> {
-                        if(!this._map) return
-                        this._map.setCenter()
-                        this._map.flyTo();
-                    });
-                }
-                break;
-        }
-    }
 
     public get markers(): OrMapMarker[] {
         return this._markers;
@@ -400,7 +461,6 @@ export class OrMap extends LitElement {
 
     public connectedCallback() {
         super.connectedCallback();
-        manager.addListener(this.onManagerEvent);
     }
 
     public disconnectedCallback() {
@@ -408,7 +468,6 @@ export class OrMap extends LitElement {
         if (this._observer) {
             this._observer.disconnect();
         }
-        manager.removeListener(this.onManagerEvent);
     }
 
     protected render() {
@@ -431,9 +490,14 @@ export class OrMap extends LitElement {
         }
     }
 
-    public reloadMap() {
-        this._loaded = false;
-        this.loadMap();
+    public refresh() {
+        if (this._map) {
+            this._map.loadViewSettings().then(() => {
+                if (!this._map) return;
+                this._map.setCenter();
+                this._map.flyTo();
+            });
+        }
     }
 
     public loadMap() {
@@ -443,7 +507,7 @@ export class OrMap extends LitElement {
         }
 
         if (this._mapContainer && this._slotElement) {
-            this._map = new MapWidget(this.type, this.shadowRoot!, this._mapContainer)
+            this._map = new MapWidget(this.type, this.showGeoCodingControl, this.shadowRoot!, this._mapContainer)
                 .setCenter(this.center)
                 .setZoom(this.zoom)
                 .setControls(this.controls);
@@ -535,6 +599,3 @@ export class OrMap extends LitElement {
         });
     }
 }
-
-export * from "./markers/or-map-marker";
-export * from "./markers/or-map-marker-asset";

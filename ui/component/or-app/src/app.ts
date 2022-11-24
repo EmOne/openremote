@@ -2,11 +2,12 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface AppState {
     page: string;
-    params: {[k in string]: any} | undefined;
+    params: {[k in string]: string} | null;
     offline: boolean;
     resolved: boolean,
     drawerOpened: boolean;
     scrollTop: number;
+    realm?: string;
 }
 
 export interface AppStateKeyed {
@@ -15,16 +16,17 @@ export interface AppStateKeyed {
 
 const INITIAL_STATE: AppState = {
     page: "",
-    params: undefined,
+    params: null,
     offline: false,
     resolved: false,
     drawerOpened: false,
     scrollTop: 0,
+    realm: undefined
 };
 
 export interface PageAndParams {
     page: string;
-    params?: {[k in string]: any};
+    params: {[k in string]: string} | null;
 }
 
 const appSlice = createSlice({
@@ -35,7 +37,7 @@ const appSlice = createSlice({
             return {
                 ...state,
                 page: typeof action.payload === "string" ? action.payload : action.payload.page,
-                params: typeof action.payload === "string" ? undefined : action.payload.params
+                params: typeof action.payload === "string" ? null : action.payload.params
             };
         },
         updateDrawer(state, action: PayloadAction<boolean>) {
@@ -49,9 +51,15 @@ const appSlice = createSlice({
                 ...state,
                 scrollTop: action.payload
             };
+        },
+        updateRealm(state, action: PayloadAction<string>) {
+            return {
+                ...state,
+                realm: action.payload
+            }
         }
     }
 });
 
-export const {updatePage, updateDrawer, scrollToTop} = appSlice.actions;
+export const {updatePage, updateDrawer, scrollToTop, updateRealm} = appSlice.actions;
 export const appReducer = appSlice.reducer;

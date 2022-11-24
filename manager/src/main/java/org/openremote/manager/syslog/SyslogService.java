@@ -80,14 +80,12 @@ public class SyslogService extends Handler implements ContainerService {
         }
 
         if (clientEventService != null) {
-            clientEventService.addSubscriptionAuthorizer((auth, subscription) -> {
-                // Only superuser can get logging events
-                return subscription.isEventType(SyslogEvent.class) && auth.hasResourceRole(Constants.READ_RULES_ROLE, Constants.KEYCLOAK_CLIENT_ID);
-            });
+            clientEventService.addSubscriptionAuthorizer((realm, auth, subscription) ->
+                subscription.isEventType(SyslogEvent.class) && auth != null && (auth.isSuperUser() || auth.hasResourceRole(Constants.READ_LOGS_ROLE, Constants.KEYCLOAK_CLIENT_ID)));
         }
 
         if (container.hasService(ManagerWebService.class)) {
-            container.getService(ManagerWebService.class).getApiSingletons().add(
+            container.getService(ManagerWebService.class).addApiSingleton(
                 new SyslogResourceImpl(this)
             );
         }

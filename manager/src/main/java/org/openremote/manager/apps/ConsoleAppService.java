@@ -19,6 +19,9 @@
  */
 package org.openremote.manager.apps;
 
+import io.undertow.server.HttpHandler;
+import io.undertow.server.handlers.PathHandler;
+import org.openremote.container.web.WebService;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.container.persistence.PersistenceService;
@@ -26,23 +29,34 @@ import org.openremote.container.timer.TimerService;
 import org.openremote.manager.security.ManagerIdentityService;
 import org.openremote.manager.web.ManagerWebService;
 import org.openremote.model.apps.ConsoleAppConfig;
+import org.openremote.model.util.ValueUtil;
 
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.WebApplicationException;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
+
+import static org.openremote.container.util.MapAccess.getString;
+import static org.openremote.container.web.WebService.pathStartsWithHandler;
 
 public class ConsoleAppService implements ContainerService {
 
     private static final Logger LOG = Logger.getLogger(ConsoleAppService.class.getName());
 
+    public static final String CONSOLE_APP_CONFIG_PATH = "/consoleappconfig";
+    public static final String OR_CONSOLE_APP_CONFIG_DOCROOT = "OR_CONSOLE_APP_CONFIG_DOCROOT";
+    public static final String OR_CONSOLE_APP_CONFIG_DOCROOT_DEFAULT = "manager/src/consoleappconfig";
+
     protected TimerService timerService;
     protected ManagerWebService managerWebService;
     protected ManagerIdentityService identityService;
     protected PersistenceService persistenceService;
-
-    @Override
-    public int getPriority() {
-        return ContainerService.DEFAULT_PRIORITY;
-    }
+    Path consoleAppDocRoot;
 
     @Override
     public void init(Container container) throws Exception {
@@ -52,9 +66,22 @@ public class ConsoleAppService implements ContainerService {
         this.identityService = container.getService(ManagerIdentityService.class);
         this.persistenceService = container.getService(PersistenceService.class);
 
-        container.getService(ManagerWebService.class).getApiSingletons().add(
+        container.getService(ManagerWebService.class).addApiSingleton(
             new ConsoleAppResourceImpl(this)
         );
+
+        consoleAppDocRoot = Paths.get(getString(container.getConfig(), OR_CONSOLE_APP_CONFIG_DOCROOT, OR_CONSOLE_APP_CONFIG_DOCROOT_DEFAULT));
+
+        // Serve console app config files
+        if (Files.isDirectory(consoleAppDocRoot)) {
+            HttpHandler customBaseFileHandler = ManagerWebService.createFileHandler(container, consoleAppDocRoot, null);
+
+            HttpHandler pathHandler = new PathHandler().addPrefixPath(CONSOLE_APP_CONFIG_PATH, customBaseFileHandler);
+            managerWebService.getRequestHandlers().add(0, pathStartsWithHandler(
+                "Console app config files",
+                CONSOLE_APP_CONFIG_PATH,
+                pathHandler));
+        }
     }
 
     @Override
@@ -66,25 +93,18 @@ public class ConsoleAppService implements ContainerService {
     }
 
     public String[] getInstalled() throws Exception {
-        return Files.list(managerWebService.getBuiltInAppDocRoot())
+        return Stream.concat(
+                Files.list(managerWebService.getBuiltInAppDocRoot()),
+                Files.list(managerWebService.getCustomAppDocRoot()))
             .filter(Files::isDirectory)
             .map(dir -> dir.getFileName().toString())
             .toArray(String[]::new);
     }
 
-    public ConsoleAppConfig getAppConfig(String realm) {
-        return persistenceService.doReturningTransaction(entityManager ->
-                entityManager.createQuery(
-                        "select ac from ConsoleAppConfig ac " +
-                                "where ac.realm = :realm",
-                        ConsoleAppConfig.class)
-                        .setParameter("realm", realm)
-                        .getResultList()).stream().findFirst().orElse(null);
-    }
-
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
+                "consoleAppDocRoot=" + consoleAppDocRoot +
             '}';
     }
 }

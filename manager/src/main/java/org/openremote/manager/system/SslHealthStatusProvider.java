@@ -20,10 +20,12 @@
 package org.openremote.manager.system;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.grpc.netty.shaded.io.netty.internal.tcnative.SSL;
+import org.openremote.model.Constants;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
 import org.openremote.model.system.HealthStatusProvider;
-import org.openremote.model.value.Values;
+import org.openremote.model.util.ValueUtil;
 
 import javax.net.ssl.*;
 import java.io.IOException;
@@ -35,19 +37,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.time.temporal.ChronoUnit.DAYS;
-import static org.openremote.container.security.keycloak.KeycloakIdentityProvider.*;
-import static org.openremote.container.util.MapAccess.getBoolean;
 import static org.openremote.container.util.MapAccess.getInteger;
+import static org.openremote.container.util.MapAccess.getString;
 
 public class SslHealthStatusProvider implements X509TrustManager, HealthStatusProvider, ContainerService {
 
     public static final String NAME = "ssl";
-    public static final String VERSION = "1.0";
     protected static final Logger LOG = Logger.getLogger(SslHealthStatusProvider.class.getName());
-    protected boolean sslEnabled;
-    protected String hostname;
-    protected int port;
-    protected SSLContext sslContext;
+    protected String host;
+    protected int SSLPort;
+    protected SSLContext SSLContext;
 
     @Override
     public int getPriority() {
@@ -56,17 +55,23 @@ public class SslHealthStatusProvider implements X509TrustManager, HealthStatusPr
 
     @Override
     public void init(Container container) throws Exception {
-        sslEnabled = getBoolean(container.getConfig(), IDENTITY_NETWORK_SECURE, IDENTITY_NETWORK_SECURE_DEFAULT);
-        hostname = container.getConfig().getOrDefault(IDENTITY_NETWORK_HOST, IDENTITY_NETWORK_HOST_DEFAULT);
-        port = getInteger(container.getConfig(), IDENTITY_NETWORK_WEBSERVER_PORT, IDENTITY_NETWORK_WEBSERVER_PORT_DEFAULT);
+        
+        int SSLPort = getInteger(container.getConfig(), Constants.OR_SSL_PORT, -1);
+
+        if (SSLPort < 0) {
+            SSLPort = 443;
+        }
+        
+        if (SSLPort > 0 && SSLPort <= 65536) {
+            this.SSLPort = SSLPort;
+            host = getString(container.getConfig(), Constants.OR_HOSTNAME, null);
+            SSLContext = SSLContext.getInstance("TLS");
+            SSLContext.init(null, new TrustManager[]{this}, null);
+        }
     }
 
     @Override
     public void start(Container container) throws Exception {
-        if (sslEnabled) {
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[]{this}, null);
-        }
     }
 
     @Override
@@ -80,20 +85,15 @@ public class SslHealthStatusProvider implements X509TrustManager, HealthStatusPr
     }
 
     @Override
-    public String getHealthStatusVersion() {
-        return VERSION;
-    }
-
-    @Override
     public Object getHealthStatus() {
-        if (!sslEnabled) {
+        if (SSLContext == null) {
             return null;
         }
 
-        SSLSocketFactory ssf = sslContext.getSocketFactory();
+        SSLSocketFactory ssf = SSLContext.getSocketFactory();
 
         try {
-            SSLSocket socket = (SSLSocket) ssf.createSocket(hostname, 443);
+            SSLSocket socket = (SSLSocket) ssf.createSocket(host, SSLPort);
             socket.startHandshake();
 
             X509Certificate[] peerCertificates = (X509Certificate[]) socket.getSession().getPeerCertificates();
@@ -101,11 +101,11 @@ public class SslHealthStatusProvider implements X509TrustManager, HealthStatusPr
 
             Date date = serverCert.getNotAfter();
             long validDays = DAYS.between(Instant.now(), date.toInstant());
-            ObjectNode objectValue = Values.JSON.createObjectNode();
+            ObjectNode objectValue = ValueUtil.JSON.createObjectNode();
             objectValue.put("validDays", validDays);
             return objectValue;
         } catch (IOException e) {
-            LOG.log(Level.WARNING, "Failed to connect to SSL port 443 on host: " + hostname);
+            LOG.log(Level.WARNING, "Failed to connect to SSL port " + SSLPort + " on host: " + host);
             return null;
         }
     }

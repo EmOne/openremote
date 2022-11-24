@@ -1,14 +1,13 @@
-import {HeaderConfig} from "./or-header";
+import {HeaderConfig, Languages} from "./or-header";
 import {AppStateKeyed} from "./app";
-import { TemplateResult, LitElement } from "lit-element";
+import {LitElement, TemplateResult} from "lit";
 import i18next from "i18next";
-import { translate } from "@openremote/or-translate";
-import { EnhancedStore, AnyAction, Unsubscribe } from "@reduxjs/toolkit";
-import {ThunkMiddleware} from "redux-thunk";
+import {translate} from "@openremote/or-translate";
+import {AnyAction, Store, Unsubscribe} from "@reduxjs/toolkit";
 import Navigo from "navigo";
 
 // Configure routing
-export const router = new Navigo(null, true, "#!");
+export const router = new Navigo("/", {hash: true});
 
 export interface RealmAppConfig {
     appTitle?: string;
@@ -22,6 +21,7 @@ export interface RealmAppConfig {
 
 export interface AppConfig<S extends AppStateKeyed> {
     pages: PageProvider<S>[];
+    languages?: Languages;
     superUserHeader?: HeaderConfig;
     realms?: {
         // @ts-ignore
@@ -40,11 +40,11 @@ export abstract class Page<S extends AppStateKeyed> extends translate(i18next)(L
 
     abstract get name(): string;
 
-    protected _store: EnhancedStore<S, AnyAction, ReadonlyArray<ThunkMiddleware<S>>>;
+    protected _store: Store<S, AnyAction>;
 
     protected _storeUnsubscribe!: Unsubscribe;
 
-    constructor(store: EnhancedStore<S, AnyAction, ReadonlyArray<ThunkMiddleware<S>>>) {
+    constructor(store: Store<S, AnyAction>) {
         super();
         this._store = store;
     }
@@ -58,6 +58,10 @@ export abstract class Page<S extends AppStateKeyed> extends translate(i18next)(L
     disconnectedCallback() {
         this._storeUnsubscribe();
         super.disconnectedCallback();
+    }
+
+    protected getState(): S {
+        return this._store.getState();
     }
 
     abstract stateChanged(state: S): void;

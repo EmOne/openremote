@@ -1,16 +1,19 @@
-import {css, customElement, html, property} from "lit-element";
+import {css, html} from "lit";
+import {customElement, property, query} from "lit/decorators.js";
 import "@openremote/or-rules";
-import {ActionTargetType, RulesConfig} from "@openremote/or-rules";
+import {OrRules, RulesConfig} from "@openremote/or-rules";
 import {NotificationTargetType, RulesetLang, WellknownAssets} from "@openremote/model";
-import {EnhancedStore} from "@reduxjs/toolkit";
+import {Store} from "@reduxjs/toolkit";
 import {Page, PageProvider} from "@openremote/or-app";
 import {AppStateKeyed} from "@openremote/or-app";
+import manager from "@openremote/core";
+import {createSelector} from "reselect";
 
 export interface PageRulesConfig {
     rules: RulesConfig;
 }
 
-export function pageRulesProvider<S extends AppStateKeyed>(store: EnhancedStore<S>, config: PageRulesConfig = PAGE_RULES_CONFIG_DEFAULT): PageProvider<S> {
+export function pageRulesProvider(store: Store<AppStateKeyed>, config: PageRulesConfig = PAGE_RULES_CONFIG_DEFAULT): PageProvider<AppStateKeyed> {
     return {
         name: "rules",
         routes: [
@@ -36,7 +39,7 @@ export const PAGE_RULES_CONFIG_DEFAULT: PageRulesConfig = {
                 actions: {
                     wait: [],
                     attribute: [],
-                    email: [ActionTargetType.USER, ActionTargetType.CUSTOM],
+                    email: [NotificationTargetType.USER, NotificationTargetType.CUSTOM],
                     push: [NotificationTargetType.USER, NotificationTargetType.ASSET],
                 }
             }
@@ -56,7 +59,7 @@ export const PAGE_RULES_CONFIG_DEFAULT: PageRulesConfig = {
 };
 
 @customElement("page-rules")
-class PageRules<S extends AppStateKeyed> extends Page<S>  {
+export class PageRules extends Page<AppStateKeyed>  {
 
     static get styles() {
         // language=CSS
@@ -75,20 +78,35 @@ class PageRules<S extends AppStateKeyed> extends Page<S>  {
     @property()
     public config?: PageRulesConfig;
 
+    @query("#rules")
+    protected _orRules!: OrRules;
+
+    protected _realmSelector = (state: AppStateKeyed) => state.app.realm || manager.displayRealm;
+
+    protected getRealmState = createSelector(
+        [this._realmSelector],
+        async (realm) => {
+            if (this._orRules) {
+                this._orRules.refresh();
+            }
+        }
+    )
+
     get name(): string {
         return "rules";
     }
 
-    constructor(store: EnhancedStore<S>) {
+    constructor(store: Store<AppStateKeyed>) {
         super(store);
     }
 
     protected render() {
         return html`
-            <or-rules .config="${this.config && this.config.rules ? this.config.rules : PAGE_RULES_CONFIG_DEFAULT.rules}"></or-rules>
+            <or-rules id="rules" .config="${this.config && this.config.rules ? this.config.rules : PAGE_RULES_CONFIG_DEFAULT.rules}"></or-rules>
         `;
     }
 
-    public stateChanged(state: S) {
+    public stateChanged(state: AppStateKeyed) {
+        this.getRealmState(state);
     }
 }

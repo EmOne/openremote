@@ -1,7 +1,7 @@
 import { manager } from "@openremote/core";
 import { AppStateKeyed, HeaderItem, OrApp } from "@openremote/or-app";
 import {AnyAction} from "@reduxjs/toolkit";
-import { getMapRoute } from "./pages/page-map";
+import { getMapRoute } from "./routes";
 
 export function headerItemMap<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
     return {
@@ -24,7 +24,8 @@ export function headerItemRules<S extends AppStateKeyed, A extends AnyAction>(or
         icon: "state-machine",
         href: "rules",
         text: "rule_plural",
-        hideMobile: true
+        hideMobile: true,
+        roles: () => !manager.hasRealmRole("restricted_user")
     };
 }
 
@@ -94,7 +95,7 @@ export function headerItemUsers<S extends AppStateKeyed, A extends AnyAction>(or
         value: "users",
         href: "users",
         text: "user_plural",
-        roles: ["write:admin"]
+        roles: ["read:admin", "write:admin"]
     };
 }
 export function headerItemRoles<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
@@ -103,7 +104,7 @@ export function headerItemRoles<S extends AppStateKeyed, A extends AnyAction>(or
         value: "roles",
         href: "roles",
         text: "role_plural",
-        roles: ["write:admin"]
+        roles: ["read:admin", "write:admin"]
     };
 }
 export function headerItemRealms<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
@@ -112,6 +113,25 @@ export function headerItemRealms<S extends AppStateKeyed, A extends AnyAction>(o
         value: "realms",
         href: "realms",
         text: "realm_plural",
+        roles: () => manager.isSuperUser()
+    };
+}
+
+export function headerItemExport<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
+    return {
+        icon: "database-export",
+        value: "export",
+        href: "data-export",
+        text: "dataExport"
+    };
+}
+
+export function headerItemProvisioning<S extends AppStateKeyed, A extends AnyAction>(orApp: OrApp<S>): HeaderItem {
+    return {
+        icon: "cellphone-cog",
+        value: "provisioning",
+        href: "provisioning",
+        text: "autoProvisioning",
         roles: () => manager.isSuperUser()
     };
 }

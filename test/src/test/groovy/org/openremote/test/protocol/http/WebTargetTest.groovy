@@ -30,7 +30,7 @@ import org.openremote.model.auth.OAuthRefreshTokenGrant
 import org.openremote.container.web.OAuthServerResponse
 import org.openremote.container.web.QueryParameterInjectorFilter
 import org.openremote.container.web.WebTargetBuilder
-import org.openremote.model.value.Values
+import org.openremote.model.util.ValueUtil
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -240,10 +240,10 @@ class WebTargetTest extends Specification {
             "password")
 
         when: "it is serialised"
-        String grantStr = Values.asJSON(grant).orElse(null)
+        String grantStr = ValueUtil.asJSON(grant).orElse(null)
 
         and: "deserialised again"
-        OAuthGrant grant2 = Values.JSON.readValue(grantStr, OAuthGrant.class)
+        OAuthGrant grant2 = ValueUtil.JSON.readValue(grantStr, OAuthGrant.class)
 
         then: "the two grant objects should be the same"
         assert grant2.tokenEndpointUri == grant.tokenEndpointUri
@@ -253,6 +253,18 @@ class WebTargetTest extends Specification {
         assert grant2.scope == grant.scope
         assert ((OAuthPasswordGrant)grant2).username == grant.username
         assert ((OAuthPasswordGrant)grant2).password == grant.password
+
+        when: "serialised"
+        Map<String, Object> map = new HashMap<>();
+        String v = "{\"test\": 123}"
+        map.put("value", v)
+        String mapStr = ValueUtil.JSON.writeValueAsString(map)
+
+        and: "deserialised"
+        def newMap = ValueUtil.JSON.readValue(mapStr, Map.class)
+
+        then: "should work"
+        assert newMap != null
     }
 
     def "Check Basic authentication"() {

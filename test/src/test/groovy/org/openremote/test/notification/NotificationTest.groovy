@@ -3,7 +3,6 @@ package org.openremote.test.notification
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.google.firebase.messaging.Message
-import org.openremote.container.web.WebService
 import org.openremote.manager.asset.AssetProcessingService
 import org.openremote.manager.asset.AssetStorageService
 import org.openremote.manager.asset.console.ConsoleResourceImpl
@@ -13,17 +12,18 @@ import org.openremote.manager.notification.PushNotificationHandler
 import org.openremote.manager.rules.geofence.ORConsoleGeofenceAssetAdapter
 import org.openremote.manager.security.ManagerIdentityService
 import org.openremote.manager.setup.SetupService
-import org.openremote.model.query.UserQuery
-import org.openremote.model.query.filter.TenantPredicate
-import org.openremote.model.util.TextUtil
-import org.openremote.test.setup.KeycloakTestSetup
-import org.openremote.test.setup.ManagerTestSetup
+import org.openremote.manager.web.ManagerWebService
 import org.openremote.model.attribute.AttributeRef
 import org.openremote.model.console.ConsoleProvider
 import org.openremote.model.console.ConsoleRegistration
 import org.openremote.model.console.ConsoleResource
 import org.openremote.model.notification.*
+import org.openremote.model.query.UserQuery
+import org.openremote.model.query.filter.RealmPredicate
+import org.openremote.model.util.TextUtil
 import org.openremote.test.ManagerContainerTrait
+import org.openremote.setup.integration.KeycloakTestSetup
+import org.openremote.setup.integration.ManagerTestSetup
 import org.simplejavamail.email.Email
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
@@ -34,11 +34,11 @@ import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 import static org.openremote.container.util.MapAccess.getString
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD
-import static org.openremote.manager.security.ManagerIdentityProvider.SETUP_ADMIN_PASSWORD_DEFAULT
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD
+import static org.openremote.manager.security.ManagerIdentityProvider.OR_ADMIN_PASSWORD_DEFAULT
 import static org.openremote.model.Constants.*
 import static org.openremote.model.notification.PushNotificationAction.writeAttributeValueAction
-import static org.openremote.model.value.Values.parse
+import static org.openremote.model.util.ValueUtil.parse
 
 class NotificationTest extends Specification implements ManagerContainerTrait {
 
@@ -50,15 +50,13 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         List<AbstractNotificationMessage> notificationMessages = []
 
         given: "the container environment is started with the mock handler"
+        def conditions = new PollingConditions(timeout: 10, initialDelay: 0.1, delay: 0.2)
         def container = startContainer(defaultConfig(), defaultServices())
         def keycloakTestSetup = container.getService(SetupService.class).getTaskOfType(KeycloakTestSetup.class)
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
         def notificationService = container.getService(NotificationService.class)
         def pushNotificationHandler = container.getService(PushNotificationHandler.class)
-        def consoleResource = (ConsoleResourceImpl)container.getService(WebService.class).getApiSingletons().find {it instanceof ConsoleResourceImpl}
-
-        and: "the clock is stopped for testing purposes"
-        stopPseudoClock()
+        def consoleResource = (ConsoleResourceImpl)container.getService(ManagerWebService.class).apiSingletons.find {it instanceof ConsoleResourceImpl}
 
         and: "a mock push notification handler"
         PushNotificationHandler mockPushNotificationHandler = Spy(pushNotificationHandler)
@@ -79,7 +77,7 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         notificationService.notificationHandlerMap.put(pushNotificationHandler.getTypeName(), mockPushNotificationHandler)
 
         and: "an authenticated test user"
-        def realm = keycloakTestSetup.tenantBuilding.realm
+        def realm = keycloakTestSetup.realmBuilding.name
         def testuser1AccessToken = authenticate(
             container,
             MASTER_REALM,
@@ -108,7 +106,7 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
                 MASTER_REALM,
                 KEYCLOAK_CLIENT_ID,
                 MASTER_REALM_ADMIN_USER,
-                getString(container.getConfig(), SETUP_ADMIN_PASSWORD, SETUP_ADMIN_PASSWORD_DEFAULT)
+                getString(container.getConfig(), OR_ADMIN_PASSWORD, OR_ADMIN_PASSWORD_DEFAULT)
         ).token
 
         def notification = new Notification("TestAction",
@@ -126,12 +124,13 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         def testuser2NotificationResource = getClientApiTarget(serverUri(serverPort), realm, testuser2AccessToken).proxy(NotificationResource.class)
         def testuser3NotificationResource = getClientApiTarget(serverUri(serverPort), realm, testuser3AccessToken).proxy(NotificationResource.class)
         def adminNotificationResource = getClientApiTarget(serverUri(serverPort), MASTER_REALM, adminAccessToken).proxy(NotificationResource.class)
-        def anonymousNotificationResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.tenantBuilding.realm).proxy(NotificationResource.class)
+        def anonymousNotificationResource = getClientApiTarget(serverUri(serverPort), keycloakTestSetup.realmBuilding.name).proxy(NotificationResource.class)
         def testuser1ConsoleResource = getClientApiTarget(serverUri(serverPort), MASTER_REALM, testuser1AccessToken).proxy(ConsoleResource.class)
         def testuser2ConsoleResource = getClientApiTarget(serverUri(serverPort), realm, testuser2AccessToken).proxy(ConsoleResource.class)
         def testuser3ConsoleResource = getClientApiTarget(serverUri(serverPort), realm, testuser3AccessToken).proxy(ConsoleResource.class)
         def adminConsoleResource = getClientApiTarget(serverUri(serverPort), MASTER_REALM, adminAccessToken).proxy(ConsoleResource.class)
         def anonymousConsoleResource = getClientApiTarget(serverUri(serverPort), realm).proxy(ConsoleResource.class)
+        SentNotification[] notifications = []
 
         when: "various consoles are registered"
         def consoleRegistration = new ConsoleRegistration(null,
@@ -176,57 +175,72 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         anonymousConsole.id != null
 
         when: "the admin user sends a push notification to an entire realm"
-        notification.targets = [new Notification.Target(Notification.TargetType.TENANT, keycloakTestSetup.tenantBuilding.realm)]
+        notification.targets = [new Notification.Target(Notification.TargetType.REALM, keycloakTestSetup.realmBuilding.name)]
         adminNotificationResource.sendNotification(null, notification)
 
-        then: "all consoles in that realm should have been sent a notification"
-        assert notificationIds.size() == 4
-        assert notificationTargetTypes.count {t -> t == Notification.TargetType.ASSET} == 4
-        assert notificationTargetIds.contains(testuser2Console.id)
-        assert notificationTargetIds.contains(testuser3Console1.id)
-        assert notificationTargetIds.contains(testuser3Console2.id)
-        assert notificationTargetIds.contains(anonymousConsole.id)
-        assert notificationMessages.count {m -> m instanceof PushNotificationMessage && m.title == "Test Action" && m.body == "Click to cancel" && m.action != null} == 4
+        then: "all consoles in that realm should have been sent a notification (excluding testuser2 as they have disabled push notifications)"
+        conditions.eventually {
+            assert notificationIds.size() == 3
+            assert notificationTargetTypes.count { t -> t == Notification.TargetType.ASSET } == 3
+            assert !notificationTargetIds.contains(testuser2Console.id)
+            assert notificationTargetIds.contains(testuser3Console1.id)
+            assert notificationTargetIds.contains(testuser3Console2.id)
+            assert notificationTargetIds.contains(anonymousConsole.id)
+            assert notificationMessages.count { m -> m instanceof PushNotificationMessage && m.title == "Test Action" && m.body == "Click to cancel" && m.action != null } == 3
+        }
 
         when: "a regular user sends a push notification to an entire realm"
         testuser2NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         WebApplicationException ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
-        when: "the admin user sends a notification to a user in a different realm"
+        when: "the admin user sends a notification to a user in a different realm with emailNotificationsDisabled set to true"
         notification.targets = [new Notification.Target(Notification.TargetType.USER, keycloakTestSetup.testuser2Id)]
         advancePseudoClock(1, TimeUnit.HOURS, container)
         adminNotificationResource.sendNotification(null, notification)
 
+        then: "no notification should have been sent"
+        ex = thrown()
+        ex.response.status == 400
+        notificationIds.size() == 3
+
+        when: "the admin user sends a notification to a user in a different realm with emailNotificationsDisabled set to false"
+        notification.targets = [new Notification.Target(Notification.TargetType.USER, keycloakTestSetup.testuser3Id)]
+        advancePseudoClock(1, TimeUnit.HOURS, container)
+        adminNotificationResource.sendNotification(null, notification)
+
         then: "the notification should have been sent"
-        notificationIds.size() == 5
+        conditions.eventually {
+            assert notificationIds.size() == 5
+        }
 
         when: "a regular user sends a push notification to a user in a different realm"
         notification.targets = [new Notification.Target(Notification.TargetType.USER, keycloakTestSetup.testuser2Id)]
         testuser1NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         when: "a restricted user sends a push notification to another user in the same realm"
         notification.targets = [new Notification.Target(Notification.TargetType.USER, keycloakTestSetup.testuser2Id)]
         testuser3NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         when: "an anonymous user sends a push notification to a user"
         anonymousNotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         when: "the admin user sends a push notification to the console assets in building realm"
+        notificationIds.clear()
         notification.targets = [new Notification.Target(Notification.TargetType.ASSET, testuser2Console.id),
                                 new Notification.Target(Notification.TargetType.ASSET, testuser3Console1.id),
                                 new Notification.Target(Notification.TargetType.ASSET, testuser3Console2.id),
@@ -234,51 +248,70 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(1, TimeUnit.HOURS, container)
         adminNotificationResource.sendNotification(null, notification)
 
-        then: "the notification should have been sent"
-        notificationIds.size() == 9
+        then: "the notification should have been sent (inc. testuser2 as message was direct to console)"
+        conditions.eventually {
+            assert notificationIds.size() == 4
+            assert notificationTargetIds.contains(testuser2Console.id)
+            assert notificationTargetIds.contains(testuser3Console1.id)
+            assert notificationTargetIds.contains(testuser3Console2.id)
+            assert notificationTargetIds.contains(anonymousConsole.id)
+        }
 
         when: "a regular user sends a push notification to the console assets in a different realm"
         testuser1NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         when: "a regular user sends a push notification to the console assets in the same realm"
+        notificationIds.clear()
         advancePseudoClock(1, TimeUnit.HOURS, container)
         testuser2NotificationResource.sendNotification(null, notification)
 
-        then: "the notification should have been sent"
-        notificationIds.size() == 13
+        then: "the notification should have been sent (inc. testuser2 as message was direct to console)"
+        conditions.eventually {
+            assert notificationIds.size() == 4
+            assert notificationTargetIds.contains(testuser2Console.id)
+            assert notificationTargetIds.contains(testuser3Console1.id)
+            assert notificationTargetIds.contains(testuser3Console2.id)
+            assert notificationTargetIds.contains(anonymousConsole.id)
+        }
 
         when: "a notification is sent using the same mechanism as an asset ruleset"
+        notificationIds.clear()
         notificationService.sendNotification(notification, Notification.Source.ASSET_RULESET, consoleResource.getConsoleParentAssetId(realm))
 
-        then: "the notification should have been sent"
-        new PollingConditions(timeout: 10, delay: 0.2).eventually {
-            assert notificationIds.size() == 17
+        then: "the notification should have been sent (inc. testuser2 as message was direct to console)"
+        conditions.eventually {
+            assert notificationIds.size() == 4
+            assert notificationTargetIds.contains(testuser2Console.id)
+            assert notificationTargetIds.contains(testuser3Console1.id)
+            assert notificationTargetIds.contains(testuser3Console2.id)
+            assert notificationTargetIds.contains(anonymousConsole.id)
         }
 
         when: "a restricted user sends a push notification to the console assets in the same realm"
         testuser3NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         when: "a restricted user sends a push notification to some consoles linked to them and some not linked to them"
+        notificationIds.clear()
         notification.targets = [new Notification.Target(Notification.TargetType.ASSET, testuser2Console.id),
                                 new Notification.Target(Notification.TargetType.ASSET, testuser3Console1.id),
                                 new Notification.Target(Notification.TargetType.ASSET, testuser3Console2.id),
                                 new Notification.Target(Notification.TargetType.ASSET, anonymousConsole.id)]
         testuser3NotificationResource.sendNotification(null, notification)
 
-        then: "access should be forbidden"
+        then: "no notification should have been sent"
         ex = thrown()
-        ex.response.status == 403
+        ex.response.status == 400
 
         and: "no new notifications should have been sent"
-        notificationIds.size() == 17
+        notificationIds.size() == 0
 
         when: "a restricted user sends a push notification to some consoles linked to them"
         advancePseudoClock(1, TimeUnit.HOURS, container)
@@ -287,53 +320,52 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         testuser3NotificationResource.sendNotification(null, notification)
 
         then: "the notifications should have been sent"
-        notificationIds.size() == 19
+        conditions.eventually {
+            assert notificationIds.size() == 2
+            assert notificationTargetIds.contains(testuser3Console1.id)
+            assert notificationTargetIds.contains(testuser3Console2.id)
+        }
 
         // -----------------------------------------------
         //    Check notification resource
         // -----------------------------------------------
 
-        when: "the admin user requests the notifications for Building consoles"
-        List<SentNotification> notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
-
-        then: "all notifications sent to these consoles should be returned"
-        assert notifications.size() == 19
-        assert notifications.count {n ->
-            PushNotificationMessage pushMessage = n.message as PushNotificationMessage
-            pushMessage.getTitle() == "Test Action" &&
-                pushMessage.getBody() == "Click to cancel" &&
-                pushMessage.getAction() != null &&
-                n.deliveredOn == null &&
-                n.acknowledgedOn == null
-        } == 19
-
-        when: "the admin user marks a Building console notification as delivered and requests the notifications for Building consoles"
-        adminNotificationResource.notificationDelivered(null, testuser2Console.id, notifications.find {n -> n.targetId == testuser2Console.id}.id)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
-
-        then: "the notification should have been updated"
-        assert notifications.size() == 19
-        assert notifications.count {n -> n.deliveredOn != null} == 1
+        and: "all notifications sent to consoles in the building realm should be available via the REST API"
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id).length == 3
+            notifications = adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id)
+            assert notifications.length == 6
+            assert notifications.every {n ->
+                PushNotificationMessage pushMessage = n.message as PushNotificationMessage
+                pushMessage.getTitle() == "Test Action" &&
+                        pushMessage.getBody() == "Click to cancel" &&
+                        pushMessage.getAction() != null &&
+                        n.deliveredOn == null &&
+                        n.acknowledgedOn == null
+            }
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 6
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id).length == 4
+        }
 
         when: "the admin user marks a Building console notification as delivered and requests the notifications for Building consoles"
-        adminNotificationResource.notificationAcknowledged(null, testuser2Console.id, notifications.find {n -> n.targetId == testuser2Console.id && n.deliveredOn != null}.id, new TextNode("dismissed"))
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
+        adminNotificationResource.notificationDelivered(null, testuser3Console1.id, notifications.find {n -> n.targetId == testuser3Console1.id}.id)
 
         then: "the notification should have been updated"
-        assert notifications.size() == 19
-        assert notifications.count {n -> n.deliveredOn != null && n.acknowledgedOn != null && n.acknowledgement == "\"dismissed\""} == 1
+        conditions.eventually {
+            notifications = adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id)
+            assert notifications.length == 6
+            assert notifications.count {n -> n.deliveredOn != null} == 1
+        }
+
+        when: "the admin user marks a Building console notification as delivered and requests the notifications for Building consoles"
+        adminNotificationResource.notificationAcknowledged(null, testuser3Console1.id, notifications.find {n -> n.targetId == testuser3Console1.id && n.deliveredOn != null}.id, new TextNode("dismissed"))
+
+        then: "the notification should have been updated"
+        conditions.eventually {
+            notifications = adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id)
+            assert notifications.length == 6
+            assert notifications.count {n -> n.deliveredOn != null && n.acknowledgedOn != null && n.acknowledgement == "\"dismissed\""} == 1
+        }
 
         when: "a regular user marks a console notification from another realm as delivered"
         testuser1NotificationResource.notificationDelivered(null, testuser3Console1.id, notifications.find {n -> n.targetId == testuser3Console1.id}.id)
@@ -344,15 +376,11 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
 
         when: "a regular user marks a console notification for their own console as delivered"
         testuser3NotificationResource.notificationDelivered(null, testuser3Console1.id, notifications.find {n -> n.targetId == testuser3Console1.id}.id)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
 
         then: "the notification should have been updated"
-        assert notifications.size() == 19
-        assert notifications.count {n -> n.targetId == testuser3Console1.id &&  n.deliveredOn != null} == 1
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).count {it.deliveredOn != null} == 1
+        }
 
 // TODO: Update once console permissions model finalised
 //        when: "an anonymous user marks a console notification from another console as delivered"
@@ -363,16 +391,13 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
 //        ex.response.status == 403
 
         when: "an anonymous user marks a console notification for their own console as delivered"
+        notifications = adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id)
         anonymousNotificationResource.notificationDelivered(null, anonymousConsole.id, notifications.find {n -> n.targetId == anonymousConsole.id}.id)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
 
         then: "the notification should have been updated"
-        assert notifications.size() == 19
-        assert notifications.count {n -> n.targetId == anonymousConsole.id && n.deliveredOn != null} == 1
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id).count {it.deliveredOn != null} == 1
+        }
 
         when: "a regular user tries to remove notifications"
         testuser1NotificationResource.removeNotifications(null, null, PushNotificationMessage.TYPE, null, null, MASTER_REALM, null, null)
@@ -389,40 +414,34 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         ex.response.status == 403
 
         when: "the admin user removes notifications by timestamp and the notifications are retrieved again"
-        notifications = notifications.sort {n -> n.sentOn}.reverse(true)
-        adminNotificationResource.removeNotifications(null, null, PushNotificationMessage.TYPE, notifications[0].sentOn.getTime(), null, null, null, null)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
+        notifications = adminNotificationResource.getNotifications(null, null, PushNotificationMessage.TYPE, null, null, null, null, null).reverse(true)
+        def sentNotification = notifications[0]
+        def removeCount = notifications.count {it.sentOn >= sentNotification.sentOn}
+        adminNotificationResource.removeNotifications(null, null, PushNotificationMessage.TYPE, sentNotification.sentOn.getTime(), null, null, null, null)
 
         then: "notifications sent after or at that time should have been removed"
-        assert notifications.size() == 17
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, PushNotificationMessage.TYPE, null, null, null, null, null).length == (notifications.length - removeCount)
+        }
 
         when: "the admin user removes notifications sent to specific console assets without other constraints and the notifications are retrieved again"
         adminNotificationResource.removeNotifications(null, null, null, null, null, null, null, testuser3Console1.id)
         adminNotificationResource.removeNotifications(null, null, null, null, null, null, null, testuser3Console2.id)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
 
         then: "all notifications sent to those consoles should have been removed"
-        assert notifications.size() == 9
-        assert notifications.count {n -> n.targetId == testuser3Console1.id || n.targetId == testuser3Console2.id} == 0
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 0
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 0
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id).length == 4
+        }
 
         when: "the admin user removes notifications by type and the notifications are retrieved again"
         adminNotificationResource.removeNotifications(null, null, PushNotificationMessage.TYPE, null, null, null, null, null)
-        notifications = []
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser2Console.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
-            notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, anonymousConsole.id))
 
         then: "the notifications should have been removed"
-        assert notifications.size() == 0
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, PushNotificationMessage.TYPE, null, null, null, null, anonymousConsole.id).length == 0
+        }
 
         when: "the admin user removes notifications without sufficient constraints"
         adminNotificationResource.removeNotifications(null, null, null, null, null, null, null, null)
@@ -444,87 +463,83 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
         advancePseudoClock(ChronoUnit.MILLIS.between(Instant.ofEpochMilli(getClockTimeOf(container)), advancement), TimeUnit.MILLISECONDS, container)
         notification.setRepeatFrequency(RepeatFrequency.HOURLY)
         testuser3NotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
-        then: "the notifications should have been sent"
-        assert notifications.size() == 2
+        then: "the notifications should have been sent (to testuser3 consoles)"
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 1
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 1
+        }
 
         when: "a repeat frequency is set and a notification with the same name and scope as a previous notification is sent within the repeat window"
         testuser3NotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "no new notifications should have been sent"
-        assert notifications.size() == 2
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 1
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 1
+        }
 
         when: "a repeat frequency is set and a notification with the same name but different scope is sent within the repeat window"
         adminNotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "new notifications should have been sent"
-        assert notifications.size() == 4
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 2
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 2
+        }
 
         when: "time advances less than the repeat frequency and the notification is sent again"
         advancePseudoClock(30, TimeUnit.SECONDS, container)
         adminNotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "no new notifications should have been sent"
-        assert notifications.size() == 4
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 2
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 2
+        }
 
         when: "time advances more than the repeat frequency and the notification is sent again"
         advancePseudoClock(2, TimeUnit.MINUTES, container)
         adminNotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "new notifications should have been sent"
-        assert notifications.size() == 6
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 3
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 3
+        }
 
         when: "a repeat interval is used and a notification with the same name and scope is sent within the repeat window"
         notification.setRepeatInterval("P1M")
         advancePseudoClock(10, TimeUnit.DAYS, container)
         adminNotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "no new notifications should have been sent"
-        assert notifications.size() == 6
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 3
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 3
+        }
 
         when: "time advances more than the repeat interval and the notification is sent again"
         advancePseudoClock(25, TimeUnit.DAYS, container)
         adminNotificationResource.sendNotification(null, notification)
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id))
 
         then: "new notifications should have been sent"
-        assert notifications.size() == 8
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console1.id).length == 4
+            assert adminNotificationResource.getNotifications(null, null, null, null, null, null, null, testuser3Console2.id).length == 4
+        }
 
-        when: "notifications are retrieved only for the past day"
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000*24), null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000*24), null, null, null, testuser3Console2.id))
+        and: "notifications are retrieved only for the past day only the relevant notifications should have been returned"
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000*24), null, null, null, testuser3Console1.id).length == 1
+            assert adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000*24), null, null, null, testuser3Console2.id).length == 1
+        }
 
-        then: "only the relevant notifications should have been returned"
-        assert notifications.size() == 2
-
-        when: "notifications are retrieved for the past 40 days"
-        notifications = []
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000L*24*40), null, null, null, testuser3Console1.id))
-        notifications.addAll(adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000L*24*40), null, null, null, testuser3Console2.id))
-
-        then: "only the relevant notifications should have been returned"
-        assert notifications.size() == 8
+        and: "notifications are retrieved only for the past 40 days only the relevant notifications should have been returned"
+        conditions.eventually {
+            assert adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000L*24*40), null, null, null, testuser3Console1.id).length == 4
+            assert adminNotificationResource.getNotifications(null, null, null, getClockTimeOf(container)-(3600000L*24*40), null, null, null, testuser3Console2.id).length == 4
+        }
 
         cleanup: "the mock is removed"
         notificationService.notificationHandlerMap.put(pushNotificationHandler.getTypeName(), pushNotificationHandler)
@@ -536,7 +551,7 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
 
         given: "the container environment is started with the mock handler"
         def conditions = new PollingConditions(timeout: 10, delay: 0.2)
-        def container = startContainer(defaultConfig(), defaultServices())
+        def container = startContainer(defaultConfig() << [(OR_EMAIL_X_HEADERS): "Test 1: Hello World 1\nTest2: Hello World 2"], defaultServices())
         def managerTestSetup = container.getService(SetupService.class).getTaskOfType(ManagerTestSetup.class)
         def keycloakTestSetup = container.getService(SetupService.class).getTaskOfType(KeycloakTestSetup.class)
         def notificationService = container.getService(NotificationService.class)
@@ -559,53 +574,56 @@ class NotificationTest extends Specification implements ManagerContainerTrait {
 
         expect: "the demo users to be created"
         conditions.eventually {
-            def users = identityService.getIdentityProvider().getUsers(keycloakTestSetup.tenantBuilding.realm)
-            assert users.size() == 4
+            def users = identityService.getIdentityProvider().queryUsers(new UserQuery().realm(new RealmPredicate(keycloakTestSetup.realmBuilding.name)).select(new UserQuery.Select().excludeServiceUsers(true)))
+            assert users.size() == 3
             assert users.count { !TextUtil.isNullOrEmpty(it.email)} == 3
         }
 
-        when: "an email notification is sent to a tenant through same mechanism as rules"
+        when: "an email notification is sent to a realm through same mechanism as rules"
         def notification = new Notification(
                 "Test",
                 new EmailNotificationMessage().setSubject("Test").setText("Hello world!"),
-                Collections.singletonList(new Notification.Target(Notification.TargetType.TENANT, managerTestSetup.realmBuildingTenant)), null, null)
-        notificationService.sendNotification(notification, Notification.Source.TENANT_RULESET, managerTestSetup.realmBuildingTenant)
+                Collections.singletonList(new Notification.Target(Notification.TargetType.REALM, managerTestSetup.realmBuildingName)), null, null)
+        notificationService.sendNotification(notification, Notification.Source.REALM_RULESET, managerTestSetup.realmBuildingName)
 
-        then: "the email should have been sent to the tenant users"
+        then: "the email should have been sent to the realm users"
         conditions.eventually {
-            assert sentEmails.size() >= 3
+            assert sentEmails.size() == 2
             assert sentEmails.every {it.getPlainText() == "Hello world!"}
             assert sentEmails.every {it.getSubject() == "Test"}
+            assert sentEmails.every {it.getHeaders() != null && it.getHeaders().size() == 2 && it.getHeaders().get("Test 1") == "Hello World 1" && it.getHeaders().get("Test2") == "Hello World 2" }
             assert sentEmails.any { it.getRecipients().size() == 1 && it.getRecipients().get(0).address == "testuser2@openremote.local"}
-            assert sentEmails.any { it.getRecipients().size() == 1 && it.getRecipients().get(0).address == "testuser3@openremote.local"}
+            assert !sentEmails.any { it.getRecipients().size() == 1 && it.getRecipients().get(0).address == "testuser3@openremote.local"}
             assert sentEmails.any { it.getRecipients().size() == 1 && it.getRecipients().get(0).address == "building@openremote.local"}
         }
 
         when: "an email attribute is added to an asset"
+        sentEmails.clear()
         def kitchen = assetStorageService.find(managerTestSetup.apartment1KitchenId)
         kitchen.setEmail("kitchen@openremote.local")
         kitchen = assetStorageService.merge(kitchen)
 
         and: "an email notification is sent to a parent asset"
         ((EmailNotificationMessage)notification.message).subject = "Test 2"
-        notification.setTargets([new Notification.Target(Notification.TargetType.ASSET, managerTestSetup.apartment1Id)])
+        notification.setTargets([new Notification.Target(Notification.TargetType.ASSET, managerTestSetup.apartment1KitchenId)])
         notificationService.sendNotification(notification)
 
         then: "the child asset with the email attribute should have been sent an email"
         conditions.eventually {
-            assert sentEmails.size() >= 4
+            assert sentEmails.size() == 1
             assert sentEmails.any { it.getSubject() == "Test 2"}
             assert sentEmails.any { it.getRecipients().size() == 1 && it.getRecipients().get(0).address == "kitchen@openremote.local"}
         }
 
         when: "an email is sent to a custom target"
+        sentEmails.clear()
         ((EmailNotificationMessage)notification.message).subject = "Test Custom"
         notification.setTargets([new Notification.Target(Notification.TargetType.CUSTOM, "custom1@openremote.local;to:custom2@openremote.local;cc:custom3@openremote.local;bcc:custom4@openremote.local")])
         notificationService.sendNotification(notification)
 
         then: "the email should have been sent to all custom recipients"
         conditions.eventually {
-            assert sentEmails.size() >= 5
+            assert sentEmails.size() == 1
             assert sentEmails.any { it.getSubject() == "Test Custom" && it.getRecipients().size() == 4}
             assert sentEmails.any { it.getSubject() == "Test Custom" && it.getRecipients().any{it.type == javax.mail.Message.RecipientType.TO && it.address == "custom1@openremote.local"}}
             assert sentEmails.any { it.getSubject() == "Test Custom" && it.getRecipients().any{it.type == javax.mail.Message.RecipientType.TO && it.address == "custom2@openremote.local"}}
