@@ -42,9 +42,7 @@ export class OrDashboardTree extends LitElement {
     @property()
     private dashboards: Dashboard[] | undefined;
 
-    @property({hasChanged: (oldVal, val): boolean => {
-        return JSON.stringify(oldVal) != JSON.stringify(val);
-    }})
+    @property()
     private selected: Dashboard | undefined;
 
     @property() // REQUIRED
@@ -69,6 +67,18 @@ export class OrDashboardTree extends LitElement {
                 await this.getAllDashboards();
             }
         });
+    }
+
+    shouldUpdate(changedProperties: Map<string, any>) {
+        if(changedProperties.size == 1) {
+
+            // Prevent any update since it is not necessary in its current state.
+            // However, do update when dashboard is saved (aka when hasChanged is set back to false)
+            if(changedProperties.has("hasChanged") && this.hasChanged) {
+                return false;
+            }
+        }
+        return super.shouldUpdate(changedProperties);
     }
 
     private async getAllDashboards() {
@@ -132,7 +142,7 @@ export class OrDashboardTree extends LitElement {
 
     private deleteDashboard(dashboard: Dashboard) {
         if(dashboard.id != null) {
-            manager.rest.api.DashboardResource.delete({dashboardId: [dashboard.id]})
+            manager.rest.api.DashboardResource.delete(this.realm, dashboard.id)
                 .then((response) => {
                     if(response.status == 204) {
                         this.getAllDashboards();
@@ -157,12 +167,16 @@ export class OrDashboardTree extends LitElement {
                 })
                 if(myDashboards.length > 0) {
                     const items: ListItem[] = [];
-                    myDashboards.forEach((d) => { items.push({ icon: "view-dashboard", text: d.displayName, value: d.id }); });
+                    myDashboards.sort((a, b) => a.displayName ? a.displayName.localeCompare(b.displayName!) : 0).forEach((d) => {
+                        items.push({ icon: "view-dashboard", text: d.displayName, value: d.id });
+                    });
                     dashboardItems.push(items);
                 }
                 if(otherDashboards.length > 0) {
                     const items: ListItem[] = [];
-                    otherDashboards.forEach((d) => { items.push({ icon: "view-dashboard", text: d.displayName, value: d.id }); });
+                    otherDashboards.sort((a, b) => a.displayName ? a.displayName.localeCompare(b.displayName!) : 0).forEach((d) => {
+                        items.push({ icon: "view-dashboard", text: d.displayName, value: d.id });
+                    });
                     dashboardItems.push(items);
                 }
             }
@@ -183,11 +197,9 @@ export class OrDashboardTree extends LitElement {
                             ` : undefined}
                         ` : undefined}
                         ${!this.readonly ? html`
-                            <span style="--or-icon-fill: black">
-                                <or-mwc-input type="${InputType.BUTTON}" class="hideMobile" icon="plus" style="--or-icon-fill: white;"
-                                              @or-mwc-input-changed="${() => { this.createDashboard(DashboardSizeOption.DESKTOP); }}"
-                                ></or-mwc-input>
-                            </span>
+                            <or-mwc-input type="${InputType.BUTTON}" class="hideMobile" icon="plus"
+                                            @or-mwc-input-changed="${() => { this.createDashboard(DashboardSizeOption.DESKTOP); }}"
+                            ></or-mwc-input>
                         ` : undefined}
                     </div>
                 ` : undefined}
@@ -198,7 +210,7 @@ export class OrDashboardTree extends LitElement {
                         return (items != null && items.length > 0) ? html`
                             <div style="padding: 8px 0;">
                                 <span style="font-weight: 500; padding-left: 14px; color: #000000;">${(index == 0 ? i18next.t('dashboard.myDashboards') : i18next.t('dashboard.createdByOthers'))}</span>
-                                <div id="list-container">
+                                <div id="list-container" style="overflow: hidden;">
                                     <ol id="list">
                                         ${items.map((listItem: ListItem) => {
                                             return html`

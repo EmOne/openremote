@@ -21,11 +21,11 @@ if (project == rootProject) {
 
         if (rootProject.hasProperty("gradleFileEncrypt")) {
             println("File encryption plugin config found, configuring git pre commit hook and decrypt task dependency")
-
-            // Write git hook for encryption plugin checks before any commit
-            def path = Paths.get(rootProject.projectDir.path, ".git/hooks/pre-commit")
-            def f = path.toFile()
-            f.text = """#!/bin/sh
+            try {
+                // Write git hook for encryption plugin checks before any commit
+                def path = Paths.get(rootProject.projectDir.path, ".git/hooks/pre-commit")
+                def f = path.toFile()
+                f.text = """#!/bin/sh
 
 echo "***** Running gradle encryption plugin checkFilesGitIgnored task ******"
 
@@ -33,9 +33,12 @@ echo "***** Running gradle encryption plugin checkFilesGitIgnored task ******"
 
 status=\$?
 
+if [ \$status != 0 ]; then
+   echo "***** One or more encrypted files are not listed in a .gitignore - please add to prevent unencrypted version of file(s) from being committed *****"
+fi
+
 exit \$status
 """
-            try {
                 Set<PosixFilePermission> perms = Files.readAttributes(path, PosixFileAttributes.class).permissions()
                 perms.add(PosixFilePermission.OWNER_WRITE)
                 perms.add(PosixFilePermission.OWNER_READ)
@@ -48,15 +51,18 @@ exit \$status
                 Files.setPosixFilePermissions(path, perms)
             } catch (Exception ignored) {}
 
-            // Add dependency on decrypt task for deployment installDist
-            Task decryptTask = getTasksByName("decryptFiles", false)[0]
+            // Add dependency on decrypt task for deployment installDist only if GFE_PASSWORD defined
+            def password = System.env.GFE_PASSWORD
+            if (password != null) {
+                Task decryptTask = getTasksByName("decryptFiles", false)[0]
 
-            try {
-                def installDist = tasks.getByPath(":deployment:installDist")
-                installDist.dependsOn decryptTask
-                installDist.mustRunAfter(decryptTask)
-            } catch (Exception ex) {
-                println("Failed to add decryptFiles task dependency: " + ex)
+                try {
+                    def installDist = tasks.getByPath(":deployment:installDist")
+                    installDist.dependsOn decryptTask
+                    installDist.mustRunAfter(decryptTask)
+                } catch (Exception ex) {
+                    println("Failed to add decryptFiles task dependency: " + ex)
+                }
             }
         } else {
             // Remove git hook
@@ -158,12 +164,8 @@ repositories {
         url = "https://repo.osgeo.org/repository/release/"
     }
     mavenCentral()
-    jcenter()
     maven {
         url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"
-    }
-    maven {
-        url "https://jitpack.io"
     }
 }
 
@@ -309,7 +311,7 @@ plugins.withType(JavaPlugin).whenPluginAdded {
                 warnLogFile << output
             }
         })
-        options.compilerArgs += ["-Xlint:unchecked", "-Xlint:deprecation"]
+        options.compilerArgs += ["-Xlint:unchecked", "-Xlint:deprecation", "-parameters"]
         options.encoding = 'UTF-8'
     }
 

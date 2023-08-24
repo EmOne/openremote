@@ -25,10 +25,9 @@ import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.AttributeLink;
 import org.openremote.model.rules.AssetState;
-import org.openremote.model.rules.TemporaryFact;
 import org.openremote.model.util.TsIgnore;
 
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.Pattern;
 import java.util.Date;
 
 @TsIgnore
@@ -99,6 +98,10 @@ public final class MetaItemType {
     // TODO: Re-evaluate this can this info be retrieved automatically using prediction service
     public static final MetaItemDescriptor<Boolean> HAS_PREDICTED_DATA_POINTS = new MetaItemDescriptor<>("hasPredictedDataPoints", ValueType.BOOLEAN);
 
+    /**
+     * The forecast service calculates predicted data points based on the forecast configuration.
+     */
+    public static final MetaItemDescriptor<ForecastConfiguration> FORECAST = new MetaItemDescriptor<>("forecast", ValueType.FORECAST_CONFIGURATION);
 
 
     /* RULE META */
@@ -110,8 +113,6 @@ public final class MetaItemType {
      * <p>
      * The default expiration for asset events can be configured with environment variable
      * <code>RULE_EVENT_EXPIRES</code>.
-     * <p>
-     * Also see {@link TemporaryFact#GUARANTEED_MIN_EXPIRATION_MILLIS}.
      */
     @Pattern(regexp = Constants.ISO8601_DURATION_REGEXP)
     public static final MetaItemDescriptor<String> RULE_EVENT_EXPIRES = new MetaItemDescriptor<>("ruleEventExpires", ValueType.TEXT);
@@ -189,6 +190,12 @@ public final class MetaItemType {
      * false/off/released/open value when released.
      */
     public static final MetaItemDescriptor<Boolean> MOMENTARY = new MetaItemDescriptor<>("momentary", ValueType.BOOLEAN);
+
+    /**
+     * Can be used on a {@link ValueType#BOOLEAN} attribute to indicate if a service user is connected to the MQTT
+     * broker; the value of this meta item should be the username of the user to monitor
+     */
+    public static final MetaItemDescriptor<String> USER_CONNECTED = new MetaItemDescriptor<>("userConnected", ValueType.TEXT);
 
     protected MetaItemType() {
     }

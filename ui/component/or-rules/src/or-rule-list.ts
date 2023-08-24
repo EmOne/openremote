@@ -1,6 +1,6 @@
 import {css, html, LitElement, PropertyValues, TemplateResult} from "lit";
 import {customElement, property} from "lit/decorators.js";
-import {CalendarEvent, ClientRole, RulesetLang, RulesetUnion, RealmRuleset, WellknownRulesetMetaItems} from "@openremote/model";
+import {CalendarEvent, ClientRole, RulesetLang, RulesetUnion, RealmRuleset, GlobalRuleset} from "@openremote/model";
 import "@openremote/or-translate";
 import manager, {Util} from "@openremote/core";
 import "@openremote/or-mwc-components/or-mwc-input";
@@ -56,7 +56,8 @@ const style = css`
         align-items: center;
         height: var(--internal-or-asset-tree-header-height);
         line-height: var(--internal-or-asset-tree-header-height);
-        color: var(--internal-or-asset-tree-header-text-color);
+        color: var(--internal-or-rules-panel-color);
+        background-color: var(--internal-or-rules-header-background-color);
     }
     
     #header-btns {
@@ -68,11 +69,8 @@ const style = css`
     }
 
     .node-status {
-        width: 10px;
-        height: 10px;
-        border-radius: 5px;
-        margin-right: 10px;
-        display: none;
+        --or-icon-width: 18px; 
+        margin-right: 8px;
     }
 
     .node-language{
@@ -80,20 +78,12 @@ const style = css`
         opacity: 50%;
     }
 
-    .bg-green {
-        background-color: #28b328;
+    .iconfill-gray {
+        --or-icon-fill: var(--internal-or-rules-list-icon-color-ok);
     }
 
-    .bg-red {
-        background-color: red;
-    }
-    
-    .bg-blue {
-        background-color: #3e92dc;
-    }
-
-    .bg-grey {
-        background-color: #b7b7b7;
+    .iconfill-red {
+        --or-icon-fill: var(--internal-or-rules-list-icon-color-error);
     }
 `;
 
@@ -133,6 +123,7 @@ export class OrRuleList extends translate(i18next)(LitElement) {
     protected _globalRulesets: boolean = false;
 
     protected _selectedNodes: RulesetNode[] = [];
+    protected _rulesetPromises: Map<string, Promise<any[]>> = new Map<string, Promise<any[]>>();
     protected _ready = false;
 
     static get styles() {
@@ -144,7 +135,7 @@ export class OrRuleList extends translate(i18next)(LitElement) {
 
     public async refresh() {
         this._nodes = undefined;
-        await this._loadRulesets();
+        // reloading rulesets is automatically done in shouldUpdate()
     }
 
     protected get _allowedLanguages(): RulesetLang[] | undefined {
@@ -230,7 +221,7 @@ export class OrRuleList extends translate(i18next)(LitElement) {
         }
 
         const allowedLanguages = this._allowedLanguages;
-        const sortOptions = ["name", "createdOn"]
+        const sortOptions = ["name", "createdOn", "status"]
         if (allowedLanguages && allowedLanguages.length > 1) sortOptions.push("lang")
         
         let addTemplate: TemplateResult | string = ``;
@@ -251,7 +242,7 @@ export class OrRuleList extends translate(i18next)(LitElement) {
         return html`
             <div id="wrapper" ?data-disabled="${this.disabled}">
                 ${manager.isSuperUser() ? html`
-                    <div class="header-ruleset-type bg-grey">
+                    <div class="header-ruleset-type">
                         <p>${i18next.t("realmRules")}</p>
                         
                         <div style="flex: 1 1 0; display: flex;">
@@ -305,11 +296,75 @@ export class OrRuleList extends translate(i18next)(LitElement) {
     }
 
     protected _nodeTemplate(node: RulesetNode): TemplateResult | string {
+
+        let statusIcon: string = "help";
+        let statusClass: string = "iconfill-gray";
+        let nodeIcon: string = "mdi-state-machine";
+        let nodeTitle: string = "Unknown language";
+        switch (node.ruleset.status){
+            case "DEPLOYED":
+                statusIcon = "";
+                statusClass = "iconfill-gray";
+                break;
+            case "READY":
+                statusIcon = "check";
+                statusClass = "iconfill-gray";
+                break;
+            case "COMPILATION_ERROR":
+            case "LOOP_ERROR":
+            case "EXECUTION_ERROR":
+                statusIcon = "alert-octagon";
+                statusClass = "iconfill-red";
+                break;
+            case "DISABLED":
+                statusIcon = "minus-circle";
+                statusClass = "iconfill-gray";
+                break;
+            case "PAUSED":
+                statusIcon = "calendar-arrow-right";
+                statusClass = "iconfill-gray";
+                break;
+            case "EXPIRED":
+                statusIcon = "calendar-remove";
+                statusClass = "iconfill-gray";
+                break;
+            case "REMOVED":
+                statusIcon = "close";
+                statusClass = "iconfill-gray";
+                break;
+            default:
+                statusIcon = "stop";
+                statusClass = "iconfill-gray";
+        }
+
+        switch (node.ruleset.lang) {
+            case (RulesetLang.JSON):
+                nodeIcon = "ray-start-arrow";
+                nodeTitle = "When-Then";
+                break;
+            case (RulesetLang.FLOW):
+                nodeIcon = "transit-connection-variant";
+                nodeTitle = "Flow";
+                break;
+            case (RulesetLang.GROOVY):
+                nodeIcon = "alpha-g-box-outline";
+                nodeTitle = "Groovy";
+                break;
+            case (RulesetLang.JAVASCRIPT):
+                nodeIcon = "language-javascript";
+                nodeTitle = "JavaScript";
+                break;
+            default:
+                nodeIcon = "mdi-state-machine";
+                nodeTitle = "Unknown language";
+        }
+
         return html`
             <li ?data-selected="${node.selected}" @click="${(evt: MouseEvent) => this._onNodeClicked(evt, node)}">
                 <div class="node-container">
-                    <span class="node-status ${OrRuleList._getNodeStatusClasses(node.ruleset)}"></span>
-                    <span class="node-name">${node.ruleset.name}<span class="node-language">${node.ruleset.lang !== RulesetLang.JSON ? node.ruleset.lang : ""}</span></span>
+                    <or-icon style="--or-icon-width: 18px; margin-right: 8px;" icon="${nodeIcon}" title="${i18next.t(nodeTitle)}"></or-icon>
+                    <span class="node-name">${node.ruleset.name}</span>
+                    <or-icon class="node-status ${statusClass}" title="${i18next.t("rulesetStatus." + (node.ruleset.status ? node.ruleset.status : "NOSTATUS"))}" icon="${statusIcon}"></or-icon>
                 </div>
             </li>
         `;
@@ -501,9 +556,11 @@ export class OrRuleList extends translate(i18next)(LitElement) {
             return;
         }
 
+        const rulesetsToDelete = this._selectedNodes.map((rulesetNode) => rulesetNode.ruleset);
+        const rulesetNamesToDelete = rulesetsToDelete.map(ruleset => "\n- " + ruleset.name);
+
         const doDelete = async () => {
             this.disabled = true;
-            const rulesetsToDelete = this._selectedNodes.map((rulesetNode) => rulesetNode.ruleset);
             let fail = false;
             
             for (const ruleset of rulesetsToDelete) {
@@ -546,7 +603,7 @@ export class OrRuleList extends translate(i18next)(LitElement) {
         };
 
         // Confirm deletion request
-        showOkCancelDialog(i18next.t("delete"), i18next.t("deleteRulesetsConfirm"), i18next.t("delete"))
+        showOkCancelDialog(i18next.t("deleteRulesets"), i18next.t("deleteRulesetsConfirm", { ruleNames: rulesetNamesToDelete}), i18next.t("delete"))
             .then((ok) => {
                 if (ok) {
                     doDelete();
@@ -566,6 +623,8 @@ export class OrRuleList extends translate(i18next)(LitElement) {
         switch (this.sortBy) {
             case "createdOn":
                 return Util.sortByNumber((node: RulesetNode) => (node.ruleset as any)![this.sortBy!]);
+            case "status":
+                return Util.sortByString((node: RulesetNode) => (node.ruleset as any)![this.sortBy!]);
             default:
                 return Util.sortByString((node: RulesetNode) => (node.ruleset as any)![this.sortBy!]);
         }
@@ -581,28 +640,37 @@ export class OrRuleList extends translate(i18next)(LitElement) {
 
     protected async _loadRulesets() {
         const sortFunction = this._getSortFunction();
+        let data;
 
-        if(this._globalRulesets) {
-            manager.rest.api.RulesResource.getGlobalRulesets({fullyPopulate: true }).then((response: any) => {
-                if (response && response.data) {
-                    this._buildTreeNodes(response.data, sortFunction);
-                }
-            }).catch((reason: any) => {
-                console.error("Error: " + reason);
-            });
-        } else {
-            const params = {
-                fullyPopulate: true,
-                language:  this._allowedLanguages
+        // Global rulesets
+        if (this._globalRulesets) {
+            if (this._rulesetPromises.size == 0 && !this._rulesetPromises.has("global")) {
+                this._rulesetPromises.set("global", new Promise<GlobalRuleset[]>(async (resolve) => {
+                    const response = await manager.rest.api.RulesResource.getGlobalRulesets({fullyPopulate: true});
+                    resolve(response.data);
+                }));
             }
-            try {
-                const response = await manager.rest.api.RulesResource.getRealmRulesets(this._getRealm() || manager.displayRealm, params);
-                if (response && response.data) {
-                    this._buildTreeNodes(response.data, sortFunction);
-                }
-            } catch (e) {
-                console.error("Error: " + e);
+            data = await this._rulesetPromises.get("global");
+            this._rulesetPromises.delete("global");
+        }
+
+        // Realm rulesets
+        else {
+            const ruleRealm: string = this._getRealm() || manager.displayRealm;
+            if (this._rulesetPromises.size == 0 && !this._rulesetPromises.has(ruleRealm)) {
+                this._rulesetPromises.set(ruleRealm, new Promise<RealmRuleset[]>(async (resolve) => {
+                    const params = {fullyPopulate: true, language: this._allowedLanguages}
+                    const response = await manager.rest.api.RulesResource.getRealmRulesets(ruleRealm, params);
+                    resolve(response.data);
+                }));
             }
+            data = await this._rulesetPromises.get(ruleRealm);
+            this._rulesetPromises.delete(ruleRealm);
+        }
+
+        // ... building the nodes
+        if (data) {
+            this._buildTreeNodes(data, sortFunction);
         }
     }
 

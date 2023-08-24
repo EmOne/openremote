@@ -26,6 +26,7 @@ import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.ServletInfo;
 import io.undertow.util.HttpString;
+import org.jboss.resteasy.core.ResteasyDeploymentImpl;
 import org.jboss.resteasy.plugins.interceptors.CorsFilter;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 import org.jboss.resteasy.spi.ResteasyDeployment;
@@ -38,11 +39,12 @@ import org.openremote.model.Container;
 import org.openremote.model.asset.agent.Agent;
 import org.openremote.model.asset.agent.AgentLink;
 import org.openremote.model.attribute.Attribute;
+import org.openremote.model.http.HTTPMethod;
 import org.openremote.model.syslog.SyslogCategory;
 import org.openremote.model.util.TextUtil;
 
-import javax.servlet.ServletException;
-import javax.ws.rs.core.Application;
+import jakarta.servlet.ServletException;
+import jakarta.ws.rs.core.Application;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -149,7 +151,7 @@ public abstract class AbstractHTTPServerProtocol<T extends AbstractHTTPServerPro
     }
 
     protected ResteasyDeployment createDeployment(Application application) {
-        ResteasyDeployment resteasyDeployment = new ResteasyDeployment();
+        ResteasyDeployment resteasyDeployment = new ResteasyDeploymentImpl();
         resteasyDeployment.setApplication(application);
 
         List<String> allowedOrigins;

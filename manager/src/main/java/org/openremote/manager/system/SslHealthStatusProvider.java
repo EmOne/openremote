@@ -20,7 +20,6 @@
 package org.openremote.manager.system;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.grpc.netty.shaded.io.netty.internal.tcnative.SSL;
 import org.openremote.model.Constants;
 import org.openremote.model.Container;
 import org.openremote.model.ContainerService;
@@ -40,7 +39,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static org.openremote.container.util.MapAccess.getInteger;
 import static org.openremote.container.util.MapAccess.getString;
 
-public class SslHealthStatusProvider implements X509TrustManager, HealthStatusProvider, ContainerService {
+public class SslHealthStatusProvider implements X509TrustManager, HealthStatusProvider {
 
     public static final String NAME = "ssl";
     protected static final Logger LOG = Logger.getLogger(SslHealthStatusProvider.class.getName());

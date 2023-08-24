@@ -21,7 +21,7 @@ function getStandardModuleRules() {
                 ]
             },
             {
-                test: /\.(png|jpg|ico|gif|svg|eot|ttf|woff|woff2)$/,
+                test: /\.(png|jpg|ico|gif|svg|eot|ttf|woff|woff2|mp4)$/,
                 type: "asset",
                 generator: {
                     filename: 'images/[hash][ext][query]'
@@ -191,6 +191,16 @@ function getAppConfig(mode, isDevServer, dirname, managerUrl, keycloakUrl, port)
                 toType: 'file'
             }
         );
+    }
+    //Check if .appignore file exists
+    if (fs.existsSync(path.join(dirname, ".appignore"))) {
+      patterns.push(
+        {
+          from: ".appignore",
+          to: ".appignore",
+          toType: 'file'
+        }
+      );
     }
 
     // Copy unprocessed files

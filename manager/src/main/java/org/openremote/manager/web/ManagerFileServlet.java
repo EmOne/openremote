@@ -29,8 +29,8 @@ import org.openremote.model.Container;
 import org.openremote.container.web.file.FileServlet;
 import org.openremote.container.web.file.GzipResponseFilter;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -123,7 +123,7 @@ public class ManagerFileServlet extends FileServlet {
             String requestPath = exchange.getRequestPath();
             Matcher staticMatcher = requestPattern.matcher(requestPath);
             if (staticMatcher.matches()) {
-                LOG.finer("Serving static resource: " + requestPath);
+                LOG.finest("Serving static resource: " + requestPath);
                 String remaining = staticMatcher.group(1);
                 String relativePath = remaining == null || remaining.length() == 0 ? "/" : remaining;
                 exchange.setRelativePath(relativePath);

@@ -31,6 +31,7 @@ import org.keycloak.adapters.KeycloakDeployment;
 import org.openremote.container.security.keycloak.KeycloakIdentityProvider;
 import org.openremote.manager.security.AuthorisationService;
 import org.openremote.manager.security.MultiTenantJaasCallbackHandler;
+import org.openremote.manager.security.RemotingConnectionPrincipal;
 import org.openremote.model.syslog.SyslogCategory;
 
 import javax.security.auth.Subject;
@@ -76,7 +77,7 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
     @Override
     public Subject authenticate(String user, String password, RemotingConnection remotingConnection, String securityDomain) {
         try {
-            return getAuthenticatedSubject(user, password, remotingConnection, securityDomain);
+            return remotingConnection.getSubject() != null ? remotingConnection.getSubject() : getAuthenticatedSubject(user, password, remotingConnection, securityDomain);
         } catch (LoginException e) {
             return null;
         }
@@ -90,17 +91,6 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
         String realm = null;
         ClassLoader currentLoader = Thread.currentThread().getContextClassLoader();
         ClassLoader thisLoader = this.getClass().getClassLoader();
-
-        // A bit of a hack to allow auto provisioned clients to remain connected after authentication and to then have
-        // the usual service user authentication without having to disconnect and reconnect
-        if (user == null) {
-            Triple<String, String, String> transientCredentials = brokerService.transientCredentials.get(remotingConnection.getID());
-            if (transientCredentials != null) {
-                LOG.finer("Using transient credentials (user=" + transientCredentials.getMiddle() + ") for connection: " + brokerService.connectionToString(remotingConnection));
-                user = transientCredentials.getMiddle();
-                password = transientCredentials.getRight();
-            }
-        }
 
         if (user != null) {
             String[] realmAndUsername = user.split(":");
@@ -131,6 +121,8 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
             if (subject != null) {
                 // Ensure subject is available when afterCreateConnection is fired
                 remotingConnection.setSubject(subject);
+
+                subject.getPrincipals().add(new RemotingConnectionPrincipal(remotingConnection));
             }
 
             return subject;
@@ -166,12 +158,24 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
             // Get MQTT topic from address
             topic = Topic.fromAddress(address, brokerService.getWildcardConfiguration());
         } catch (IllegalArgumentException e) {
-            LOG.log(Level.INFO, "Invalid topic provided by client '" + address, e);
+            LOG.log(Level.FINE, "Invalid topic provided by client '" + address, e);
             return false;
         }
 
         KeycloakSecurityContext securityContext = KeycloakIdentityProvider.getSecurityContext(subject);
-        RemotingConnection connection = brokerService.getConnectionFromSubjectAndTopic(subject, topic);
+        String topicClientID = MQTTHandler.topicClientID(topic);
+
+        if (topicClientID == null) {
+            LOG.fine("Client ID not found but it must be included as the second token in the topic: topic=" + topic);
+            return false;
+        }
+
+        RemotingConnection connection = RemotingConnectionPrincipal.getRemotingConnectionFromSubject(subject);
+
+        if (connection == null) {
+            LOG.info("Failed to find connection for the specified client ID: clientID=" + topicClientID);
+            return false;
+        }
 
         if (isWrite && topic.hasWildcard()) {
             return false;
@@ -180,7 +184,7 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
         // See if a custom handler wants to handle authorisation for this topic pub/sub
         for (MQTTHandler handler : brokerService.getCustomHandlers()) {
             if (handler.handlesTopic(topic)) {
-                LOG.fine("Passing topic to handler for " + (isWrite ? "pub" : "sub") + ": handler=" + handler.getName() + ", topic=" + topic + ", " + brokerService.connectionToString(connection));
+                LOG.finest("Passing topic to handler for " + (isWrite ? "pub" : "sub") + ": handler=" + handler.getName() + ", topic=" + topic + ", " + brokerService.connectionToString(connection));
                 boolean result;
 
                 if (isWrite) {
@@ -189,15 +193,15 @@ public class ActiveMQORSecurityManager extends ActiveMQJAASSecurityManager {
                     result = handler.checkCanSubscribe(connection, securityContext, topic);
                 }
                 if (result) {
-                    LOG.info("Handler '" + handler.getName() + "' has authorised " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
+                    LOG.finest("Handler '" + handler.getName() + "' has authorised " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
                 } else {
-                    LOG.info("Handler '" + handler.getName() + "' has not authorised " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
+                    LOG.finest("Handler '" + handler.getName() + "' has not authorised " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
                 }
                 return result;
             }
         }
 
-        LOG.info("No handler has allowed " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
+        LOG.info("Un-supported request " + (isWrite ? "pub" : "sub") + ": topic=" + topic + ", " + brokerService.connectionToString(connection));
         return false;
     }
 

@@ -20,6 +20,13 @@
 package org.openremote.manager.security;
 
 import io.undertow.util.Headers;
+import jakarta.persistence.Query;
+import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -27,12 +34,12 @@ import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.*;
 import org.keycloak.common.enums.SslRequired;
 import org.keycloak.representations.idm.*;
-import org.openremote.container.concurrent.GlobalLock;
 import org.openremote.container.message.MessageBrokerService;
 import org.openremote.container.persistence.PersistenceService;
 import org.openremote.container.security.AuthContext;
 import org.openremote.container.security.keycloak.KeycloakIdentityProvider;
 import org.openremote.container.timer.TimerService;
+import org.openremote.container.util.UniqueIdentifierGenerator;
 import org.openremote.container.web.WebService;
 import org.openremote.manager.apps.ConsoleAppService;
 import org.openremote.manager.asset.AssetStorageService;
@@ -42,23 +49,18 @@ import org.openremote.model.Container;
 import org.openremote.model.PersistenceEvent;
 import org.openremote.model.asset.Asset;
 import org.openremote.model.auth.OAuthGrant;
+import org.openremote.model.auth.OAuthPasswordGrant;
 import org.openremote.model.event.shared.RealmFilter;
 import org.openremote.model.gateway.GatewayConnection;
 import org.openremote.model.provisioning.ProvisioningConfig;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.UserQuery;
 import org.openremote.model.query.filter.RealmPredicate;
-import org.openremote.model.query.filter.StringPredicate;
 import org.openremote.model.rules.RealmRuleset;
 import org.openremote.model.security.*;
 import org.openremote.model.util.TextUtil;
 import org.openremote.model.util.ValueUtil;
 
-import javax.persistence.Query;
-import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -90,8 +92,6 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     public static final String OR_KEYCLOAK_GRANT_FILE = "OR_KEYCLOAK_GRANT_FILE";
     public static final String OR_KEYCLOAK_GRANT_FILE_DEFAULT = "manager/build/keycloak.json";
     public static final String KEYCLOAK_DEFAULT_ROLES_PREFIX = "default-roles-";
-    public static final String KEYCLOAK_USER_ATTRIBUTE_EMAIL_NOTIFICATIONS_DISABLED = "emailNotificationsDisabled";
-    public static final String KEYCLOAK_USER_ATTRIBUTE_PUSH_NOTIFICATIONS_DISABLED = "pushNotificationsDisabled";
     public static final String KC_HOSTNAME = "KC_HOSTNAME";
     public static final String KC_HOSTNAME_PATH = "KC_HOSTNAME_PATH";
     public static final String KC_HOSTNAME_PORT = "KC_HOSTNAME_PORT";
@@ -111,12 +111,6 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     public void init(Container container) {
         super.init(container);
         this.container = container;
-        OAuthGrant grant = loadCredentials();
-
-        // Update the keycloak proxy credentials to use stored credentials
-        if (grant != null) {
-            setActiveCredentials(grant);
-        }
 
         String hostname = getString(container.getConfig(), Constants.OR_HOSTNAME, null);
         int port = getInteger(container.getConfig(), Constants.OR_SSL_PORT, -1); // Should just be called port
@@ -159,6 +153,66 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
     }
 
     @Override
+    protected OAuthGrant getStoredCredentials(Container container) {
+        // Try and load keycloak proxy credentials from the file system
+        String grantFile = getString(container.getConfig(), OR_KEYCLOAK_GRANT_FILE, OR_KEYCLOAK_GRANT_FILE_DEFAULT);
+        Path grantPath = TextUtil.isNullOrEmpty(grantFile) ? null : Paths.get(grantFile);
+        OAuthGrant grant = null;
+
+        if (grantPath != null && Files.isReadable(grantPath)) {
+            LOG.info("Loading OR_KEYCLOAK_GRANT_FILE: " + grantFile);
+
+            try (InputStream is = Files.newInputStream(grantPath)) {
+                String grantJson = IOUtils.toString(is, StandardCharsets.UTF_8);
+                grant = ValueUtil.parse(grantJson, OAuthGrant.class).orElseGet(() -> {
+                    LOG.warning("Failed to load OR_KEYCLOAK_GRANT_FILE: " + grantFile);
+                    return null;
+                });
+            } catch (Exception ex) {
+                throw new ExceptionInInitializerError(ex);
+            }
+        }
+        return grant;
+    }
+
+    @Override
+    protected OAuthGrant generateStoredCredentials(Container container) {
+        String grantFile = getString(container.getConfig(), OR_KEYCLOAK_GRANT_FILE, OR_KEYCLOAK_GRANT_FILE_DEFAULT);
+
+        if (TextUtil.isNullOrEmpty(grantFile)) {
+            return null;
+        }
+
+        // Create a new super user for the keycloak proxy so admin user can be modified if desired
+        User keycloakProxyUser = new User()
+            .setUsername(MANAGER_CLIENT_ID)
+            .setEnabled(true)
+            .setSystemAccount(true);
+        String password = UniqueIdentifierGenerator.generateId();
+        keycloakProxyUser = createUpdateUser(MASTER_REALM, keycloakProxyUser, password, true);
+
+        // Make this proxy user a super user by giving them admin realm role
+        updateUserRealmRoles(MASTER_REALM, keycloakProxyUser.getId(), addRealmRoles(MASTER_REALM, keycloakProxyUser.getId(), REALM_ADMIN_ROLE));
+
+        // Use same details as default keycloak grant but change the username and password to our new user
+        OAuthPasswordGrant grant = getDefaultKeycloakGrant(container);
+        grant.setUsername(keycloakProxyUser.getUsername()).setPassword(password);
+        Path grantPath = Paths.get(grantFile);
+
+        try {
+            Files.write(grantPath, ValueUtil.asJSON(grant).orElse("null").getBytes(),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (Exception e) {
+            LOG.info("Failed to write " + OR_KEYCLOAK_GRANT_FILE + ": " + grantFile);
+            return null;
+        }
+
+        return grant;
+    }
+
+    @Override
     protected void addClientRedirectUris(String client, List<String> redirectUrls, boolean devMode) {
         // Callback URL used by Manager web client authentication, any relative path to "ourselves" is fine
         String realmManagerCallbackUrl = UriBuilder.fromUri("/").path(client).path("*").build().toString();
@@ -192,18 +246,6 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
     @Override
     public User[] queryUsers(UserQuery userQuery) {
-        if (userQuery == null) {
-            userQuery = new UserQuery();
-        }
-
-        if (userQuery.usernames == null) {
-            userQuery.usernames = new StringPredicate[1];
-            userQuery.usernames(new StringPredicate(AssetQuery.Match.BEGIN, User.SERVICE_ACCOUNT_PREFIX).negate(true));
-        } else {
-            userQuery.usernames = Arrays.copyOf(userQuery.usernames, userQuery.usernames.length+1);
-            userQuery.usernames[userQuery.usernames.length-1] = new StringPredicate(AssetQuery.Match.BEGIN, User.SERVICE_ACCOUNT_PREFIX).negate(true);
-        }
-
         return ManagerIdentityProvider.getUsersFromDb(persistenceService, userQuery);
     }
 
@@ -235,7 +277,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
             if(existingUser != null && !allowUpdate) {
                 String msg = "Attempt to create user but it already exists: User=" + user;
-                LOG.fine(msg);
+                LOG.warning(msg);
                 throw new ForbiddenException(msg);
             }
 
@@ -245,7 +287,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
                     UserRepresentation userRep = clientResource.getServiceAccountUser();
                     if (userRep == null) {
                         String msg = "Attempt to update/create service user but a regular client with same client ID as this username already exists: User=" + user;
-                        LOG.fine(msg);
+                        LOG.warning(msg);
                         throw new NotAllowedException(msg);
                     }
                     return userRep;
@@ -258,7 +300,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
             if (existingUser != null && user.getId() != null && !existingUser.getId().equals(user.getId())) {
                 String msg = "Attempt to update user but retrieved user ID doesn't match supplied so ignoring: User=" + user;
-                LOG.fine(msg);
+                LOG.warning(msg);
                 throw new BadRequestException(msg);
             }
 
@@ -267,13 +309,13 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
                 if (existingUser.isServiceAccount() != user.isServiceAccount()) {
                     String msg = "Attempt to update user service account flag not allowed: User=" + user;
-                    LOG.fine(msg);
+                    LOG.warning(msg);
                     throw new NotAllowedException(msg);
                 }
 
                 if (existingUser.isServiceAccount() && !existingUser.getUsername().equals(user.getUsername())) {
                     String msg = "Attempt to update username of service user not allowed: User=" + user;
-                    LOG.fine(msg);
+                    LOG.warning(msg);
                     throw new NotAllowedException(msg);
                 }
             }
@@ -288,6 +330,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
                 userRepresentation.setLastName(user.getLastName());
                 userRepresentation.setEmail(user.getEmail());
                 userRepresentation.setEnabled(user.getEnabled());
+                userRepresentation.setAttributes(user.getAttributeMap());
                 userResource.update(userRepresentation);
 
             } else {
@@ -335,14 +378,6 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
                 }
             }
 
-            if (user.getAttributes() != null) {
-                if (existingUser != null) {
-                    // Populate attributes for persistence event
-                    existingUser.setAttributes(getUserAttributes(realm, existingUser.getId()));
-                }
-                updateUserAttributes(realm, userRepresentation.getId(), user.getAttributes());
-            }
-
             User updatedUser = convert(userRepresentation, User.class);
             if (updatedUser != null) {
                 updatedUser.setRealm(realm);
@@ -375,6 +410,10 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
         if (user == null) {
             return;
+        }
+
+        if (user.getUsername().equals(MASTER_REALM_ADMIN_USER) && user.getRealm().equals(MASTER_REALM)) {
+            throw new IllegalStateException("Cannot delete master realm admin user");
         }
 
         getRealms(realmsResource -> {
@@ -438,25 +477,6 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
                 },
                 null
             );
-        });
-    }
-
-    @Override
-    public void updateUserAttributes(String realm, String userId, Map<String, List<String>> attributes) {
-        getRealms(realmsResource -> {
-            UserResource userResource = realmsResource.realm(realm).users().get(userId);
-            UserRepresentation userRepresentation = realmsResource.realm(realm).users().get(userId).toRepresentation();
-            userRepresentation.setAttributes(attributes);
-            userResource.update(userRepresentation);
-            return null;
-        });
-    }
-
-    @Override
-    public Map<String, List<String>> getUserAttributes(String realm, String userId) {
-        return getRealms(realmsResource -> {
-            UserRepresentation userRepresentation = realmsResource.realm(realm).users().get(userId).toRepresentation();
-            return userRepresentation.getAttributes();
         });
     }
 
@@ -845,12 +865,12 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
 
                 // Handle removed roles
                 existingRealmRoles.stream().filter(realmRole -> !realmRoles.contains(realmRole)).forEach(realmRole -> {
-                    LOG.finer("Removing realm role + " + realmRole);
+                    LOG.finest("Removing realm role + " + realmRole);
                     rolesResource.deleteRole(realmRole.getName());
                 });
                 // Handle added roles
                 realmRoles.stream().filter(realmRole -> !existingRealmRoles.contains(realmRole)).forEach(realmRole -> {
-                    LOG.finer("Adding realm role + " + realmRole);
+                    LOG.finest("Adding realm role + " + realmRole);
                     rolesResource.create(new RoleRepresentation(realmRole.getName(), realmRole.getDescription(), false));
                 });
             }
@@ -889,7 +909,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
                 List<RoleRepresentation> existingRealmRoles = rolesResource.list();
                 realm.getNormalisedRealmRoles().stream().filter(realmRole -> existingRealmRoles.stream().noneMatch(roleRepresentation -> roleRepresentation.getName().equals(realmRole.getName())))
                 .forEach(realmRole -> {
-                    LOG.finer("Adding realm role + " + realmRole);
+                    LOG.finest("Adding realm role + " + realmRole);
                     rolesResource.create(new RoleRepresentation(realmRole.getName(), realmRole.getDescription(), false));
                 });
 
@@ -917,88 +937,39 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
             throw new NotFoundException("Realm does not exist: " + realmName);
         }
 
-        // TODO: This should be de-centralised and use a realm lock to prevent any resources being added to the realm during deletion
-        GlobalLock.withLock("RealmDeletion", () -> {
-            persistenceService.doTransaction(entityManager -> {
+        persistenceService.doTransaction(entityManager -> {
 
-                // Delete gateway connections
-                Query query = entityManager.createQuery("delete from " + GatewayConnection.class.getSimpleName() + " gc " +
-                    "where gc.localRealm = ?0");
+            // Delete gateway connections
+            Query query = entityManager.createQuery("delete from " + GatewayConnection.class.getSimpleName() + " gc " +
+                "where gc.localRealm = ?1");
 
-                query.setParameter(0, realmName);
-                query.executeUpdate();
+            query.setParameter(1, realmName);
+            query.executeUpdate();
 
-                // Delete provisioning configs
-                query = entityManager.createQuery("delete from " + ProvisioningConfig.class.getSimpleName() + " pc " +
-                    "where pc.realm = ?0");
+            // Delete provisioning configs
+            query = entityManager.createQuery("delete from " + ProvisioningConfig.class.getSimpleName() + " pc " +
+                "where pc.realm = ?1");
 
-                query.setParameter(0, realmName);
-                query.executeUpdate();
+            query.setParameter(1, realmName);
+            query.executeUpdate();
 
-                // Delete Rules
-                query = entityManager.createQuery("delete from " + RealmRuleset.class.getSimpleName() + " rs " +
-                    "where rs.realm = ?0");
-                query.setParameter(0, realmName);
-                query.executeUpdate();
+            // Delete Rules
+            query = entityManager.createQuery("delete from " + RealmRuleset.class.getSimpleName() + " rs " +
+                "where rs.realm = ?1");
+            query.setParameter(1, realmName);
+            query.executeUpdate();
 
-                // Delete Assets
-                List<String> assetIds = assetStorageService.findAll(new AssetQuery().select(new AssetQuery.Select().excludeAttributes()).realm(new RealmPredicate(realmName))).stream().map(Asset::getId).toList();
-                assetStorageService.delete(assetIds);
-            });
-
-            LOG.fine("Deleting realm: " + realmName);
-            getRealms(realmsResource -> {
-                realmsResource.realm(realmName).remove();
-                return null;
-            });
-            persistenceService.publishPersistenceEvent(PersistenceEvent.Cause.DELETE, null, realm, Realm.class, null, null);
+            // Delete Assets
+            List<String> assetIds = assetStorageService.findAll(new AssetQuery().select(new AssetQuery.Select().excludeAttributes()).realm(new RealmPredicate(realmName))).stream().map(Asset::getId).toList();
+            assetStorageService.delete(assetIds);
         });
-    }
 
-    /**
-     * Load keycloak proxy credentials from file system
-     */
-    public OAuthGrant loadCredentials() {
-        // Try and load keycloak proxy credentials from file
-        String grantFile = getString(container.getConfig(), OR_KEYCLOAK_GRANT_FILE, OR_KEYCLOAK_GRANT_FILE_DEFAULT);
-        Path grantPath = TextUtil.isNullOrEmpty(grantFile) ? null : Paths.get(grantFile);
-        OAuthGrant grant = null;
-
-        if (grantPath != null && Files.isReadable(grantPath)) {
-            LOG.info("Loading OR_KEYCLOAK_GRANT_FILE: " + grantFile);
-
-            try (InputStream is = Files.newInputStream(grantPath)) {
-                String grantJson = IOUtils.toString(is, StandardCharsets.UTF_8);
-                grant = ValueUtil.parse(grantJson, OAuthGrant.class).orElseGet(() -> {
-                    LOG.warning("Failed to load OR_KEYCLOAK_GRANT_FILE: " + grantFile);
-                    return null;
-                });
-            } catch (Exception ex) {
-                throw new ExceptionInInitializerError(ex);
-            }
-        }
-        return grant;
-    }
-
-    /**
-     * Save Keycloak proxy credentials to the file system
-     */
-    public void saveCredentials(OAuthGrant grant) {
-        String grantFile = getString(container.getConfig(), OR_KEYCLOAK_GRANT_FILE, OR_KEYCLOAK_GRANT_FILE_DEFAULT);
-
-        if (TextUtil.isNullOrEmpty(grantFile)) {
-            return;
-        }
-        Path grantPath = Paths.get(grantFile);
-
-        try {
-            Files.write(grantPath, ValueUtil.asJSON(grant).orElse("null").getBytes(),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (Exception e) {
-            LOG.info("Failed to write OR_KEYCLOAK_GRANT_FILE: " + grantFile);
-        }
+        LOG.fine("Deleting realm: " + realmName);
+        getRealms(realmsResource -> {
+            realmsResource.realm(realmName).remove();
+            return null;
+        });
+        persistenceService.publishPersistenceEvent(PersistenceEvent.Cause.DELETE, null, realm, Realm.class, null, null);
     }
 
     public ClientRepresentation generateOpenRemoteClientRepresentation() {
@@ -1202,6 +1173,7 @@ public class ManagerKeycloakIdentityProvider extends KeycloakIdentityProvider im
             emailConfig.put("password", container.getConfig().getOrDefault(OR_EMAIL_PASSWORD, null));
             emailConfig.put("auth", container.getConfig().containsKey(OR_EMAIL_USER) ? "true" : "false");
             emailConfig.put("tls", Boolean.toString(getBoolean(container.getConfig(), OR_EMAIL_TLS, OR_EMAIL_TLS_DEFAULT)));
+            emailConfig.put("ssl", Boolean.toString(!getBoolean(container.getConfig(), OR_EMAIL_TLS, OR_EMAIL_TLS_DEFAULT) && getString(container.getConfig(), OR_EMAIL_PROTOCOL, OR_EMAIL_PROTOCOL_DEFAULT).equals("smtps")));
             emailConfig.put("from", getString(container.getConfig(), OR_EMAIL_FROM, OR_EMAIL_FROM_DEFAULT));
             realmRepresentation.setSmtpServer(emailConfig);
         }

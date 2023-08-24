@@ -37,7 +37,7 @@ import org.openremote.model.value.MetaItemType;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.openremote.manager.provisioning.UserAssetProvisioningMQTTHandler.UNIQUE_ID_PLACEHOLDER;
+import static org.openremote.manager.mqtt.UserAssetProvisioningMQTTHandler.UNIQUE_ID_PLACEHOLDER;
 import static org.openremote.model.rules.Ruleset.Lang.GROOVY;
 import static org.openremote.model.value.ValueType.NUMBER;
 
@@ -69,12 +69,14 @@ public class ManagerSetup extends org.openremote.manager.setup.ManagerSetup {
         templateAsset.getAttribute(WeatherAsset.RAINFALL).ifPresent(attr -> attr.addMeta(
             new MetaItem<>(MetaItemType.ACCESS_RESTRICTED_READ),
             new MetaItem<>(MetaItemType.ACCESS_RESTRICTED_WRITE),
-            new MetaItem<>(MetaItemType.RULE_STATE)
+            new MetaItem<>(MetaItemType.RULE_STATE),
+            new MetaItem<>(MetaItemType.STORE_DATA_POINTS)
         ));
         templateAsset.getAttribute(WeatherAsset.TEMPERATURE).ifPresent(attr -> attr.addMeta(
             new MetaItem<>(MetaItemType.ACCESS_RESTRICTED_READ),
             new MetaItem<>(MetaItemType.ACCESS_RESTRICTED_WRITE),
-            new MetaItem<>(MetaItemType.RULE_STATE)
+            new MetaItem<>(MetaItemType.RULE_STATE),
+            new MetaItem<>(MetaItemType.STORE_DATA_POINTS)
         ));
 
          X509ProvisioningConfig provisioningConfig = new X509ProvisioningConfig("OEM Device",

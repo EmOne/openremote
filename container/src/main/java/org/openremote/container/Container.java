@@ -20,6 +20,12 @@
 package org.openremote.container;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.micrometer.core.instrument.Clock;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import io.micrometer.prometheus.PrometheusConfig;
+import io.prometheus.client.CollectorRegistry;
 import org.openremote.container.concurrent.ContainerScheduledExecutor;
 import org.openremote.container.concurrent.ContainerThreads;
 import org.openremote.container.util.LogUtil;
@@ -30,10 +36,10 @@ import org.openremote.model.util.ValueUtil;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Handler;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static java.lang.System.Logger.Level.*;
 import static java.util.stream.StreamSupport.stream;
 import static org.openremote.container.util.MapAccess.getBoolean;
 import static org.openremote.container.util.MapAccess.getInteger;
@@ -50,43 +56,20 @@ import static org.openremote.container.util.MapAccess.getInteger;
  */
 public class Container implements org.openremote.model.Container {
 
-    protected static class NoShutdownScheduledExecutorService extends ContainerScheduledExecutor {
-
-        public NoShutdownScheduledExecutorService(String name, int corePoolSize) {
-            super(name, corePoolSize);
-        }
-
-        @Override
-        public void shutdown() {
-            throw new UnsupportedOperationException();
-        }
-
-        @SuppressWarnings("NullableProblems")
-        @Override
-        public List<Runnable> shutdownNow() {
-            throw new UnsupportedOperationException();
-        }
-
-        void doShutdownNow() {
-            super.shutdownNow();
-        }
-    }
-
-    public static final Logger LOG;
+    public static final System.Logger LOG = System.getLogger(Container.class.getName());
     public static ScheduledExecutorService EXECUTOR_SERVICE;
     public static final String OR_SCHEDULED_TASKS_THREADS_MAX = "OR_SCHEDULED_TASKS_THREADS_MAX";
     public static final int OR_SCHEDULED_TASKS_THREADS_MAX_DEFAULT = Math.max(Runtime.getRuntime().availableProcessors(), 2);
-
-    static {
-        LogUtil.configureLogging();
-        LOG = Logger.getLogger(Container.class.getName());
-    }
-
     protected final Map<String, String> config = new HashMap<>();
     protected final boolean devMode;
+    protected MeterRegistry meterRegistry;
 
     protected Thread waitingThread;
     protected final Map<Class<? extends ContainerService>, ContainerService> services = new LinkedHashMap<>();
+
+    static {
+        LogUtil.initialiseJUL();
+    }
 
     /**
      * Discover {@link ContainerService}s using {@link ServiceLoader}; services are then ordered by
@@ -119,12 +102,24 @@ public class Container implements org.openremote.model.Container {
             ValueUtil.JSON.enable(SerializationFeature.INDENT_OUTPUT);
         }
 
+        boolean metricsEnabled = getBoolean(getConfig(), OR_METRICS_ENABLED, OR_METRICS_ENABLED_DEFAULT);
+        LOG.log(INFO, "Metrics enabled: " + metricsEnabled);
+
+        if (metricsEnabled) {
+            // TODO: Add a meter registry provider SPI to make this pluggable
+            meterRegistry = new io.micrometer.prometheus.PrometheusMeterRegistry(PrometheusConfig.DEFAULT, io.prometheus.client.CollectorRegistry.defaultRegistry, Clock.SYSTEM);
+        }
+
         int scheduledTasksThreadsMax = getInteger(
             getConfig(),
             OR_SCHEDULED_TASKS_THREADS_MAX,
             OR_SCHEDULED_TASKS_THREADS_MAX_DEFAULT);
 
-        EXECUTOR_SERVICE = new NoShutdownScheduledExecutorService("Scheduled task", scheduledTasksThreadsMax);
+        EXECUTOR_SERVICE = new ContainerScheduledExecutor("Scheduled task", scheduledTasksThreadsMax);
+
+        if (meterRegistry != null) {
+            EXECUTOR_SERVICE = ExecutorServiceMetrics.monitor(meterRegistry, EXECUTOR_SERVICE, "ContainerExecutorService");
+        }
 
         // Any log handlers of the root logger that are container services must be registered
         for (Handler handler : Logger.getLogger("").getHandlers()) {
@@ -157,49 +152,52 @@ public class Container implements org.openremote.model.Container {
     public synchronized void start() throws Exception {
         if (isRunning())
             return;
-        LOG.info(">>> Starting runtime container...");
+        LOG.log(INFO, ">>> Starting runtime container...");
         try {
             for (ContainerService service : getServices()) {
-                LOG.fine("Initializing service: " + service);
+                LOG.log(INFO, "Initializing service: " + service.getClass().getName());
                 service.init(Container.this);
             }
             for (ContainerService service : getServices()) {
-                LOG.fine("Starting service: " + service);
+                LOG.log(INFO, "Starting service: " + service.getClass().getName());
                 service.start(Container.this);
             }
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ">>> Runtime container startup failed", ex);
+            LOG.log(ERROR, ">>> Runtime container startup failed", ex);
             throw ex;
         }
-        LOG.info(">>> Runtime container startup complete");
+        LOG.log(INFO, ">>> Runtime container startup complete");
     }
 
     public synchronized void stop() {
         if (!isRunning())
             return;
-        LOG.info("<<< Stopping runtime container...");
+        LOG.log(INFO, "<<< Stopping runtime container...");
 
         List<ContainerService> servicesToStop = Arrays.asList(getServices());
         Collections.reverse(servicesToStop);
-        try {
-            for (ContainerService service : servicesToStop) {
-                LOG.fine("Stopping service: " + service);
+        for (ContainerService service : servicesToStop) {
+            LOG.log(INFO, "Stopping service: " + service.getClass().getName());
+            try {
                 service.stop(this);
+            } catch (Exception e) {
+                LOG.log(INFO, "Exception thrown whilst stopping service: " + service.getClass().getName(), e);
             }
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
         }
 
         try {
-            LOG.info("Cancelling scheduled tasks");
-            ((NoShutdownScheduledExecutorService) EXECUTOR_SERVICE).doShutdownNow();
+            LOG.log(INFO, "Cancelling scheduled tasks");
+            EXECUTOR_SERVICE.shutdown();
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Exception thrown whilst trying to stop scheduled tasks", e);
+            LOG.log(WARNING, "Exception thrown whilst trying to stop scheduled tasks", e);
         }
 
+        Metrics.globalRegistry.remove(meterRegistry);
+        CollectorRegistry.defaultRegistry.clear();
+        meterRegistry = null;
         waitingThread.interrupt();
         waitingThread = null;
-        LOG.info("<<< Runtime container stopped");
+        LOG.log(INFO, "<<< Runtime container stopped");
     }
 
     /**
@@ -234,6 +232,11 @@ public class Container implements org.openremote.model.Container {
     @Override
     public <T extends ContainerService> boolean hasService(Class<T> type) {
         return getServices(type).size() > 0;
+    }
+
+    @Override
+    public MeterRegistry getMeterRegistry() {
+        return meterRegistry;
     }
 
     /**

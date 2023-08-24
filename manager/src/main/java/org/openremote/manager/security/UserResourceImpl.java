@@ -20,16 +20,22 @@
 package org.openremote.manager.security;
 
 import org.openremote.container.security.AuthContext;
+import org.openremote.container.security.keycloak.KeycloakIdentityProvider;
 import org.openremote.container.timer.TimerService;
+import org.openremote.manager.mqtt.MQTTBrokerService;
 import org.openremote.manager.web.ManagerWebResource;
 import org.openremote.model.Constants;
 import org.openremote.model.http.RequestParams;
 import org.openremote.model.query.UserQuery;
 import org.openremote.model.query.filter.RealmPredicate;
+import org.openremote.model.query.filter.StringPredicate;
 import org.openremote.model.security.*;
 
-import javax.ws.rs.*;
+import jakarta.ws.rs.*;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import static org.openremote.model.Constants.KEYCLOAK_CLIENT_ID;
@@ -37,8 +43,11 @@ import static org.openremote.model.Constants.MASTER_REALM;
 
 public class UserResourceImpl extends ManagerWebResource implements UserResource {
 
-    public UserResourceImpl(TimerService timerService, ManagerIdentityService identityService) {
+    protected MQTTBrokerService mqttBrokerService;
+
+    public UserResourceImpl(TimerService timerService, ManagerIdentityService identityService, MQTTBrokerService mqttBrokerService) {
         super(timerService, identityService);
+        this.mqttBrokerService = mqttBrokerService;
     }
 
     @Override
@@ -66,12 +75,17 @@ public class UserResourceImpl extends ManagerWebResource implements UserResource
             // Force realm to match users
             query.realm(new RealmPredicate(authContext.getAuthenticatedRealmName()));
 
-            // Hide system service accounts from non super users
-            if (query.select == null) {
-                query.select = new UserQuery.Select();
+            // Hide system accounts from non super users
+            if (query.attributes == null) {
+                query.attributes(new UserQuery.AttributeValuePredicate(true, new StringPredicate(User.SYSTEM_ACCOUNT_ATTRIBUTE), null));
+            } else {
+                List<UserQuery.AttributeValuePredicate> attributeValuePredicates = new ArrayList<>(Arrays.asList(query.attributes));
+                attributeValuePredicates.add(new UserQuery.AttributeValuePredicate(true, new StringPredicate(User.SYSTEM_ACCOUNT_ATTRIBUTE), null));
+                query.attributes(attributeValuePredicates.toArray(UserQuery.AttributeValuePredicate[]::new));
             }
-            query.select.excludeSystemUsers = true;
         }
+
+        // Prevent service
 
         try {
             return identityService.getIdentityProvider().queryUsers(query);
@@ -319,6 +333,28 @@ public class UserResourceImpl extends ManagerWebResource implements UserResource
             throw new WebApplicationException(ex.getCause(), ex.getResponse().getStatus());
         } catch (Exception ex) {
             throw new NotFoundException(ex);
+        }
+    }
+
+    @Override
+    public UserSession[] getUserSessions(RequestParams requestParams, String realm, String userId) {
+        boolean hasAdminReadRole = hasResourceRole(ClientRole.READ_ADMIN.getValue(), Constants.KEYCLOAK_CLIENT_ID);
+
+        if (!hasAdminReadRole && !Objects.equals(getUserId(), userId)) {
+            throw new ForbiddenException("Can only retrieve own user sessions unless you have role '" + ClientRole.READ_ADMIN + "'");
+        }
+
+        return mqttBrokerService.getUserConnections(userId).stream().map(connection -> new UserSession(
+            MQTTBrokerService.getConnectionIDString(connection),
+            connection.getSubject() != null ? KeycloakIdentityProvider.getSubjectName(connection.getSubject()) : userId,
+            connection.getCreationTime(),
+            connection.getRemoteAddress())).toArray(UserSession[]::new);
+    }
+
+    @Override
+    public void disconnectUserSession(RequestParams requestParams, String realm, String sessionID) {
+        if (!mqttBrokerService.disconnectSession(sessionID)) {
+            throw new NotFoundException("User session not found");
         }
     }
 

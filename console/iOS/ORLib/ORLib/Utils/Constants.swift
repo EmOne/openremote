@@ -21,8 +21,18 @@
 import Foundation
 import UIKit
 
+public enum Segues {
+    public static var goToSettingsView = "goToSettingsView"
+    public static var goToWizardDomainView = "goToWizardDomainView"
+    public static var goToWizardAppView = "goToWizardAppView"
+    public static var goToWizardRealmView = "goToWizardRealmView"
+    public static var goToWebView = "goToWebView"
+}
+
 public enum DefaultsKey {
     public static var groupEntitlement = "group.io.openremote.app"
+    public static let selectedProjectKey = "SELECTED_PROJECT"
+    public static let projectsConfigurationKey = "PROJECTS_CONFIGURATION"
     public static let projectKey = "PROJECT"
     public static let hostKey = "HOST"
     public static let realmKey = "REALM"
@@ -48,8 +58,10 @@ public enum Actions {
     public static let geofenceRefresh = "GEOFENCE_REFRESH"
     public static let store = "STORE"
     public static let retrieve = "RETRIEVE"
-    public static let getLocation = "GET_LOCATION"
     public static let scanQr = "SCAN_QR"
+    public static let scanBleDevices = "SCAN_BLE_DEVICES"
+    public static let connectToBleDevice = "CONNECT_TO_DEVICE"
+    public static let sendToBleDevice = "SEND_TO_DEVICE"
 }
 
 public enum Providers {
@@ -57,6 +69,7 @@ public enum Providers {
     public static let geofence = "geofence"
     public static let storage = "storage"
     public static let qr = "qr"
+    public static let ble = "ble"
 }
 
 public enum NotificationsNames {

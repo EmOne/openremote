@@ -14,8 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.android.gms.location.*
 import io.openremote.orlib.ORConstants
 import io.openremote.orlib.R
-import io.openremote.orlib.ui.OrMainActivity
-import java.lang.invoke.ConstantCallSite
 import java.net.URL
 import java.util.*
 import java.util.logging.Level
@@ -165,7 +163,7 @@ class GeofenceProvider(val context: Context) {
     private val locationUpdateCallback: LocationCallback by lazy {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation.let {
+                locationResult.lastLocation?.let {
                     locationClient.removeLocationUpdates(this)
                     locationCallback?.accept(
                         hashMapOf(

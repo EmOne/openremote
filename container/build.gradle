@@ -10,55 +10,46 @@ dependencies {
     api "org.codehaus.groovy:groovy-all:$groovyVersion"
     api "org.craftercms:groovy-sandbox:$groovySandboxVersion"
 
-    api "org.slf4j:slf4j-api:$slf4jVersion"
+    // SLF4J JUL provider
     api "org.slf4j:slf4j-jdk14:$slf4jVersion"
-    api "org.slf4j:jcl-over-slf4j:$slf4jVersion"
+    // Log4J redirect to SLF4J
     api "org.slf4j:log4j-over-slf4j:$slf4jVersion"
 
     api "com.devskiller.friendly-id:friendly-id:$friendlyIdVersion"
 
     api "io.undertow:undertow-servlet:$undertowVersion"
     api "io.undertow:undertow-websockets-jsr:$undertowVersion"
-
-    api "org.jboss.resteasy:resteasy-jaxrs:$resteasyVersion"
+    api ("org.jboss.resteasy:resteasy-undertow:$resteasyVersion") {
+        exclude group: "io.undertow",  module: "undertow-servlet-jakarta"
+    }
     api "org.jboss.resteasy:resteasy-client:$resteasyVersion"
     api "org.jboss.resteasy:resteasy-jackson2-provider:$resteasyVersion"
     api "org.jboss.resteasy:resteasy-multipart-provider:$resteasyVersion"
-    api("org.jboss.resteasy:resteasy-cache-core:$resteasyVersion") {
-        exclude group: "org.infinispan"
-    }
     api "org.jboss.resteasy:resteasy-validator-provider:$resteasyVersion"
-    api "org.jboss.resteasy:async-http-servlet-3.0:$resteasyVersionAsyncHttpServlet"
 
     api "org.keycloak:keycloak-client-registration-api:$keycloakVersion"
-    api "org.keycloak:keycloak-undertow-adapter:$keycloakVersion"
-    api "org.keycloak:keycloak-admin-client:$keycloakVersion"
+    api "org.keycloak:keycloak-adapter-core:$keycloakVersion"
+    api "org.keycloak:keycloak-admin-client-jakarta:$keycloakVersion"
 
     api "org.postgresql:postgresql:$postgresJdbcVersion"
     api "org.flywaydb:flyway-core:$flywaydbVersion"
-    api "com.zaxxer:HikariCP:$hikaricpVersion"
     api "org.hibernate:hibernate-core:$hibernateVersion"
-    api "org.hibernate:hibernate-validator:$hibernateValidatorVersion"
+    api "org.hibernate.orm:hibernate-hikaricp:$hibernateVersion"
+    api "org.hibernate.validator:hibernate-validator:$hibernateValidatorVersion"
+    api "com.zaxxer:HikariCP:$hikaricpVersion"
 
-    api "javax.el:javax.el-api:3.0.0"
+    api "jakarta.el:jakarta.el-api:$javaxELAPIVersion"
+    api "org.glassfish:jakarta.el:$javaxELVersion"
 
     api "org.apache.camel:camel-core:$camelVersion"
     api "org.apache.camel:camel-jackson:$camelVersion"
     api "org.apache.camel:camel-snmp:$camelVersion"
     api "org.apache.camel:camel-health:$camelVersion"
-
-    api("com.fasterxml.uuid:java-uuid-generator:$uuidGeneratorVersion") {
-        exclude group: "log4j"
-    }
-
-    api("org.cyclopsgroup:jmxterm:$jmxtermVersion") {
-        exclude group: "javax.servlet"
-        exclude group: "log4j"
-        exclude group: "logkit"
-        exclude group: "commons-logging"
-    }
-
-    api "com.vladmihalcea:hibernate-types-52:$hibernateTypesVersion"
+    api "org.apache.camel:camel-management:$camelVersion"
+    api "com.fasterxml.uuid:java-uuid-generator:$uuidGeneratorVersion"
+    api "com.vladmihalcea:hibernate-types-60:$hibernateTypesVersion"
+    api "org.apache.camel:camel-micrometer:$camelVersion"
+    api "io.micrometer:micrometer-registry-prometheus:$micrometerVersion"
 }
 
 jar {
@@ -82,7 +73,7 @@ publishing {
             from components.java
             pom {
                 name = 'OpenRemote Container'
-                description = 'Application container for running; add maven {url "https://jitpack.io"} and maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
+                description = 'Application container for running; add maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
                 url = 'https://github.com/openremote/openremote'
                 licenses {
                     license {

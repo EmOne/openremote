@@ -14,10 +14,9 @@ public class GeofenceProvider: NSObject, URLSessionDelegate {
     let userdefaults = UserDefaults(suiteName: DefaultsKey.groupEntitlement)
     var geoPostUrls = [String:[String]]()
     var enableCallback : (([String: Any]) -> (Void))?
-    var getLocationCallback : (([String: Any]) -> (Void))?
 
     public var baseURL: String = ""
-    public var consoleId: String = ""
+    public var consoleId: String? = nil
 
     private var enteredLocation: (String, [String : Any]?)? = nil
     private var exitedLocation: (String, [String : Any]?)? = nil
@@ -88,7 +87,7 @@ public class GeofenceProvider: NSObject, URLSessionDelegate {
         userdefaults?.synchronize()
     }
 
-    public func enable(baseUrl: String, consoleId: String, callback:@escaping ([String: Any]) ->(Void)) {
+    public func enable(baseUrl: String, consoleId: String?, callback:@escaping ([String: Any]) ->(Void)) {
         self.baseURL = baseUrl
         self.consoleId = consoleId
         userdefaults?.set(self.baseURL, forKey: GeofenceProvider.baseUrlKey)
@@ -130,25 +129,12 @@ public class GeofenceProvider: NSObject, URLSessionDelegate {
         ]
     }
 
-    public func getLocation(callback:@escaping ([String: Any]) -> (Void)) {
-        if locationManager.authorizationStatus == .denied {
-            callback([
-                DefaultsKey.actionKey: Actions.getLocation,
-                DefaultsKey.providerKey: Providers.geofence,
-                DefaultsKey.dataKey: nil
-            ])
-        } else {
-            getLocationCallback = callback
-            locationManager.startUpdatingLocation()
-        }
-    }
-
     public func refreshGeofences() {
         fetchGeofences()
     }
 
     func fetchGeofences(callback: (([GeofenceDefinition]) -> ())? = nil)  {
-        if let tkurlRequest = URL(string: "\(baseURL)/\(geofenceFetchEndpoint)\(consoleId)") {
+        if let tkurlRequest = URL(string: "\(baseURL)/\(geofenceFetchEndpoint)\(consoleId ?? "")") {
             let tkRequest = NSMutableURLRequest(url: tkurlRequest)
             tkRequest.httpMethod = "GET"
             let sessionConfiguration = URLSessionConfiguration.default
@@ -323,17 +309,6 @@ extension GeofenceProvider: CLLocationManagerDelegate {
                 ])
         } else if status == .authorizedAlways {
             self.locationManager.startMonitoringSignificantLocationChanges()
-        }
-    }
-
-    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        if let lastLocation = locations.last {
-            getLocationCallback?([
-                DefaultsKey.actionKey: Actions.getLocation,
-                DefaultsKey.providerKey: Providers.geofence,
-                DefaultsKey.dataKey: ["latitude": lastLocation.coordinate.latitude, "longitude": lastLocation.coordinate.longitude]
-                ])
-            locationManager.stopUpdatingLocation()
         }
     }
 

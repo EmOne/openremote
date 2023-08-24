@@ -19,14 +19,13 @@
  */
 package org.openremote.model.auth;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.openremote.model.util.TextUtil;
 
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.Serializable;
 import java.util.*;
 
@@ -41,6 +40,7 @@ import static org.openremote.model.util.TextUtil.requireNonNullAndNonEmpty;
 public abstract class OAuthGrant implements Serializable {
 
     public static final String VALUE_KEY_GRANT_TYPE = "grant_type";
+    public static final String VALUE_KEY_TOKEN_ENDPOINT_URI = "tokenEndpointUri";
     public static final String VALUE_KEY_CLIENT_ID = "client_id";
     public static final String VALUE_KEY_CLIENT_SECRET = "client_secret";
     public static final String VALUE_KEY_SCOPE = "scope";

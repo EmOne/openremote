@@ -20,9 +20,10 @@ dependencies {
 
     implementation "org.geotools:gt-main:$geotoolsVersion"
     implementation "com.google.firebase:firebase-admin:$firebaseAdminVersion"
-    implementation "org.simplejavamail:simple-java-mail:$simpleJavaMailVersion"
-    implementation "io.swagger.core.v3:swagger-jaxrs2:$swaggerVersion"
+    implementation "org.eclipse.angus:angus-mail:$jakartaMailVersion"
+    implementation "io.swagger.core.v3:swagger-jaxrs2-jakarta:$swaggerVersion"
     implementation "org.openjdk.nashorn:nashorn-core:$nashornVersion"
+    implementation "org.apache.camel:camel-undertow:$camelVersion"
 
     implementation ("io.netty:netty-codec-http:$nettyVersion") {
         force = true
@@ -35,12 +36,13 @@ dependencies {
 
     implementation("org.apache.activemq:artemis-mqtt-protocol:$activeMQVersion") {
         exclude group: "org.osgi"
-        exclude group: "org.jboss.logging"
+        exclude group: "org.jboss.logmanager"
     }
 
     // Needed for reference in tests
     api("org.apache.activemq:artemis-server:$activeMQVersion") {
         exclude group: "org.osgi"
+        exclude group: "org.jboss.logmanager"
     }
 
     implementation("org.quartz-scheduler:quartz:$quartzVersion") {
@@ -48,10 +50,17 @@ dependencies {
     }
 
     implementation "org.shredzone.commons:commons-suncalc:$suncalcVersion"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    implementation "io.prometheus:simpleclient_httpserver:$prometheusVersion"
 }
 
 jar {
     archivesBaseName = "openremote-${project.name}"
+}
+
+afterEvaluate {
+    // Change the working directory for the run task
+    tasks.run.workingDir = isCustomProject() ? project(":openremote").projectDir : rootProject.projectDir
 }
 
 distributions {
@@ -90,7 +99,7 @@ publishing {
             from components.java
             pom {
                 name = 'OpenRemote Manager'
-                description = 'Provides core container services and is the main component of the OpenRemote backend; add maven {url "https://jitpack.io"} and maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
+                description = 'Provides core container services and is the main component of the OpenRemote backend; add maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
                 url = 'https://github.com/openremote/openremote'
                 licenses {
                     license {

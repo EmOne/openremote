@@ -1,11 +1,11 @@
 import {css, html, PropertyValues, TemplateResult, unsafeCSS} from "lit";
 import {customElement, property, state} from "lit/decorators.js";
-import manager, {DefaultColor4, Util} from "@openremote/core";
+import manager, {DefaultColor4, DefaultColor3, Util} from "@openremote/core";
 import "@openremote/or-components/or-panel";
 import "@openremote/or-translate";
 import {Store} from "@reduxjs/toolkit";
 import {AppStateKeyed, Page, PageProvider, router} from "@openremote/or-app";
-import {ClientRole, Role, User, UserAssetLink, UserQuery} from "@openremote/model";
+import {ClientRole, Role, User, UserAssetLink, UserQuery, UserSession} from "@openremote/model";
 import {i18next} from "@openremote/or-translate";
 import {InputType, OrInputChangedEvent, OrMwcInput} from "@openremote/or-mwc-components/or-mwc-input";
 import {OrMwcDialog, showDialog, showOkCancelDialog} from "@openremote/or-mwc-components/or-mwc-dialog";
@@ -59,7 +59,6 @@ export class PageUsers extends Page<AppStateKeyed> {
                     width: 100%;
                     display: flex;
                     flex-direction: column;
-                    overflow: auto;
                 }
 
                 #title {
@@ -71,6 +70,7 @@ export class PageUsers extends Page<AppStateKeyed> {
                     margin: 20px auto;
                     align-items: center;
                     display: flex;
+                    color: var(--or-app-color3, ${unsafeCSS(DefaultColor3)});
                 }
 
                 #title or-icon {
@@ -79,25 +79,30 @@ export class PageUsers extends Page<AppStateKeyed> {
                 }
 
                 .panel {
-                    width: calc(100% - 90px);
-                    max-width: 1310px;
+                    flex: 0;
+                    width: 100%;
+                    box-sizing: border-box;
+                    max-width: 1360px;
                     background-color: white;
                     border: 1px solid #e5e5e5;
                     border-radius: 5px;
                     position: relative;
                     margin: 0 auto 10px;
                     padding: 12px 24px 24px;
+                    display: flex;
+                    flex-direction: column;
                 }
 
                 .panel-title {
+                    display: flex;
                     text-transform: uppercase;
                     font-weight: bolder;
+                    color: var(--or-app-color3, ${unsafeCSS(DefaultColor3)});
                     line-height: 1em;
                     margin-bottom: 10px;
                     margin-top: 0;
                     flex: 0 0 auto;
                     letter-spacing: 0.025em;
-                    display: flex;
                     align-items: center;
                     min-height: 36px;
                 }
@@ -117,7 +122,6 @@ export class PageUsers extends Page<AppStateKeyed> {
                 .row {
                     display: flex;
                     flex-direction: row;
-                    margin: 10px 0;
                     flex: 1 1 0;
                     gap: 24px;
                 }
@@ -152,6 +156,17 @@ export class PageUsers extends Page<AppStateKeyed> {
                     --or-icon-width: 16px;
                     --or-icon-height: 16px;
                 }
+                
+                #session-table {
+                    --or-mwc-table-column-width-3: 0;
+                }
+                
+                .button-row {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    margin-bottom: 0;
+                    justify-content: space-between;
+                }
 
                 @media screen and (max-width: 768px) {
                     #title {
@@ -169,7 +184,6 @@ export class PageUsers extends Page<AppStateKeyed> {
                         border-radius: 0;
                         border-left: 0px;
                         border-right: 0px;
-                        width: calc(100% - 48px);
                     }
                 }
             `,
@@ -194,10 +208,6 @@ export class PageUsers extends Page<AppStateKeyed> {
     @state()
     protected _realmRoles: Role[] = [];
 
-    protected _realmRolesFilter = (role: Role) => {
-        return !role.composite && !["uma_authorization", "offline_access", "admin"].includes(role.name) && !role.name.startsWith("default-roles")
-    };
-
     @state()
     protected _compositeRoles: Role[] = [];
     protected _loading: boolean = false;
@@ -206,6 +216,9 @@ export class PageUsers extends Page<AppStateKeyed> {
     protected _loadUsersPromise?: Promise<any>;
     @state()
     protected _saveUserPromise?: Promise<any>;
+
+    @state()
+    private _sessionLoader: Promise<TemplateResult>;
 
     get name(): string {
         return "user_plural";
@@ -394,7 +407,7 @@ export class PageUsers extends Page<AppStateKeyed> {
     }
 
     private _deleteUser(user) {
-        showOkCancelDialog(i18next.t("delete"), i18next.t("deleteUserConfirm"), i18next.t("delete"))
+        showOkCancelDialog(i18next.t("deleteUser"), i18next.t("deleteUserConfirm", { userName: user.username }), i18next.t("delete"))
             .then((ok) => {
                 if (ok) {
                     this.doDelete(user);
@@ -422,7 +435,7 @@ export class PageUsers extends Page<AppStateKeyed> {
         }
 
         const compositeRoleOptions: string[] = this._compositeRoles.map(cr => cr.name);
-        const realmRoleOptions: [string, string][] = this._realmRoles ? this._realmRoles.filter(r => this._realmRolesFilter(r)).map(r => [r.name, i18next.t("realmRole." + r.name, Util.camelCaseToSentenceCase(r.name.replace("_", " ").replace("-", " ")))]) : [];
+        const realmRoleOptions: [string, string][] = this._realmRoles ? this._realmRoles.filter(r => Util.realmRoleFilter(r)).map(r => [r.name, i18next.t("realmRole." + r.name, Util.camelCaseToSentenceCase(r.name.replace("_", " ").replace("-", " ")))]) : [];
         const readonly = !manager.hasRole(ClientRole.WRITE_ADMIN);
 
         // Content of User Table
@@ -435,7 +448,7 @@ export class PageUsers extends Page<AppStateKeyed> {
         ];
         const userTableRows: TableRow[] = this._users.map((user) => {
             return {
-                content: [user.username, user.firstName, user.lastName, user.email, user.enabled ? i18next.t('enabled') : i18next.t('disabled')],
+                content: [user.username, user.firstName, user.lastName, user.email, user.enabled ? i18next.t('enabled') : i18next.t('disabled')] as string[],
                 clickable: true
             }
         });
@@ -447,7 +460,7 @@ export class PageUsers extends Page<AppStateKeyed> {
         ];
         const serviceUserTableRows: TableRow[] = this._serviceUsers.map((user) => {
             return {
-                content: [user.username, user.enabled ? i18next.t('enabled') : i18next.t('disabled')],
+                content: [user.username, user.enabled ? i18next.t('enabled') : i18next.t('disabled')] as string[],
                 clickable: true
             }
         })
@@ -491,8 +504,10 @@ export class PageUsers extends Page<AppStateKeyed> {
                                 <p class="panel-title">
                                     ${user.serviceAccount ? i18next.t('serviceUser') : i18next.t('user')}
                                     ${i18next.t('settings')}</p>
-                                ${this.getSingleUserView((index != undefined ? mergedUserList[index] : this.creationState.userModel), compositeRoleOptions, realmRoleOptions, ("user" + index), (readonly || this._saveUserPromise != undefined))}
+                                ${this.getSingleUserView(user, compositeRoleOptions, realmRoleOptions, ("user" + index), (readonly || this._saveUserPromise != undefined))}
                             </div>
+                            
+                            ${user.serviceAccount ? this.getMQTTSessionTemplate(user) : ``}
                         `;
                     })}
 
@@ -545,6 +560,7 @@ export class PageUsers extends Page<AppStateKeyed> {
         return {
             enabled: true,
             password: undefined,
+            realm: manager.displayRealm,
             roles: [],
             previousRoles: [],
             realmRoles: [],
@@ -729,6 +745,38 @@ export class PageUsers extends Page<AppStateKeyed> {
         `;
     }
 
+    protected getMQTTSessionTemplate(user: UserModel): TemplateResult {
+
+        if (!this._sessionLoader) {
+            this._sessionLoader = this.getSessionLoader(user);
+        }
+
+        return html`
+            <div id="content" class="panel">
+                <p class="panel-title">${i18next.t('mqttSessions')}</p>
+                ${until(this._sessionLoader, html`${i18next.t('loading')}`)}
+            </div>
+        `;
+    }
+
+    protected async getSessionLoader(user: UserModel): Promise<TemplateResult> {
+        const userSessionsResponse = await (manager.rest.api.UserResource.getUserSessions(manager.displayRealm, user.id));
+
+        if (!this.responseAndStateOK(() => userSessionsResponse.status === 200, userSessionsResponse, i18next.t("loadFailedUserInfo"))) {
+            return html``;
+        }
+
+        const cols = [i18next.t("address"), i18next.t("since"), ""];
+        const rows = userSessionsResponse.data.map((session) => {
+            return [session.remoteAddress, new Date(session.startTimeMillis), html`<or-mwc-input .type="${InputType.BUTTON}" label="${i18next.t("disconnect")}" @or-mwc-input-changed="${() => {this.disconnectSession(user, session)}}"></or-mwc-input>`]
+        });
+        if (rows.length < 1){
+            return html`<or-mwc-table .rows="${[['This user has no active MQTT sessions',null]]}" .config="${{stickyFirstColumn:false}}" .columns="${cols}"></or-mwc-table>`;
+        }
+
+        return html`<or-mwc-table id="session-table" .rows="${rows}" .config="${{stickyFirstColumn:false}}" .columns="${cols}"></or-mwc-table>`;
+    }
+
     protected getSingleUserTemplate(user: UserModel, compositeRoleOptions: string[], realmRoleOptions: [string, string][], suffix: string, readonly: boolean = true): TemplateResult {
         const isServiceUser = user.serviceAccount;
         const isSameUser = user.username === manager.username;
@@ -829,13 +877,13 @@ export class PageUsers extends Page<AppStateKeyed> {
                     <or-mwc-input
                             ?readonly="${readonly}"
                             ?disabled="${isSameUser}"
-                            .value="${user.realmRoles && user.realmRoles.length > 0 ? user.realmRoles.filter(r => this._realmRolesFilter(r)).map(r => r.name) : undefined}"
+                            .value="${user.realmRoles && user.realmRoles.length > 0 ? user.realmRoles.filter(r => Util.realmRoleFilter(r)).map(r => r.name) : undefined}"
                             .type="${InputType.SELECT}" multiple
                             .options="${realmRoleOptions}"
                             .label="${i18next.t("realm_role_plural")}"
                             @or-mwc-input-changed="${(e: OrInputChangedEvent) => {
                                 const roleNames = e.detail.value as string[];
-                                const excludedAndCompositeRoles = user.realmRoles.filter(r => !this._realmRolesFilter(r));
+                                const excludedAndCompositeRoles = user.realmRoles.filter(r => !Util.realmRoleFilter(r));
                                 const selectedRoles = this._realmRoles.filter(cr => roleNames.some(name => cr.name === name)).map(r => {
                                     return {...r, assigned: true} as Role;
                                 });
@@ -893,7 +941,7 @@ export class PageUsers extends Page<AppStateKeyed> {
             </div>
             <!-- Bottom controls (save/update and delete button) -->
             ${when(!(readonly && !this._saveUserPromise), () => html`
-                <div class="row" style="margin-bottom: 0; justify-content: space-between;">
+                <div class="row button-row">
 
                     ${when((!isSameUser && user.id), () => html`
                         <or-mwc-input style="margin: 0;" outlined ?disabled="${readonly}"
@@ -966,5 +1014,15 @@ export class PageUsers extends Page<AppStateKeyed> {
             callHooks: !silent,
             callHandler: !silent
         });
+    }
+
+    protected disconnectSession(user: UserModel, session: UserSession) {
+        this._sessionLoader = manager.rest.api.UserResource.disconnectUserSession(manager.displayRealm, session.ID)
+            .then(() => showSnackbar(undefined, i18next.t("userDisconnected")))
+            .catch((e) => {
+                showSnackbar(undefined, i18next.t("userDisconnectFailed"));
+                console.error("Failed to disconnect user", e);
+            })
+            .then(() =>this.getSessionLoader(user));
     }
 }

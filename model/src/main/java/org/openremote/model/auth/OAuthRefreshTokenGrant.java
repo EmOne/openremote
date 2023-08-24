@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-import javax.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.Collections;
 
 @JsonTypeName(OAuthRefreshTokenGrant.REFRESH_TOKEN_GRANT_TYPE)
@@ -33,7 +33,7 @@ public class OAuthRefreshTokenGrant extends OAuthClientCredentialsGrant {
     @JsonProperty(REFRESH_TOKEN_GRANT_TYPE)
     protected String refreshToken;
     @JsonCreator
-    public OAuthRefreshTokenGrant(@JsonProperty("tokenEndpointUri") String tokenEndpointUri,
+    public OAuthRefreshTokenGrant(@JsonProperty(VALUE_KEY_TOKEN_ENDPOINT_URI) String tokenEndpointUri,
                                   @JsonProperty(VALUE_KEY_CLIENT_ID) String clientId,
                                   @JsonProperty(VALUE_KEY_CLIENT_SECRET) String clientSecret,
                                   @JsonProperty(VALUE_KEY_SCOPE) String scope,

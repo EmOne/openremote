@@ -21,7 +21,7 @@ package org.openremote.model.syslog;
 
 import org.hibernate.validator.constraints.Range;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 
 public class SyslogConfig {
@@ -35,7 +35,6 @@ public class SyslogConfig {
     protected SyslogCategory[] storedCategories;
 
     @NotNull
-    @Range(max = 10080) // TODO 1 week max or we run out of space?
     protected int storedMaxAgeMinutes;
 
     public SyslogConfig() {

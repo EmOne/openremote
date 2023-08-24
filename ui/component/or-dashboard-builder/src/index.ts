@@ -1,6 +1,7 @@
 import {css, html, LitElement, unsafeCSS} from "lit";
 import {customElement, property, state} from "lit/decorators.js";
 import {when} from 'lit/directives/when.js';
+import {styleMap} from 'lit/directives/style-map.js';
 import "./or-dashboard-tree";
 import "./or-dashboard-browser";
 import "./or-dashboard-preview";
@@ -20,7 +21,7 @@ import {
     DashboardTemplate,
     DashboardWidget
 } from "@openremote/model";
-import manager, {DefaultColor3, DefaultColor5} from "@openremote/core";
+import manager, {DefaultColor1, DefaultColor3, DefaultColor5, Util} from "@openremote/core";
 import {ListItem} from "@openremote/or-mwc-components/or-mwc-list";
 import {OrMwcTabItem} from "@openremote/or-mwc-components/or-mwc-tabs";
 import "@openremote/or-mwc-components/or-mwc-tabs";
@@ -32,18 +33,27 @@ import {OrWidgetEntity} from "./widgets/or-base-widget";
 import {OrChartWidget} from "./widgets/or-chart-widget";
 import { OrKpiWidget } from "./widgets/or-kpi-widget";
 import { OrGaugeWidget } from "./widgets/or-gauge-widget";
+import {OrMapWidget} from "./widgets/or-map-widget";
 
 // language=CSS
 const styling = css`
     
     @media only screen and (min-width: 641px){
         #tree {
-            max-width: 300px !important;
+            min-width: 300px !important;
+        }
+    }
+    @media only screen and (max-width: 641px) {
+        #tree {
+            flex: 1 !important;
+        }
+        #builder {
+            max-height: inherit !important;
         }
     }
     
     #tree {
-        flex-shrink: 0;
+        flex: 0;
         align-items: stretch;
         z-index: 1;
         box-shadow: rgb(0 0 0 / 21%) 0px 1px 3px 0px;
@@ -51,9 +61,7 @@ const styling = css`
     
     /* Header related styling */
     #header {
-        display: table-row;
-        height: 1px;
-        background: white;
+        background: var(--or-app-color1, ${unsafeCSS(DefaultColor1)});
     }
     #header-wrapper {
         padding: 14px 30px;
@@ -80,10 +88,6 @@ const styling = css`
     }
 
     /* Header related styling */
-    #fullscreen-header {
-        display: table-row;
-        height: 1px;
-    }
     @media screen and (max-width: 700px) {
         #fullscreen-header-wrapper {
             padding: 11px !important;
@@ -99,6 +103,7 @@ const styling = css`
     #fullscreen-header-title {
         font-size: 18px;
         font-weight: bold;
+        color: var(--or-app-color3, ${unsafeCSS(DefaultColor3)});
     }
     #fullscreen-header-title > or-mwc-input {
         margin-right: 4px;
@@ -204,6 +209,12 @@ export function getActivePreset(gridWidth: number, presets: DashboardScreenPrese
 }
 export const widgetTypes: Map<string, OrWidgetEntity> = new Map<string, OrWidgetEntity>();
 
+export function registerWidgetTypes() {
+    widgetTypes.set("linechart", new OrChartWidget());
+    widgetTypes.set("kpi", new OrKpiWidget());
+    widgetTypes.set("gauge", new OrGaugeWidget());
+    widgetTypes.set("map", new OrMapWidget());
+}
 
 @customElement("or-dashboard-builder")
 export class OrDashboardBuilder extends LitElement {
@@ -279,9 +290,7 @@ export class OrDashboardBuilder extends LitElement {
         this.hasChanged = false;
         this.rerenderPending = false;
 
-        this.registerWidgetType("linechart", new OrChartWidget());
-        this.registerWidgetType("kpi", new OrKpiWidget());
-        this.registerWidgetType("gauge", new OrGaugeWidget());
+        registerWidgetTypes();
 
         this.updateComplete.then(async () => {
             await this.updateDashboards(this.realm!);
@@ -316,7 +325,7 @@ export class OrDashboardBuilder extends LitElement {
 
         // Setting dashboard if selectedId is given by parent component
         if(this.selectedId != undefined) {
-            this.selectedDashboard = Object.assign({}, this.dashboards?.find(x => { return x.id == this.selectedId; }));
+            this.selectedDashboard = this.dashboards?.find(x => { return x.id == this.selectedId; });
         }
     }
 
@@ -330,7 +339,9 @@ export class OrDashboardBuilder extends LitElement {
 
         // On any update (except widget selection), check whether hasChanged should be updated.
         if(!(changedProperties.size == 1 && changedProperties.has('selectedWidget'))) {
-            this.hasChanged = (JSON.stringify(this.selectedDashboard) != this.initialDashboardJSON || JSON.stringify(this.currentTemplate) != this.initialTemplateJSON);
+            const dashboardEqual = Util.objectsEqual(this.selectedDashboard, this.initialDashboardJSON ? JSON.parse(this.initialDashboardJSON) : undefined);
+            const templateEqual = Util.objectsEqual(this.currentTemplate, this.initialTemplateJSON ? JSON.parse(this.initialTemplateJSON) : undefined);
+            this.hasChanged = (!dashboardEqual || !templateEqual);
         }
 
         // Support for realm switching
@@ -429,7 +440,14 @@ export class OrDashboardBuilder extends LitElement {
         if(this.selectedDashboard != null) {
             const dashboard = this.selectedDashboard;
             dashboard.displayName = value;
-            this.selectedDashboard = Object.assign({}, dashboard);
+            this.requestUpdate("selectedDashboard");
+        }
+    }
+
+    openDashboardInInsights() {
+        if(this.selectedDashboard != null) {
+            const insightsUrl: string = (window.location.origin + "/insights/?realm=" + manager.displayRealm + "#/view/" + this.selectedDashboard.id + "/true/"); // Just using relative URL to origin, as its enough for now.
+            window.open(insightsUrl)?.focus();
         }
     }
 
@@ -501,6 +519,10 @@ export class OrDashboardBuilder extends LitElement {
             this.dispatchEvent(new CustomEvent('editToggle', { detail: false }));
             this.showDashboardTree = true;
         }
+        const builderStyles = {
+            display: (this.editMode && (this._isReadonly() || !this._hasEditAccess())) ? 'none' : undefined,
+            maxHeight: this.editMode ? "calc(100vh - 77px - 50px)" : "inherit"
+        };
         return (!this.isInitializing || (this.dashboards != null && this.dashboards.length == 0)) ? html`
             <div id="container">
                 ${(this.showDashboardTree) ? html`
@@ -511,9 +533,9 @@ export class OrDashboardBuilder extends LitElement {
                                        @select="${(event: CustomEvent) => { this.selectDashboard(event.detail); }}"
                     ></or-dashboard-tree>
                 ` : undefined}
-                <div id="container" class="${this.selectedDashboard == null ? 'hideMobile' : undefined}" style="display: table;">
+                <div class="${this.selectedDashboard == null ? 'hideMobile' : undefined}" style="flex: 1; display: flex; flex-direction: column;">
                     ${this.editMode ? html`
-                        <div id="header" class="hideMobile" style="display: ${this.selectedDashboard == null && 'none'}">
+                        <div id="header" class="hideMobile">
                             <div id="header-wrapper">
                                 <div id="header-title">
                                     <or-icon icon="view-dashboard"></or-icon>
@@ -532,6 +554,9 @@ export class OrDashboardBuilder extends LitElement {
                                         </or-mwc-input>
                                         <or-mwc-input id="responsive-btn" class="small-btn" .disabled="${this.isLoading || (this.selectedDashboard == null)}" type="${InputType.BUTTON}" icon="responsive"
                                                       @or-mwc-input-changed="${() => { this.dispatchEvent(new CustomEvent('fullscreenToggle', { detail: !this.fullscreen })); }}">
+                                        </or-mwc-input>
+                                        <or-mwc-input id="share-btn" class="small-btn" .disabled="${this.isLoading || (this.selectedDashboard == null)}" type="${InputType.BUTTON}" icon="open-in-new"
+                                                      @or-mwc-input-changed="${() => { this.openDashboardInInsights(); }}">
                                         </or-mwc-input>
                                         <or-mwc-input id="save-btn" ?hidden="${this._isReadonly() || !this._hasEditAccess()}" .disabled="${this.isLoading || !this.hasChanged || (this.selectedDashboard == null)}" type="${InputType.BUTTON}" raised label="${i18next.t('save')}"
                                                       @or-mwc-input-changed="${() => { this.saveDashboard(); }}">
@@ -553,7 +578,12 @@ export class OrDashboardBuilder extends LitElement {
                                 </div>
                                 <div id="fullscreen-header-actions">
                                     <div id="fullscreen-header-actions-content">
-                                        <or-mwc-input id="refresh-btn" class="small-btn" .disabled="${(this.selectedDashboard == null)}" type="${InputType.BUTTON}" icon="refresh" @or-mwc-input-changed="${() => { this.rerenderPending = true; }}"></or-mwc-input>
+                                        <or-mwc-input id="refresh-btn" class="small-btn" .disabled="${(this.selectedDashboard == null)}" type="${InputType.BUTTON}" icon="refresh"
+                                                      @or-mwc-input-changed="${() => { this.rerenderPending = true; }}"
+                                        ></or-mwc-input>
+                                        <or-mwc-input id="share-btn" class="small-btn" .disabled="${(this.selectedDashboard == null)}" type="${InputType.BUTTON}" icon="open-in-new"
+                                                      @or-mwc-input-changed="${() => { this.openDashboardInInsights(); }}"
+                                        ></or-mwc-input>
                                         <or-mwc-input id="view-btn" class="hideMobile" ?hidden="${this.selectedDashboard == null || this._isReadonly() || !this._hasEditAccess()}" type="${InputType.BUTTON}" outlined icon="pencil" label="${i18next.t('editAsset')}"
                                                       @or-mwc-input-changed="${() => { this.dispatchEvent(new CustomEvent('editToggle', { detail: true })); }}"></or-mwc-input>
                                     </div>
@@ -561,14 +591,14 @@ export class OrDashboardBuilder extends LitElement {
                             </div>
                         </div>
                     `}
-                    <div id="content">
+                    <div id="content" style="flex: 1;">
                         <div id="container">
                             ${(this.editMode && (this._isReadonly() || !this._hasEditAccess())) ? html`
                                 <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
                                     <span>${!this._hasEditAccess() ? i18next.t('noDashboardWriteAccess') : i18next.t('errorOccurred')}.</span>
                                 </div>
                             ` : undefined}
-                            <div id="builder" style="${(this.editMode && (this._isReadonly() || !this._hasEditAccess())) ? 'display: none' : undefined}">
+                            <div id="builder" style="${styleMap(builderStyles)}">
                                 ${(this.selectedDashboard != null) ? html`
                                     <or-dashboard-preview class="editor" style="background: transparent;"
                                                           .realm="${this.realm}" .template="${this.currentTemplate}" .rerenderPending="${this.rerenderPending}"
@@ -649,10 +679,6 @@ export class OrDashboardBuilder extends LitElement {
                 `}
             </div>
         `
-    }
-
-    registerWidgetType(name: string, widget: OrWidgetEntity) {
-        widgetTypes.set(name, widget);
     }
 
     /* ======================== */

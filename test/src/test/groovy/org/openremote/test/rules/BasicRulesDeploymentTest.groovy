@@ -157,14 +157,14 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
         )
         ruleset = rulesetStorageService.merge(ruleset)
 
-        then: "the global rules engine should not run and the rule engine status should indicate the issue"
+        then: "the global rules engine should still run and the rule engine status should indicate the issue"
         conditions.eventually {
             assert rulesService.globalEngine.deployments.size() == 3
-            assert !rulesService.globalEngine.running
-            assert rulesService.globalEngine.isError()
+            assert rulesService.globalEngine.running
+            assert !rulesService.globalEngine.isError()
             assert rulesService.globalEngine.error instanceof RuntimeException
-            assert rulesService.globalEngine.deployments.values().any({ it.name == "Some global demo rules" && it.status == READY})
-            assert rulesService.globalEngine.deployments.values().any({ it.name == "Some more global rules" && it.status == READY})
+            assert rulesService.globalEngine.deployments.values().any({ it.name == "Some global demo rules" && it.status == DEPLOYED})
+            assert rulesService.globalEngine.deployments.values().any({ it.name == "Some more global rules" && it.status == DEPLOYED})
             assert rulesService.globalEngine.deployments.values().any({ it.name == "Some broken global rules" && it.status == COMPILATION_ERROR})
         }
 
@@ -176,6 +176,7 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
             assert rulesService.globalEngine.deployments.size() == 2
             assert rulesService.globalEngine.running
             assert !rulesService.globalEngine.isError()
+            assert rulesService.globalEngine.error == null
             assert rulesService.globalEngine.deployments.values().any({ it.name == "Some global demo rules" && it.status == DEPLOYED })
             assert rulesService.globalEngine.deployments.values().any({ it.name == "Some more global rules" && it.status == DEPLOYED })
         }
@@ -190,10 +191,8 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
         then: "the realms rule engine should stop and all asset rule engines in this realm should also stop"
         conditions.eventually {
             assert !realmBuildingEngine.isRunning()
-            assert realmBuildingEngine.deployments.size() == 2
             assert rulesService.realmEngines.get(keycloakTestSetup.realmBuilding.name) == null
             assert !apartment3Engine.isRunning()
-            assert apartment3Engine.deployments.size() == 1
             assert rulesService.assetEngines.get(managerTestSetup.apartment3Id) == null
         }
 
@@ -243,7 +242,8 @@ class BasicRulesDeploymentTest extends Specification implements ManagerContainer
             assert realmBuildingEngine != null
             assert realmBuildingEngine.isRunning()
             assert realmBuildingEngine.deployments.size() == 3
-            assert realmBuildingEngine.deployments[ruleset.id].status == EXECUTION_ERROR
+            assert realmBuildingEngine.deployments[ruleset.id].status == DEPLOYED
+            assert realmBuildingEngine.deployments[ruleset.id].error != null
             assert !realmBuildingEngine.isError()
         }
 

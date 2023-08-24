@@ -20,11 +20,11 @@
 package org.openremote.model.asset.agent;
 
 import org.openremote.model.asset.Asset;
-import org.openremote.model.asset.impl.UnknownAsset;
 import org.openremote.model.attribute.Attribute;
 import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.auth.UsernamePassword;
+import org.openremote.model.util.TsIgnoreTypeParams;
 import org.openremote.model.util.ValueUtil;
 import org.openremote.model.value.AttributeDescriptor;
 import org.openremote.model.value.MetaItemType;
@@ -40,6 +40,7 @@ import static org.openremote.model.value.MetaItemType.AGENT_LINK;
  * providing an instance of the associated {@link Protocol} when requested via {@link #getProtocolInstance}.
  */
 @SuppressWarnings("unchecked")
+@TsIgnoreTypeParams
 public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V extends AgentLink<?>> extends Asset<T> {
 
     public static final AttributeDescriptor<Boolean> DISABLED = new AttributeDescriptor<>("agentDisabled", ValueType.BOOLEAN);
@@ -281,7 +282,7 @@ public abstract class Agent<T extends Agent<T, U, V>, U extends Protocol<T>, V e
                 Arrays.stream(info.getAttributeDescriptors())
                     .anyMatch(ad -> ad.getName().equals(attributeName)))
             .orElse(false)
-            && ValueUtil.getAssetInfo(UnknownAsset.class)
+            && ValueUtil.getAssetInfo(Asset.class)
             .map(typeInfo -> Arrays.stream(typeInfo.getAttributeDescriptors()).noneMatch(ad -> ad.getName().equals(attributeName)))
             .orElse(false);
     }

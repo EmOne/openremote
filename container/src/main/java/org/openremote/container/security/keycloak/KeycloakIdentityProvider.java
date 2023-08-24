@@ -28,9 +28,12 @@ import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 import io.undertow.server.handlers.proxy.ProxyHandler;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.LoginConfig;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.keycloak.KeycloakPrincipal;
 import org.keycloak.KeycloakSecurityContext;
 import org.keycloak.adapters.KeycloakConfigResolver;
@@ -50,9 +53,6 @@ import org.openremote.model.auth.OAuthGrant;
 import org.openremote.model.auth.OAuthPasswordGrant;
 
 import javax.security.auth.Subject;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.security.Principal;
 import java.util.Arrays;
@@ -66,10 +66,11 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static jakarta.ws.rs.core.Response.Status.Family.REDIRECTION;
+import static jakarta.ws.rs.core.Response.Status.Family.SUCCESSFUL;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static javax.ws.rs.core.Response.Status.Family.REDIRECTION;
-import static javax.ws.rs.core.Response.Status.Family.SUCCESSFUL;
-import static org.openremote.container.util.MapAccess.*;
+import static org.openremote.container.util.MapAccess.getInteger;
+import static org.openremote.container.util.MapAccess.getString;
 import static org.openremote.container.web.WebClient.getTarget;
 import static org.openremote.container.web.WebService.pathStartsWithHandler;
 import static org.openremote.model.Constants.*;
@@ -80,7 +81,6 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
     // an access token from authentication directly, which gives us full access to import/delete
     // demo data as needed.
     public static final String ADMIN_CLI_CLIENT_ID = "admin-cli";
-    public static final String MANAGER_CLIENT_ID = "manager-keycloak";
     public static final List<String> DEFAULT_CLIENTS = Arrays.asList(
         "account",
         ADMIN_CLI_CLIENT_ID,
@@ -172,8 +172,7 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
 
         LOG.info("Keycloak service URL: " + keycloakServiceUri.build());
 
-        ResteasyClientBuilder clientBuilder =
-            new ResteasyClientBuilder()
+        ResteasyClientBuilderImpl clientBuilder = new ResteasyClientBuilderImpl()
                 .connectTimeout(
                     getInteger(container.getConfig(), KEYCLOAK_CONNECT_TIMEOUT, KEYCLOAK_CONNECT_TIMEOUT_DEFAULT),
                     TimeUnit.MILLISECONDS
@@ -187,15 +186,13 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
                 );
         httpClient = WebClient.registerDefaults(clientBuilder).build();
 
-        setActiveCredentials(getDefaultKeycloakGrant(container));
-
         keycloakDeploymentCache = createKeycloakDeploymentCache();
 
         keycloakConfigResolver = request -> {
             // The realm we authenticate against must be available as a request header
             String realm = request.getHeader(REALM_PARAM_NAME);
             if (realm == null || realm.length() == 0) {
-                LOG.finer("No realm in request, no authentication will be attempted: " + request.getURI());
+                LOG.finest("No realm in request, no authentication will be attempted: " + request.getURI());
                 return notAuthenticatedKeycloakDeployment;
             }
             KeycloakDeployment keycloakDeployment = getKeycloakDeployment(realm, KEYCLOAK_CLIENT_ID);
@@ -222,6 +219,42 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
 
     @Override
     public void start(Container container) {
+
+        OAuthGrant credentials = getStoredCredentials(container);
+
+        if (credentials != null) {
+            LOG.info("Found stored credentials so attempting to use them");
+            if (!setActiveCredentials(credentials)) {
+                LOG.warning("Stored keycloak credentials are not valid, falling back to admin user using " + OR_ADMIN_PASSWORD);
+                credentials = getDefaultKeycloakGrant(container);
+            } else {
+                credentials = null;
+            }
+        } else {
+            LOG.info("No stored credentials so using " + OR_ADMIN_PASSWORD);
+            credentials = getDefaultKeycloakGrant(container);
+        }
+
+        if (credentials != null) {
+            if (!setActiveCredentials(credentials)) {
+                String msg = "Credentials don't work so cannot continue";
+                LOG.warning(msg);
+                throw new RuntimeException(msg);
+            } else {
+                LOG.info(OR_ADMIN_PASSWORD + " credentials are valid so creating/recreating stored credentials");
+                credentials = generateStoredCredentials(container);
+                if (credentials != null) {
+                    LOG.info("Stored credentials successfully generated so using them");
+                    if (!setActiveCredentials(credentials)) {
+                        String msg = "Something went wrong trying to use the new stored credentials, cannot proceed";
+                        LOG.warning(msg);
+                        throw new RuntimeException(msg);
+                    }
+                } else {
+                    LOG.info("Failed to generate stored credentials will continue using " + OR_ADMIN_PASSWORD);
+                }
+            }
+        }
     }
 
     @Override
@@ -341,13 +374,13 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
     }
 
     /**
-     * Update the active credentials used to interact with keycloak; the token endpoint will be overwritten with this
+     * Update the active credentials used to perform keycloak API actions; the token endpoint will be overwritten with this
      * instances keycloak server URI and for the master realm.
      */
-    public synchronized void setActiveCredentials(OAuthGrant grant) {
+    public synchronized boolean setActiveCredentials(OAuthGrant grant) {
 
         if (Objects.equals(this.oAuthGrant, grant)) {
-            return;
+            return true;
         }
 
         this.oAuthGrant = grant;
@@ -363,13 +396,38 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
         keycloakTarget = targetBuilder.build();
         realmsResourcePool.clear();
         LOG.info("Keycloak proxy URI set to: " + proxyURI);
+        LOG.info("Validating keycloak credentials");
+        try {
+            getRealms(realmsResource -> {
+                realmsResource.realm(MASTER_REALM).toRepresentation();
+                LOG.info("Credentials are valid");
+                return null;
+            });
+        } catch (Exception e) {
+            LOG.info("Credentials are invalid");
+            return false;
+        }
+
+        return true;
     }
+
+    /**
+     * Get any stored credentials for connecting to the Keycloak admin API
+     * @return credentials or null if none defined.
+     */
+    protected abstract OAuthGrant getStoredCredentials(Container container);
+
+    /**
+     * Generate and store credentials for connecting to the Keycloak admin API
+     * @return credentials or null if generation/storage failed.
+     */
+    protected abstract OAuthGrant generateStoredCredentials(Container container);
 
     protected LoadingCache<KeycloakRealmClient, KeycloakDeployment> createKeycloakDeploymentCache() {
         CacheLoader<KeycloakRealmClient, KeycloakDeployment> loader =
             new CacheLoader<KeycloakRealmClient, KeycloakDeployment>() {
                 public KeycloakDeployment load(KeycloakRealmClient keycloakRealmClient) {
-                    LOG.fine("Loading adapter config for client '" + keycloakRealmClient.clientId + "' in realm '" + keycloakRealmClient.realm + "'");
+                    LOG.finest("Loading adapter config for client '" + keycloakRealmClient.clientId + "' in realm '" + keycloakRealmClient.realm + "'");
 
                     //KeycloakResource keycloak = getKeycloak();
                     KeycloakResource keycloak = getTarget(httpClient, keycloakServiceUri.build(), null, null, null).proxy(KeycloakResource.class);
@@ -431,6 +489,33 @@ public abstract class KeycloakIdentityProvider implements IdentityProvider {
 
         return subject.getPrincipals().stream().filter(p -> p instanceof KeycloakPrincipal<?>).findFirst()
             .map(Principal::getName).orElse(null);
+    }
+
+    public static String getSubjectName(Principal principal) {
+        return Optional.ofNullable(principal).map(Principal::getName).orElse(null);
+    }
+
+    public static String getSubjectNameAndRealm(Principal principal) {
+        return Optional.ofNullable(principal).map(p -> {
+            if (p instanceof KeycloakPrincipal<?>) {
+                String realm = ((KeycloakPrincipal<?>)p).getKeycloakSecurityContext().getRealm();
+                return realm + ":" + p.getName();
+            } else {
+                return p.getName();
+            }
+        }).orElse(null);
+    }
+
+    public static String getSubjectNameAndRealm(Subject subject) {
+        if (subject == null || subject.getPrincipals() == null) {
+            return null;
+        }
+
+        return subject.getPrincipals().stream().filter(p -> p instanceof KeycloakPrincipal<?>).findFirst()
+            .map(keycloakPrincipal -> {
+                String realm = ((KeycloakPrincipal<?>)keycloakPrincipal).getKeycloakSecurityContext().getRealm();
+                return realm + ":" + keycloakPrincipal.getName();
+            }).orElse(null);
     }
 
     public static String getSubjectId(Subject subject) {

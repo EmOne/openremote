@@ -84,6 +84,12 @@ public class AssetPredictedDatapointService extends AbstractDatapointService<Ass
         persistenceService.doTransaction(em -> upsertValues(assetId, attributeName, valuesAndTimestamps));
     }
 
+    public void purgeValues(String assetId, String attributeName) {
+        persistenceService.doTransaction(em -> em.createQuery(
+            "delete from " + getDatapointClass().getSimpleName() + " dp where dp.assetId=?1 and dp.attributeName=?2"
+        ).setParameter(1, assetId).setParameter(2, attributeName).executeUpdate());
+    }
+
     @Override
     protected Class<AssetPredictedDatapoint> getDatapointClass() {
         return AssetPredictedDatapoint.class;
@@ -107,7 +113,7 @@ public class AssetPredictedDatapointService extends AbstractDatapointService<Ass
     protected void purgeDataPoints() {
         try {
             // Purge data points not in the above list using default duration
-            LOG.finer("Purging predicted data points older than now");
+            LOG.finest("Purging predicted data points older than now");
             doPurge("where dp.timestamp < :dt", Date.from(timerService.getNow().truncatedTo(HOURS)));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Failed to run data points purge", e);

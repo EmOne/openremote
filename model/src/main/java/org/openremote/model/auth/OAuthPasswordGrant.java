@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-import javax.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.Collections;
 import java.util.Objects;
 
@@ -37,7 +37,7 @@ public class OAuthPasswordGrant extends OAuthClientCredentialsGrant {
     protected String password;
 
     @JsonCreator
-    public OAuthPasswordGrant(@JsonProperty("tokenEndpointUri") String tokenEndpointUri,
+    public OAuthPasswordGrant(@JsonProperty(VALUE_KEY_TOKEN_ENDPOINT_URI) String tokenEndpointUri,
                               @JsonProperty(VALUE_KEY_CLIENT_ID) String clientId,
                               @JsonProperty(VALUE_KEY_CLIENT_SECRET) String clientSecret,
                               @JsonProperty(VALUE_KEY_SCOPE) String scope,

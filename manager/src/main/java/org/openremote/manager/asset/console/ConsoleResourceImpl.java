@@ -19,6 +19,7 @@
  */
 package org.openremote.manager.asset.console;
 
+import jakarta.ws.rs.BadRequestException;
 import org.openremote.container.timer.TimerService;
 import org.openremote.manager.asset.AssetStorageService;
 import org.openremote.manager.event.ClientEventService;
@@ -29,7 +30,6 @@ import org.openremote.model.asset.AssetEvent;
 import org.openremote.model.asset.UserAssetLink;
 import org.openremote.model.asset.impl.ConsoleAsset;
 import org.openremote.model.asset.impl.GroupAsset;
-import org.openremote.model.attribute.MetaItem;
 import org.openremote.model.console.ConsoleProviders;
 import org.openremote.model.console.ConsoleRegistration;
 import org.openremote.model.console.ConsoleResource;
@@ -37,23 +37,20 @@ import org.openremote.model.http.RequestParams;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.query.filter.AttributePredicate;
 import org.openremote.model.query.filter.ParentPredicate;
-import org.openremote.model.query.filter.StringPredicate;
 import org.openremote.model.query.filter.RealmPredicate;
+import org.openremote.model.query.filter.StringPredicate;
 import org.openremote.model.security.Realm;
 import org.openremote.model.util.TextUtil;
 
-import javax.ws.rs.BadRequestException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-
-import static org.openremote.container.concurrent.GlobalLock.withLockReturning;
-import static org.openremote.model.value.MetaItemType.*;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleResource {
 
     public static final String CONSOLE_PARENT_ASSET_NAME = "Consoles";
-    protected Map<String, String> realmConsoleParentMap = new HashMap<>();
+    protected Map<String, String> realmConsoleParentMap = new ConcurrentHashMap<>();
     protected AssetStorageService assetStorageService;
 
     public ConsoleResourceImpl(TimerService timerService, ManagerIdentityService identityService, AssetStorageService assetStorageService, ClientEventService clientEventService) {
@@ -92,19 +89,45 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
             consoleAsset = (ConsoleAsset) existingAsset;
         }
 
+        boolean mergeConsole = false;
+
         if (consoleAsset == null) {
-            consoleAsset = initConsoleAsset(consoleRegistration, true, true);
+            mergeConsole = true;
+            consoleAsset = initConsoleAsset(consoleRegistration);
             consoleAsset.setRealm(getRequestRealmName());
             consoleAsset.setParentId(getConsoleParentAssetId(getRequestRealmName()));
             consoleAsset.setId(consoleRegistration.getId());
+            if (!isAuthenticated()) {
+                // Anonymous registration
+                consoleAsset.setAccessPublicRead(true);
+            }
         }
 
-        consoleAsset.setConsoleName(consoleRegistration.getName())
-            .setConsoleVersion(consoleRegistration.getVersion())
-            .setConsoleProviders(new ConsoleProviders(consoleRegistration.getProviders()))
-            .setConsolePlatform(consoleRegistration.getPlatform());
+        if (mergeConsole || !Objects.equals(consoleAsset.getConsoleName().orElse(null), consoleRegistration.getName())) {
+            mergeConsole = true;
+            consoleAsset.setConsoleName(consoleRegistration.getName());
+        }
 
-        consoleAsset = assetStorageService.merge(consoleAsset);
+        boolean providersChanged = mergeConsole || !consoleAsset.getConsoleProviders().map(providers ->
+            providers.equals(consoleRegistration.getProviders())).orElseGet(() -> consoleRegistration.getProviders() != null);
+        if (providersChanged) {
+            mergeConsole = true;
+            consoleAsset.setConsoleProviders(new ConsoleProviders(consoleRegistration.getProviders()));
+        }
+
+        if (mergeConsole || !Objects.equals(consoleAsset.getConsoleVersion().orElse(null), consoleRegistration.getVersion())) {
+            mergeConsole = true;
+            consoleAsset.setConsoleVersion(consoleRegistration.getVersion());
+        }
+
+        if (mergeConsole || !Objects.equals(consoleAsset.getConsolePlatform().orElse(null), consoleRegistration.getPlatform())) {
+            mergeConsole = true;
+            consoleAsset.setConsolePlatform(consoleRegistration.getPlatform());
+        }
+
+        if (mergeConsole) {
+            consoleAsset = assetStorageService.merge(consoleAsset);
+        }
         consoleRegistration.setId(consoleAsset.getId());
 
         // If authenticated link the console to this user
@@ -115,35 +138,20 @@ public class ConsoleResourceImpl extends ManagerWebResource implements ConsoleRe
         return consoleRegistration;
     }
 
-    public static ConsoleAsset initConsoleAsset(ConsoleRegistration consoleRegistration, boolean allowPublicLocationWrite, boolean allowRestrictedLocationWrite) {
-        ConsoleAsset consoleAsset = new ConsoleAsset(consoleRegistration.getName());
-
-        consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(RULE_STATE));
-
-        if (allowPublicLocationWrite) {
-            consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(ACCESS_PUBLIC_WRITE, true));
-        }
-        if (allowRestrictedLocationWrite) {
-            consoleAsset.getAttributes().getOrCreate(Asset.LOCATION).addOrReplaceMeta(new MetaItem<>(ACCESS_RESTRICTED_WRITE, true));
-        }
-
-        consoleAsset.setAccessPublicRead(true);
-
-        return consoleAsset;
+    public static ConsoleAsset initConsoleAsset(ConsoleRegistration consoleRegistration) {
+        return new ConsoleAsset(consoleRegistration.getName());
     }
 
     public String getConsoleParentAssetId(String realm) {
-        return withLockReturning(getClass().getSimpleName() + "::getConsoleParentAssetId", () -> {
-            String id = realmConsoleParentMap.get(realm);
+        String id = realmConsoleParentMap.get(realm);
 
-            if (TextUtil.isNullOrEmpty(id)) {
-                Asset<?> consoleParent = getConsoleParentAsset(assetStorageService, getRequestRealm());
-                id = consoleParent.getId();
-                realmConsoleParentMap.put(realm, id);
-            }
+        if (TextUtil.isNullOrEmpty(id)) {
+            Asset<?> consoleParent = getConsoleParentAsset(assetStorageService, getRequestRealm());
+            id = consoleParent.getId();
+            realmConsoleParentMap.put(realm, id);
+        }
 
-            return id;
-        });
+        return id;
     }
 
     public static Asset<?> getConsoleParentAsset(AssetStorageService assetStorageService, Realm realm) {

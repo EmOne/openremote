@@ -13,8 +13,11 @@ apply plugin: "signing"
 
 dependencies {
 
+    // SLF4J facade
+    testImplementation "org.slf4j:slf4j-api:$slf4jVersion"
+
     testImplementation resolveProject(":setup").sourceSets.integration.output
-    api resolveProject(":manager")
+    testFixturesApi resolveProject(":manager")
 
     testFixturesImplementation "org.codehaus.groovy:groovy:$groovyVersion"
     testFixturesApi platform("org.spockframework:spock-bom:$spockVersion")
@@ -24,14 +27,11 @@ dependencies {
     testFixturesRuntimeOnly "net.bytebuddy:byte-buddy:$byteBuddyVersion" // allows mocking of classes (in addition to interfaces)
     testFixturesRuntimeOnly "org.objenesis:objenesis:$objenesisVersion"      // allows mocking of classes without default constructor (together with ByteBuddy or CGLIB)
 
-    testImplementation("com.github.calimero:calimero-server:$calimeroVersion") {
-        // Libraries should not depend on a logging implementation and/or alpha versions!
-        exclude group: "org.slf4j"
-    }
+    testImplementation "com.github.calimero:calimero-server:$calimeroVersion"
 
     testImplementation "com.google.firebase:firebase-admin:$firebaseAdminVersion"
-    testImplementation "org.simplejavamail:simple-java-mail:$simpleJavaMailVersion"
     testImplementation "org.shredzone.commons:commons-suncalc:$suncalcVersion"
+    testImplementation "com.icegreen:greenmail:$greenmailVersion"
 }
 
 tasks.withType(Test) {
@@ -39,9 +39,12 @@ tasks.withType(Test) {
 }
 
 test {
+    outputs.upToDateWhen { false }
     workingDir = findProject(":openremote") != null ? resolveProject("").projectDir : rootProject.projectDir
     useJUnitPlatform()
+
     testLogging {
+
         // set options for log level LIFECYCLE
         events TestLogEvent.FAILED,
                 TestLogEvent.PASSED,
@@ -57,15 +60,16 @@ test {
                     TestLogEvent.FAILED,
                     TestLogEvent.PASSED,
                     TestLogEvent.SKIPPED,
+                    TestLogEvent.STANDARD_OUT,
                     TestLogEvent.STANDARD_ERROR
             exceptionFormat TestExceptionFormat.FULL
         }
         info.events = debug.events
         info.exceptionFormat = debug.exceptionFormat
 
-//        afterTest { desc, result ->
-//            logger.quiet "${desc.className} > ${desc.name} took: ${(result.endTime - result.startTime)}ms"
-//        }
+        afterTest { desc, result ->
+            logger.lifecycle "${desc.className} > ${desc.name} took: ${(result.endTime - result.startTime)}ms"
+        }
 
         afterSuite { desc, result ->
             if (!desc.parent) { // will match the outermost suite
@@ -90,7 +94,7 @@ publishing {
             from components.java
             pom {
                 name = 'OpenRemote Test Fixtures'
-                description = 'Provides test fixtures for writing backend integration tests; add maven {url "https://jitpack.io"} and maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
+                description = 'Provides test fixtures for writing backend integration tests; add maven {url "https://repo.osgeo.org/repository/release/"} and maven {url "https://pkgs.dev.azure.com/OpenRemote/OpenRemote/_packaging/OpenRemote/maven/v1"} to resolve all dependencies'
                 url = 'https://github.com/openremote/openremote'
                 licenses {
                     license {
@@ -117,6 +121,7 @@ publishing {
     }
 
     repositories {
+        mavenCentral()
         maven {
             if (!version.endsWith('-LOCAL')) {
                 credentials {

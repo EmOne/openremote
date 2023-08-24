@@ -18,10 +18,10 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
-import javax.ws.rs.client.ClientRequestContext
-import javax.ws.rs.client.ClientRequestFilter
-import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
+import jakarta.ws.rs.client.ClientRequestContext
+import jakarta.ws.rs.client.ClientRequestFilter
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.Response
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -132,8 +132,9 @@ class ForecastSolarServiceTest extends Specification implements ManagerContainer
         def config = defaultConfig()
         config << [(OR_FORECAST_SOLAR_API_KEY): "test-key"]
 
-        if (!ForecastSolarService.resteasyClient.configuration.isRegistered(mockServer)) {
-            ForecastSolarService.resteasyClient.register(mockServer, Integer.MAX_VALUE)
+        ForecastSolarService.initClient()
+        if (!ForecastSolarService.resteasyClient.get().configuration.isRegistered(mockServer)) {
+            ForecastSolarService.resteasyClient.get().register(mockServer, Integer.MAX_VALUE)
         }
 
         def container = startContainer(config, defaultServices())
@@ -223,6 +224,11 @@ class ForecastSolarServiceTest extends Specification implements ManagerContainer
         then: "it shouldn't be present present in the calculationFutures"
         conditions.eventually {
             assert forecastSolarService.calculationFutures.get(newSolarAsset2.getId()) == null
+        }
+
+        cleanup: "remove mock"
+        if (ForecastSolarService.resteasyClient.get() != null) {
+            ForecastSolarService.resteasyClient.set(null)
         }
     }
 }

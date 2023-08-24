@@ -20,11 +20,10 @@
 package org.openremote.test.protocol.http
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import org.jboss.resteasy.spi.ResteasyUriInfo
+import org.jboss.resteasy.specimpl.ResteasyUriInfo
 import org.jboss.resteasy.util.BasicAuthHelper
 import org.openremote.agent.protocol.http.HTTPAgent
 import org.openremote.agent.protocol.http.HTTPAgentLink
-import org.openremote.agent.protocol.http.HTTPMethod
 import org.openremote.agent.protocol.http.HTTPProtocol
 import org.openremote.container.web.OAuthServerResponse
 import org.openremote.manager.agent.AgentService
@@ -39,6 +38,7 @@ import org.openremote.model.attribute.MetaItem
 import org.openremote.model.auth.OAuthGrant
 import org.openremote.model.auth.OAuthPasswordGrant
 import org.openremote.model.auth.OAuthRefreshTokenGrant
+import org.openremote.model.http.HTTPMethod
 import org.openremote.model.util.ValueUtil
 import org.openremote.model.value.RegexValueFilter
 import org.openremote.model.value.SubStringValueFilter
@@ -48,10 +48,10 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
-import javax.ws.rs.HttpMethod
-import javax.ws.rs.client.ClientRequestContext
-import javax.ws.rs.client.ClientRequestFilter
-import javax.ws.rs.core.*
+import jakarta.ws.rs.HttpMethod
+import jakarta.ws.rs.client.ClientRequestContext
+import jakarta.ws.rs.client.ClientRequestFilter
+import jakarta.ws.rs.core.*
 import java.util.regex.Pattern
 
 import static org.openremote.model.value.MetaItemType.AGENT_LINK
@@ -255,8 +255,9 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
         def agentService = container.getService(AgentService.class)
 
         when: "the web target builder is configured to use the mock server"
-        if (!HTTPProtocol.client.configuration.isRegistered(mockServer)) {
-            HTTPProtocol.client.register(mockServer, Integer.MAX_VALUE)
+        HTTPProtocol.initClient()
+        if (!HTTPProtocol.client.get().configuration.isRegistered(mockServer)) {
+            HTTPProtocol.client.get().register(mockServer, Integer.MAX_VALUE)
         }
 
         and: "a HTTP client agent is created"
@@ -541,6 +542,11 @@ class HttpClientProtocolTest extends Specification implements ManagerContainerTr
         then: "the server should have received the request"
         conditions.eventually {
             assert mockServer.successCount == 1
+        }
+
+        cleanup: "remove mock"
+        if (HTTPProtocol.client.get() != null) {
+            HTTPProtocol.client.set(null)
         }
     }
 }

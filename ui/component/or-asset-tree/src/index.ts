@@ -20,8 +20,7 @@ import {
     LogicGroup,
     LogicGroupOperator,
     SharedEvent,
-    StringPredicate,
-    WellknownAssets
+    StringPredicate
 } from "@openremote/model";
 import "@openremote/or-translate";
 import {style} from "./style";
@@ -254,10 +253,6 @@ export const getAssetTypes = async () => {
     }
 }
 
-export function getDefaultAllowedAddAssetTypes(): AssetDescriptor[] {
-    return AssetModelUtil.getAssetDescriptors().filter(ad => ad.name !== WellknownAssets.UNKNOWNASSET);
-}
-
 @customElement("or-asset-tree")
 export class OrAssetTree extends subscribe(manager)(LitElement) {
 
@@ -456,7 +451,7 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                 <div id="header-btns">
                     <or-mwc-input ?hidden="${!this.selectedIds || this.selectedIds.length === 0 || !this.showDeselectBtn}" type="${InputType.BUTTON}" icon="close" @or-mwc-input-changed="${() => this._onDeselectClicked()}"></or-mwc-input>
                     <or-mwc-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length !== 1}" type="${InputType.BUTTON}" icon="content-copy" @or-mwc-input-changed="${() => this._onCopyClicked()}"></or-mwc-input>
-                    <or-mwc-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length === 0 || this.selectedNodes.some((node) => this.isAncestorSelected(node))}" type="${InputType.BUTTON}" icon="delete" @or-mwc-input-changed="${() => this._onDeleteClicked()}"></or-mwc-input>
+                    <or-mwc-input ?hidden="${this._isReadonly() || !this.selectedIds || this.selectedIds.length === 0}" type="${InputType.BUTTON}" icon="delete" @or-mwc-input-changed="${() => this._onDeleteClicked()}"></or-mwc-input>
                     <or-mwc-input ?hidden="${this._isReadonly() || !this._canAdd()}" type="${InputType.BUTTON}" icon="plus" @or-mwc-input-changed="${() => this._onAddClicked()}"></or-mwc-input>
                     <or-mwc-input hidden type="${InputType.BUTTON}" icon="magnify" @or-mwc-input-changed="${() => this._onSearchClicked()}"></or-mwc-input>
                     
@@ -1290,9 +1285,8 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
                                             parsedValue = parsedValue.replace(/"/g,'');
 
                                             let valueFromAttribute: string = attr.value as string;
-                                            let answer = valueFromAttribute.match(parsedValue);
 
-                                            if (answer && answer.length > 0) {
+                                            if (valueFromAttribute.toLowerCase().indexOf(parsedValue.toLowerCase()) != -1) {
                                                 atLeastOneAttributeMatchValue = true;
                                             }
                                         }
@@ -1488,14 +1482,16 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
             return;
         }
 
+        // Get all unique descendant IDs of selected nodes
+        let uniqueAssets = new Set<Asset>();
+        OrAssetTree._forEachNodeRecursive(this._selectedNodes, (node) => {
+            uniqueAssets.add(node.asset!);
+        });
+        const assetIds: string[] = Array.from(uniqueAssets).map(asset => asset.id!);
+        const assetNames: string[] = Array.from(uniqueAssets).map(asset => asset.name!);
+
         const doDelete = () => {
             this.disabled = true;
-
-            // Get all descendant IDs of selected nodes
-            const assetIds: string[] = [];
-            OrAssetTree._forEachNodeRecursive(this._selectedNodes, (node) => {
-                assetIds.push(node.asset!.id!);
-            });
 
             manager.rest.api.AssetResource.delete({
                 assetId: assetIds
@@ -1517,7 +1513,7 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
         };
 
         // Confirm deletion request
-        showOkCancelDialog(i18next.t("delete"), i18next.t("deleteAssetsConfirm"), i18next.t("delete"))
+        showOkCancelDialog(i18next.t("deleteAssets"), i18next.t("deleteAssetsConfirm", { assetNames: assetNames.join(",\n- ") }), i18next.t("delete"))
             .then((ok) => {
                 if (ok) {
                     doDelete();
@@ -1565,7 +1561,7 @@ export class OrAssetTree extends subscribe(manager)(LitElement) {
             }
         }
 
-        return getDefaultAllowedAddAssetTypes()
+        return AssetModelUtil.getAssetDescriptors()
             .filter((descriptor) => (!includedAssetTypes || includedAssetTypes.some((inc) => Util.stringMatch(inc, descriptor.name!)))
                 && (!excludedAssetTypes || !excludedAssetTypes.some((exc) => Util.stringMatch(exc, descriptor.name!))));
     }

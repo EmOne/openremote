@@ -24,12 +24,13 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import org.openremote.model.calendar.CalendarEvent;
 import org.openremote.model.util.ValueUtil;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.Date;
 import java.util.Optional;
 
@@ -65,7 +66,8 @@ public abstract class Ruleset {
 
     @Id
     @Column(name = "ID")
-    @GeneratedValue(generator = PERSISTENCE_SEQUENCE_ID_GENERATOR)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = PERSISTENCE_SEQUENCE_ID_GENERATOR)
+    @SequenceGenerator(name = PERSISTENCE_SEQUENCE_ID_GENERATOR, initialValue = 1000, allocationSize = 1)
     protected Long id;
 
     @Version
@@ -98,7 +100,7 @@ public abstract class Ruleset {
     protected Lang lang = Lang.GROOVY;
 
     @Column(name = "META", columnDefinition = "jsonb")
-    @org.hibernate.annotations.Type(type = PERSISTENCE_JSON_VALUE_TYPE)
+    @org.hibernate.annotations.Type(JsonBinaryType.class)
     protected ObjectNode meta;
 
     @Transient
@@ -231,7 +233,7 @@ public abstract class Ruleset {
     }
 
     public boolean isContinueOnError() {
-        return Optional.ofNullable(getMeta().get(CONTINUE_ON_ERROR)).map(node -> node.asBoolean(false)).orElse(false);
+        return Optional.ofNullable(getMeta().get(CONTINUE_ON_ERROR)).map(node -> node.asBoolean(true)).orElse(true);
     }
 
     public Ruleset setContinueOnError(boolean continueOnError) {
@@ -250,6 +252,7 @@ public abstract class Ruleset {
         return this;
     }
 
+    // TODO: Unify triggers for rulesets
     public boolean isTriggerOnPredictedData() {
         return Optional.ofNullable(getMeta().get(TRIGGER_ON_PREDICTED_DATA)).map(node -> node.asBoolean(false)).orElse(false);
     }

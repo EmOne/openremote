@@ -20,7 +20,7 @@ import org.openremote.model.attribute.AttributeEvent;
 import org.openremote.model.query.AssetQuery;
 import org.openremote.model.syslog.SyslogCategory;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -110,6 +111,7 @@ public class ForecastWindService extends RouteBuilder implements ContainerServic
     public static final String OR_OPEN_WEATHER_API_APP_ID = "OR_OPEN_WEATHER_API_APP_ID";
 
     protected static final Logger LOG = SyslogCategory.getLogger(DATA, ForecastWindService.class.getName());
+    protected static final AtomicReference<ResteasyClient> resteasyClient = new AtomicReference<>();
     protected AssetStorageService assetStorageService;
     protected AssetProcessingService assetProcessingService;
     protected GatewayService gatewayService;
@@ -117,23 +119,16 @@ public class ForecastWindService extends RouteBuilder implements ContainerServic
     protected ClientEventService clientEventService;
     protected ScheduledExecutorService executorService;
     protected RulesService rulesService;
-
-
-    protected static ResteasyClient resteasyClient;
     private ResteasyWebTarget weatherForecastWebTarget;
     private String openWeatherAppId;
 
     private final Map<String, ScheduledFuture<?>> calculationFutures = new HashMap<>();
 
-    static {
-        resteasyClient = createClient(org.openremote.container.Container.EXECUTOR_SERVICE);
-    }
-
     @SuppressWarnings("unchecked")
     @Override
     public void configure() throws Exception {
         from(PERSISTENCE_TOPIC)
-                .routeId("ForecastWindAssetPersistenceChanges")
+                .routeId("Persistence-ForecastWind")
                 .filter(isPersistenceEventForEntityType(ElectricityProducerWindAsset.class))
                 .filter(isNotForGateway(gatewayService))
                 .process(exchange -> processAssetChange((PersistenceEvent<ElectricityProducerWindAsset>) exchange.getIn().getBody(PersistenceEvent.class)));
@@ -159,7 +154,9 @@ public class ForecastWindService extends RouteBuilder implements ContainerServic
             return;
         }
 
-        weatherForecastWebTarget = resteasyClient
+        initClient();
+
+        weatherForecastWebTarget = resteasyClient.get()
                 .target("https://api.openweathermap.org/data/2.5")
                 .queryParam("units", "metric")
                 .queryParam("exclude", "minutely,daily,alerts")
@@ -193,6 +190,14 @@ public class ForecastWindService extends RouteBuilder implements ContainerServic
     @Override
     public void stop(Container container) throws Exception {
         new ArrayList<>(calculationFutures.keySet()).forEach(this::stopCalculation);
+    }
+
+    protected static void initClient() {
+        synchronized (resteasyClient) {
+            if (resteasyClient.get() == null) {
+                resteasyClient.set(createClient(org.openremote.container.Container.EXECUTOR_SERVICE));
+            }
+        }
     }
 
     protected void processAttributeEvent(AttributeEvent attributeEvent) {
