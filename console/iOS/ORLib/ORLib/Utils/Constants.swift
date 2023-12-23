@@ -27,6 +27,7 @@ public enum Segues {
     public static var goToWizardAppView = "goToWizardAppView"
     public static var goToWizardRealmView = "goToWizardRealmView"
     public static var goToWebView = "goToWebView"
+    public static var addProject = "addProject"
 }
 
 public enum DefaultsKey {
@@ -59,6 +60,7 @@ public enum Actions {
     public static let store = "STORE"
     public static let retrieve = "RETRIEVE"
     public static let scanQr = "SCAN_QR"
+    public static let scanResult = "SCAN_RESULT"
     public static let scanBleDevices = "SCAN_BLE_DEVICES"
     public static let connectToBleDevice = "CONNECT_TO_DEVICE"
     public static let sendToBleDevice = "SEND_TO_DEVICE"
