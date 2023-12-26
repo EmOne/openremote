@@ -15,6 +15,9 @@ dependencies {
 
     api "jakarta.annotation:jakarta.annotation-api:$javaxAnnotationsVersion"
     api "jakarta.ws.rs:jakarta.ws.rs-api:$jaxrsSpecVersion"
+//    api "javax.ws.rs:javax.ws.rs-api:2.1.1"
+//    api "javax.persistence:javax.persistence-api:2.2"
+    api "jakarta.persistence:jakarta.persistence-api:$javaxPersistenceVersion"
 
     api "org.keycloak:keycloak-core:$keycloakVersion"
 
