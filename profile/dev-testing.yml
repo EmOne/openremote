@@ -12,7 +12,7 @@ services:
     extends:
       file: deploy.yml
       service: keycloak
-    # volumes:
+#    volumes:
     #   Map custom themes
     #  - ../deployment:/deployment
     ports:
