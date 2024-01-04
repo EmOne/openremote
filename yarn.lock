@@ -2157,10 +2157,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@openremote/core@workspace:*, @openremote/core@workspace:ui/component/core":
+"@openremote/core@^1.0.3, @openremote/core@workspace:*, @openremote/core@workspace:ui/component/core":
   version: 0.0.0-use.local
   resolution: "@openremote/core@workspace:ui/component/core"
   dependencies:
+    "@openremote/core": ^1.0.3
     "@openremote/or-icon": ^1.1.0
     "@openremote/rest": "workspace:*"
     "@openremote/util": "workspace:*"
@@ -2267,10 +2268,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openremote/model@workspace:*, @openremote/model@workspace:ui/component/model":
+"@openremote/model@^1.0.3, @openremote/model@workspace:*, @openremote/model@workspace:ui/component/model":
   version: 0.0.0-use.local
   resolution: "@openremote/model@workspace:ui/component/model"
   dependencies:
+    "@openremote/model": ^1.0.3
     "@openremote/util": "workspace:*"
   languageName: unknown
   linkType: soft
@@ -3943,9 +3945,9 @@ __metadata:
   linkType: hard
 
 "caniuse-lite@npm:^1.0.30001332":
-  version: 1.0.30001334
-  resolution: "caniuse-lite@npm:1.0.30001334"
-  checksum: 1a1c783942d53ca37dc3dbdd7c4a6f7994996d0bfd178d4f4cdd714c6b09d9d9f48a3a2452e009e8203aba4b7a2da43f3d9d88060668a46fc237dbe0d39358a3
+  version: 1.0.30001572
+  resolution: "caniuse-lite@npm:1.0.30001572"
+  checksum: 7d017a99a38e29ccee4ed3fc0ef1eb90cf082fcd3a7909c5c536c4ba1d55c5b26ecc1e4ad82c1caa6bfadce526764b354608710c9b61a75bdc7ce8ca15c5fcf2
   languageName: node
   linkType: hard
 

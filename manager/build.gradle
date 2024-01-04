@@ -26,12 +26,12 @@ dependencies {
     implementation "org.apache.camel:camel-undertow:$camelVersion"
 
     implementation ("io.netty:netty-codec-http:$nettyVersion") {
-        force = true
+//        force = true
     }
 
     // Exposed via MQTT API
     api ("io.netty:netty-codec-mqtt:$nettyVersion") {
-        force = true
+//        force = true
     }
 
     implementation("org.apache.activemq:artemis-mqtt-protocol:$activeMQVersion") {
