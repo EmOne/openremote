@@ -29,6 +29,10 @@ import { OrMapMarker } from "./markers/or-map-marker";
 import { getLatLngBounds, getLngLat } from "./util";
 import {GeoJsonConfig, MapType } from "@openremote/model";
 import { Feature, FeatureCollection } from "geojson";
+import * as maptilersdk from '@maptiler/sdk';
+import '@maptiler/sdk/dist/maptiler-sdk.css';
+
+maptilersdk.config.apiKey = 'BHxyhag1nfyMXD2k0k3z';
 
 const mapboxJsStyles = require("mapbox.js/dist/mapbox.css");
 const maplibreGlStyles = require("maplibre-gl/dist/maplibre-gl.css");
@@ -312,7 +316,7 @@ export class MapWidget {
             const options: OptionsGL = {
                 attributionControl: true,
                 container: this._mapContainer,
-                style: settings as StyleGL,
+                style: 'https://api.maptiler.com/maps/hybrid/style.json?key=BHxyhag1nfyMXD2k0k3z', //settings as StyleGL,
                 transformRequest: (url, resourceType) => {
                     return {
                         headers: {Authorization: manager.getAuthorizationHeader()},
@@ -342,8 +346,15 @@ export class MapWidget {
                 options.zoom = this._zoom;
             }
 
-            this._mapGl = new map.Map(options);
+            this._mapGl = //new map.Map(options);
+                new maplibregl.Map({
+                    attributionControl: options.attributionControl,
+                    container: this._mapContainer,
+                    zoom: options.zoom,
+                    center: options.center,
+                    style: options.style
 
+                });
             await this.styleLoaded();
 
             this._mapGl.on("click", (e: MapMouseEvent) => {
